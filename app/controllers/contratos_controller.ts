@@ -47,9 +47,9 @@ export default class ContratosController {
             const novoItem = await ContratoItem.create({
               contrato_id: novoContrato.id,
               titulo: item.titulo,
-              unidadeMedida: item.unidade_medida,
-              valorUnitario: item.valor_unitario,
-              saldoQuantidadeContratada: item.saldo_quantidade_contratada,
+              unidade_medida: item.unidade_medida,
+              valor_unitario: item.valor_unitario,
+              saldo_quantidade_contratada: item.saldo_quantidade_contratada,
             })
             return novoItem
           }
@@ -149,9 +149,9 @@ export default class ContratosController {
                 const contratoItem = await ContratoItem.find(item.id)
                 if (contratoItem) {
                   contratoItem.titulo = item.titulo
-                  contratoItem.unidadeMedida = item.unidade_medida
-                  contratoItem.valorUnitario = item.valor_unitario
-                  contratoItem.saldoQuantidadeContratada = item.saldo_quantidade_contratada
+                  contratoItem.unidade_medida = item.unidade_medida
+                  contratoItem.valor_unitario = item.valor_unitario
+                  contratoItem.saldo_quantidade_contratada = item.saldo_quantidade_contratada
                   await contratoItem.save()
                 }
               } else {
@@ -159,9 +159,9 @@ export default class ContratosController {
                 await ContratoItem.create({
                   contrato_id: contrato.id,
                   titulo: item.titulo,
-                  unidadeMedida: item.unidade_medida,
-                  valorUnitario: item.valor_unitario,
-                  saldoQuantidadeContratada: item.saldo_quantidade_contratada,
+                  unidade_medida: item.unidade_medida,
+                  valor_unitario: item.valor_unitario,
+                  saldo_quantidade_contratada: item.saldo_quantidade_contratada,
                 })
               }
             }

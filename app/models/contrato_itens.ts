@@ -14,13 +14,13 @@ export default class ContratoItens extends BaseModel {
   declare titulo: string
 
   @column()
-  declare unidadeMedida: string
+  declare unidade_medida: string
 
   @column()
-  declare valorUnitario: string
+  declare valor_unitario: string
 
   @column()
-  declare saldoQuantidadeContratada: string
+  declare saldo_quantidade_contratada: string
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
