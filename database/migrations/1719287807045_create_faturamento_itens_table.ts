@@ -21,8 +21,10 @@ export default class extends BaseSchema {
         .onDelete('CASCADE')
         .onUpdate('CASCADE')
       table.string('titulo').notNullable()
+      table.string('unidade_medida').notNullable()
       table.string('valor_unitario').notNullable()
       table.string('quantidade_itens').notNullable()
+      table.string('saldo_quantidade_contratada').notNullable()
 
       table.timestamp('created_at')
       table.timestamp('updated_at')

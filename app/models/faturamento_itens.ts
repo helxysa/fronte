@@ -9,16 +9,22 @@ export default class FaturamentoItens extends BaseModel {
   declare id: number
 
   @column()
-  declare faturamentoId: number
+  declare faturamento_id: number
 
   @column()
-  declare contratoItemId: number
+  declare contrato_item_id: number
 
   @column()
   declare titulo: string
 
   @column()
+  declare unidade_medida: string
+
+  @column()
   declare valor_unitario: string
+
+  @column()
+  declare saldo_quantidade_contratada: string
 
   @column()
   declare quantidade_itens: string
@@ -29,7 +35,7 @@ export default class FaturamentoItens extends BaseModel {
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
 
-  @belongsTo(() => Faturamentos)
+  @belongsTo(() => Faturamentos, { foreignKey: 'faturamento_id' })
   declare faturamentos: BelongsTo<typeof Faturamentos>
 
   @belongsTo(() => ContratoItens)

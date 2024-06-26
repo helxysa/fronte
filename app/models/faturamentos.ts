@@ -9,7 +9,7 @@ export default class Faturamentos extends BaseModel {
   declare id: number
 
   @column()
-  declare contratoId: number
+  declare contrato_id: number
 
   @column()
   declare status: string
@@ -20,9 +20,9 @@ export default class Faturamentos extends BaseModel {
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
 
-  @belongsTo(() => Contratos)
+  @belongsTo(() => Contratos, { foreignKey: 'contrato_id' })
   declare contratos: BelongsTo<typeof Contratos>
 
-  @hasMany(() => FaturamentoItens)
+  @hasMany(() => FaturamentoItens, { foreignKey: 'faturamento_id' })
   declare faturamentoItens: HasMany<typeof FaturamentoItens>
 }
