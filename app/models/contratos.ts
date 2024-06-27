@@ -42,6 +42,6 @@ export default class Contratos extends BaseModel {
   })
   declare contratoItens: HasMany<typeof ContratoItens>
 
-  @hasMany(() => Faturamentos)
+  @hasMany(() => Faturamentos, { foreignKey: 'contrato_id' })
   declare faturamentos: HasMany<typeof Faturamentos>
 }

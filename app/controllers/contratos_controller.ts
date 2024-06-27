@@ -68,7 +68,12 @@ export default class ContratosController {
 
   async getContracts({ response }: HttpContext) {
     try {
-      const contratos = await Contrato.query().preload('contratoItens').exec()
+      const contratos = await Contrato.query()
+        .preload('contratoItens')
+        .preload('faturamentos', (query) => {
+          query.preload('faturamentoItens')
+        })
+        .exec()
 
       return response.json(contratos)
     } catch (err) {
@@ -81,6 +86,9 @@ export default class ContratosController {
     try {
       const contrato = await Contrato.query()
         .preload('contratoItens')
+        .preload('faturamentos', (query) => {
+          query.preload('faturamentoItens')
+        })
         .where('id', params.id)
         .first()
 
