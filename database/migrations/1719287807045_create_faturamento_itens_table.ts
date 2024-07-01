@@ -14,11 +14,11 @@ export default class extends BaseSchema {
         .onDelete('CASCADE')
         .onUpdate('CASCADE')
 
-      table.integer('contrato_item_id').unsigned().notNullable()
+      table.integer('contrato_item_id').unsigned().nullable()
       table
         .foreign('contrato_item_id')
         .references('contrato_itens.id')
-        .onDelete('CASCADE')
+        .onDelete('SET NULL')
         .onUpdate('CASCADE')
       table.string('titulo').notNullable()
       table.string('unidade_medida').notNullable()

@@ -1,6 +1,7 @@
 import { DateTime } from 'luxon'
-import { BaseModel, belongsTo, column } from '@adonisjs/lucid/orm'
+import { BaseModel, beforeDelete, belongsTo, column } from '@adonisjs/lucid/orm'
 import Contratos from '#models/contratos'
+import FaturamentoItens from '#models/faturamento_itens'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 
 export default class ContratoItens extends BaseModel {
@@ -32,4 +33,11 @@ export default class ContratoItens extends BaseModel {
     foreignKey: 'contrato_id',
   })
   declare contratos: BelongsTo<typeof Contratos>
+
+  @beforeDelete()
+  static async setNullFaturamentoItems(contratoItem: ContratoItens) {
+    await FaturamentoItens.query()
+      .where('contrato_item_id', contratoItem.id)
+      .update({ contrato_item_id: null })
+  }
 }
