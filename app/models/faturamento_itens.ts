@@ -1,4 +1,5 @@
 import { DateTime } from 'luxon'
+console.log(DateTime)
 import { BaseModel, belongsTo, column } from '@adonisjs/lucid/orm'
 import Faturamentos from './faturamentos.js'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'

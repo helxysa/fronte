@@ -1,8 +1,7 @@
-/* eslint-disable @typescript-eslint/explicit-member-accessibility */
 import { DateTime } from 'luxon'
+console.log(DateTime)
 import type { HasMany } from '@adonisjs/lucid/types/relations'
 import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
-// import { HasMany } from '@adonisjs/lucid/types/relations'
 import ContratoItens from './contrato_itens.js'
 import Faturamentos from './faturamentos.js'
 

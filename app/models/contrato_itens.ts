@@ -1,4 +1,5 @@
 import { DateTime } from 'luxon'
+console.log(DateTime)
 import { BaseModel, beforeDelete, belongsTo, column } from '@adonisjs/lucid/orm'
 import Contratos from '#models/contratos'
 import FaturamentoItens from '#models/faturamento_itens'
