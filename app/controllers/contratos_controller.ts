@@ -7,7 +7,8 @@ export default class ContratosController {
   async createContract({ request, response }: HttpContext) {
     const {
       nome_cliente,
-      vigencia,
+      data_inicio,
+      data_fim,
       saldo_contrato,
       fiscal,
       ponto_focal,
@@ -16,7 +17,8 @@ export default class ContratosController {
       items,
     } = request.only([
       'nome_cliente',
-      'vigencia',
+      'data_inicio',
+      'data_fim',
       'saldo_contrato',
       'fiscal',
       'ponto_focal',
@@ -28,7 +30,8 @@ export default class ContratosController {
     try {
       const novoContrato = await Contrato.create({
         nome_cliente: nome_cliente,
-        vigencia,
+        data_inicio,
+        data_fim,
         saldo_contrato: saldo_contrato,
         fiscal,
         ponto_focal: ponto_focal,
@@ -107,7 +110,8 @@ export default class ContratosController {
     try {
       const {
         nome_cliente,
-        vigencia,
+        data_inicio,
+        data_fim,
         saldo_contrato,
         fiscal,
         ponto_focal,
@@ -116,7 +120,8 @@ export default class ContratosController {
         items,
       } = request.only([
         'nome_cliente',
-        'vigencia',
+        'data_inicio',
+        'data_fim',
         'saldo_contrato',
         'fiscal',
         'ponto_focal',
@@ -132,7 +137,8 @@ export default class ContratosController {
       }
 
       contrato.nome_cliente = nome_cliente
-      contrato.vigencia = vigencia
+      contrato.data_inicio = data_inicio
+      contrato.data_fim = data_fim
       contrato.saldo_contrato = saldo_contrato
       contrato.fiscal = fiscal
       contrato.ponto_focal = ponto_focal

@@ -12,7 +12,10 @@ export default class Contratos extends BaseModel {
   declare nome_cliente: string
 
   @column()
-  declare vigencia: DateTime
+  declare data_inicio: DateTime
+
+  @column()
+  declare data_fim: DateTime
 
   @column()
   declare saldo_contrato: string
