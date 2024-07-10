@@ -8,8 +8,7 @@ export default class extends BaseSchema {
       table.increments('id')
 
       table.string('nome_cliente')
-      table.date('data_inicio')
-      table.date('data_fim')
+      table.date('vigencia')
       table.string('saldo_contrato')
       table.string('fiscal')
       table.string('ponto_focal')
