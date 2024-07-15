@@ -1,5 +1,8 @@
+/* eslint-disable prettier/prettier */
 import router from '@adonisjs/core/services/router'
 import { middleware } from './kernel.js'
+import Application from '@adonisjs/core/services/app'
+// import RenovacaoController from '#controllers/renovacao_controller'
 
 const UsersController = () => import('#controllers/users_controller')
 const AuthController = () => import('#controllers/auth_controller')
@@ -18,38 +21,34 @@ router.get('users/:id', [UsersController, 'show'])
 router.post('users', [UsersController, 'store'])
 router.put('users/:id', [UsersController, 'update'])
 router.delete('users/:id', [UsersController, 'destroy'])
+router.get('files/:filename', async ({ params, response }) => {
+  return response.attachment(Application.tmpPath('uploads', params.filename), params.filename)
+})
 // Contratos
 router.post('/contratos', [ContratosController, 'createContract'])
-// .use(middleware.auth())
 router.get('/contratos', [ContratosController, 'getContracts'])
-// .use(middleware.auth())
 router.get('/contratos/:id', [ContratosController, 'getContractById'])
-// .use(middleware.auth())
 router.put('/contratos/:id', [ContratosController, 'updateContract'])
-// .use(middleware.auth())
 router.delete('/contratos/:id', [ContratosController, 'deleteContract'])
-// .use(middleware.auth())
 // Itens de contratos
 router.post('/contratos/:id/items', [ContratoItemController, 'createContractItem'])
-// .use(middleware.auth())
 router.get('/contratos/:id/items', [ContratoItemController, 'getContractItem'])
-// .use(middleware.auth())
 router.put('/contratos/items/:itemId', [ContratoItemController, 'updateContractItem'])
-// .use(middleware.auth())
 router.delete('/contratos/items/:itemId', [ContratoItemController, 'deleteContractItem'])
-// .use(middleware.auth())
 //Faturamentos
 router.post('/contratos/:id/faturamentos', [FaturamentosController, 'createFaturamento'])
-// .use(middleware.auth())
 router.get('/faturamentos', [FaturamentosController, 'getFaturamentos'])
-// .use(middleware.auth())
 router.get('/faturamentos/:id', [FaturamentosController, 'getFaturamentoById'])
-// .use(middleware.auth())
 router.put('/faturamentos/:id', [FaturamentosController, 'updateFaturamento'])
-// .use(middleware.auth())
 router.delete('/faturamentos/:id', [FaturamentosController, 'deleteFaturamento'])
-// .use(middleware.auth())
 router.delete('/faturamentos/:id/items/:itemId', [FaturamentosController, 'deleteFaturamentoItem'])
-// .use(middleware.auth())
 router.post('/faturamentos/:id/items', [FaturamentosController, 'addFaturamentoItem'])
-// .use(middleware.auth())
+
+//Renovacoes
+router.post('/contratos/:id/renovar', [ContratosController, 'createRenovacao'])
+router.post('/renovacao/:renovacao_id/item', [ContratosController, 'createRenovacaoItens'])
+router.get('/contratos/:contrato_id/renovacoes', [ContratosController, 'getRenovacoesByContract'])
+router.get('/renovacoes/:renovacao_id', [ContratosController, 'getRenovacaoById'])
+router.delete('/renovacao/:renovacao_id', [ContratosController, 'deleteRenovacao'])
+router.delete('/renovacao/item/:item_id', [ContratosController, 'deleteRenovacaoItem'])
+router.post('/renovacoes/:renovacao_id/faturamentos', [ContratosController, 'createFaturamentoRenovacao'])

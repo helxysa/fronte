@@ -47,7 +47,10 @@ export default class FaturamentosController {
 
   async getFaturamentos({ response }: HttpContext) {
     try {
-      const faturamentos = await Faturamentos.query().preload('faturamentoItens').exec()
+      const faturamentos = await Faturamentos.query()
+        .whereNull('renovacao_id')
+        .preload('faturamentoItens')
+        .exec()
       return response.json(faturamentos)
     } catch (err) {
       console.error(err)

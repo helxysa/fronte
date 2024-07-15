@@ -14,6 +14,8 @@ export default class extends BaseSchema {
         .onDelete('CASCADE')
         .onUpdate('CASCADE')
       table.string('status').notNullable()
+      // table.string('nota_fiscal')
+      // table.string('data_pagamento')
 
       table.timestamp('created_at')
       table.timestamp('updated_at')
