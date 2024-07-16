@@ -100,12 +100,17 @@ export default class ContratosController {
   async getContractById({ params, response }: HttpContext) {
     try {
       const contrato = await Contrato.query()
-        .preload('contratoItens')
-        .preload('renovacao', (query) => {
-          query.preload('contratoItens')
+        .preload('contratoItens', (query) => {
+          query.whereNull('renovacao_id')
         })
         .preload('faturamentos', (query) => {
           query.preload('faturamentoItens')
+        })
+        .preload('renovacao', (query) => {
+          query.preload('contratoItens')
+          query.preload('faturamentos', (faturamentoQuery) => {
+            faturamentoQuery.preload('faturamentoItens')
+          })
         })
         .where('id', params.id)
         .first()
