@@ -45,14 +45,25 @@ router.delete('/faturamentos/:id/items/:itemId', [FaturamentosController, 'delet
 router.post('/faturamentos/:id/items', [FaturamentosController, 'addFaturamentoItem'])
 
 //Renovacoes
+//Criar renovação
 router.post('/contratos/:id/renovar', [RenovacaoController, 'createRenovacao'])
+//Criar item da renovação
 router.post('/renovacao/:renovacao_id/item', [RenovacaoController, 'createRenovacaoItens'])
+//Listar renovação por contrato
 router.get('/contratos/:contrato_id/renovacoes', [RenovacaoController, 'getRenovacoesByContract'])
+//Listar renovação por id
 router.get('/renovacoes/:renovacao_id', [RenovacaoController, 'getRenovacaoById'])
+//deletar renovação
 router.delete('/renovacao/:renovacao_id', [RenovacaoController, 'deleteRenovacao'])
+//deletar item da renovação
 router.delete('/renovacao/item/:item_id', [RenovacaoController, 'deleteRenovacaoItem'])
+//deletar faturamento da renovação
 router.delete('/renovacao/faturamento/item/:id_item', [RenovacaoController, 'deleteRenovacaoFaturamentoItem'])
+//Criar faturamento da renovação
 router.post('/renovacoes/:renovacao_id/faturamentos', [RenovacaoController, 'createFaturamentoRenovacao'])
+//adicionar item no faturamento da renovação
 router.post('/renovacoes/faturamentos/:faturamento_id', [RenovacaoController, 'addItemToFaturamento'])
+//atualizar renovação
 router.put('/renovacao/:renovacao_id', [RenovacaoController, 'updateRenovacao'])
+//atualizar item da renovação
 router.put('/renovacao/items/:id_item', [RenovacaoController, 'updateRenovacaoItem'])
