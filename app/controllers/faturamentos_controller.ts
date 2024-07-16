@@ -7,12 +7,19 @@ import ContratoItens from '#models/contrato_itens'
 export default class FaturamentosController {
   async createFaturamento({ request, response, params }: HttpContext) {
     const { id } = params
-    const { status, itens } = request.only(['status', 'itens'])
+    const { status, nota_fiscal, data_pagamento, itens } = request.only([
+      'status',
+      'itens',
+      'nota_fiscal',
+      'data_pagamento',
+    ])
 
     try {
       const novoFaturamento = await Faturamentos.create({
         contrato_id: id,
         status,
+        nota_fiscal: nota_fiscal,
+        data_pagamento: data_pagamento,
       })
 
       const faturamentoComItens = await Promise.all(
@@ -80,7 +87,12 @@ export default class FaturamentosController {
 
   async updateFaturamento({ request, response, params }: HttpContext) {
     const { id } = params
-    const { status, itens } = request.only(['status', 'itens'])
+    const { status, itens, nota_fiscal, data_pagamento } = request.only([
+      'status',
+      'itens',
+      'nota_fiscal',
+      'data_pagamento',
+    ])
 
     try {
       const faturamento = await Faturamentos.find(id)
@@ -90,6 +102,9 @@ export default class FaturamentosController {
       }
 
       faturamento.status = status
+      faturamento.nota_fiscal = nota_fiscal
+      faturamento.data_pagamento = data_pagamento
+
       await faturamento.save()
 
       await Promise.all(

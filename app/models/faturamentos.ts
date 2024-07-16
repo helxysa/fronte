@@ -18,6 +18,12 @@ export default class Faturamentos extends BaseModel {
   @column()
   declare status: string
 
+  @column()
+  declare data_pagamento: DateTime
+
+  @column()
+  declare nota_fiscal: string
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

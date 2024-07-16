@@ -2,11 +2,11 @@
 import router from '@adonisjs/core/services/router'
 import { middleware } from './kernel.js'
 import Application from '@adonisjs/core/services/app'
-// import RenovacaoController from '#controllers/renovacao_controller'
 
 const UsersController = () => import('#controllers/users_controller')
 const AuthController = () => import('#controllers/auth_controller')
 const ContratosController = () => import('#controllers/contratos_controller')
+const RenovacaoController = () => import('#controllers/renovacao_controller')
 const ContratoItemController = () => import('#controllers/contrato_item_controller')
 const FaturamentosController = () => import('#controllers/faturamentos_controller')
 
@@ -45,10 +45,14 @@ router.delete('/faturamentos/:id/items/:itemId', [FaturamentosController, 'delet
 router.post('/faturamentos/:id/items', [FaturamentosController, 'addFaturamentoItem'])
 
 //Renovacoes
-router.post('/contratos/:id/renovar', [ContratosController, 'createRenovacao'])
-router.post('/renovacao/:renovacao_id/item', [ContratosController, 'createRenovacaoItens'])
-router.get('/contratos/:contrato_id/renovacoes', [ContratosController, 'getRenovacoesByContract'])
-router.get('/renovacoes/:renovacao_id', [ContratosController, 'getRenovacaoById'])
-router.delete('/renovacao/:renovacao_id', [ContratosController, 'deleteRenovacao'])
-router.delete('/renovacao/item/:item_id', [ContratosController, 'deleteRenovacaoItem'])
-router.post('/renovacoes/:renovacao_id/faturamentos', [ContratosController, 'createFaturamentoRenovacao'])
+router.post('/contratos/:id/renovar', [RenovacaoController, 'createRenovacao'])
+router.post('/renovacao/:renovacao_id/item', [RenovacaoController, 'createRenovacaoItens'])
+router.get('/contratos/:contrato_id/renovacoes', [RenovacaoController, 'getRenovacoesByContract'])
+router.get('/renovacoes/:renovacao_id', [RenovacaoController, 'getRenovacaoById'])
+router.delete('/renovacao/:renovacao_id', [RenovacaoController, 'deleteRenovacao'])
+router.delete('/renovacao/item/:item_id', [RenovacaoController, 'deleteRenovacaoItem'])
+router.delete('/renovacao/faturamento/item/:id_item', [RenovacaoController, 'deleteRenovacaoFaturamentoItem'])
+router.post('/renovacoes/:renovacao_id/faturamentos', [RenovacaoController, 'createFaturamentoRenovacao'])
+router.post('/renovacoes/faturamentos/:faturamento_id', [RenovacaoController, 'addItemToFaturamento'])
+router.put('/renovacao/:renovacao_id', [RenovacaoController, 'updateRenovacao'])
+router.put('/renovacao/items/:id_item', [RenovacaoController, 'updateRenovacaoItem'])
