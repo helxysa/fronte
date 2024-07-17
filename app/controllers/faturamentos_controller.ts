@@ -7,10 +7,10 @@ import ContratoItens from '#models/contrato_itens'
 export default class FaturamentosController {
   async createFaturamento({ request, response, params }: HttpContext) {
     const { id } = params
-    const { status, nota_fiscal, data_pagamento, itens } = request.only([
+    const { status, projetos, data_pagamento, itens } = request.only([
       'status',
       'itens',
-      'nota_fiscal',
+      'projetos',
       'data_pagamento',
     ])
 
@@ -18,7 +18,7 @@ export default class FaturamentosController {
       const novoFaturamento = await Faturamentos.create({
         contrato_id: id,
         status,
-        nota_fiscal: nota_fiscal,
+        projetos: projetos,
         data_pagamento: data_pagamento,
       })
 
@@ -87,10 +87,10 @@ export default class FaturamentosController {
 
   async updateFaturamento({ request, response, params }: HttpContext) {
     const { id } = params
-    const { status, itens, nota_fiscal, data_pagamento } = request.only([
+    const { status, itens, projetos, data_pagamento } = request.only([
       'status',
       'itens',
-      'nota_fiscal',
+      'projetos',
       'data_pagamento',
     ])
 
@@ -102,7 +102,7 @@ export default class FaturamentosController {
       }
 
       faturamento.status = status
-      faturamento.nota_fiscal = nota_fiscal
+      faturamento.projetos = projetos
       faturamento.data_pagamento = data_pagamento
 
       await faturamento.save()

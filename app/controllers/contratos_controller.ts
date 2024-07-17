@@ -12,6 +12,7 @@ export default class ContratosController {
       nome_cliente,
       data_inicio,
       data_fim,
+      observacoes,
       saldo_contrato,
       fiscal,
       ponto_focal,
@@ -22,6 +23,7 @@ export default class ContratosController {
       'nome_cliente',
       'data_inicio',
       'data_fim',
+      'observacoes',
       'saldo_contrato',
       'fiscal',
       'ponto_focal',
@@ -35,6 +37,7 @@ export default class ContratosController {
         nome_cliente: nome_cliente,
         data_inicio,
         data_fim,
+        observacoes,
         saldo_contrato: saldo_contrato,
         fiscal,
         ponto_focal: ponto_focal,
@@ -132,6 +135,7 @@ export default class ContratosController {
         nome_cliente,
         data_inicio,
         data_fim,
+        observacoes,
         saldo_contrato,
         fiscal,
         ponto_focal,
@@ -142,6 +146,7 @@ export default class ContratosController {
         'nome_cliente',
         'data_inicio',
         'data_fim',
+        'observacoes',
         'saldo_contrato',
         'fiscal',
         'ponto_focal',
@@ -159,6 +164,7 @@ export default class ContratosController {
       contrato.nome_cliente = nome_cliente
       contrato.data_inicio = data_inicio
       contrato.data_fim = data_fim
+      contrato.observacoes = observacoes
       contrato.saldo_contrato = saldo_contrato
       contrato.fiscal = fiscal
       contrato.ponto_focal = ponto_focal
