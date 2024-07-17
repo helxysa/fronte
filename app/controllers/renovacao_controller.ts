@@ -102,10 +102,10 @@ export default class RenovacaoController {
 
   async createFaturamentoRenovacao({ request, response, params }: HttpContext) {
     const { renovacao_id } = params
-    const { status, itens, nota_fiscal, data_pagamento } = request.only([
+    const { status, itens, projetos, data_pagamento } = request.only([
       'status',
       'itens',
-      'nota_fiscal',
+      'projetos',
       'data_pagamento',
     ])
 
@@ -119,7 +119,7 @@ export default class RenovacaoController {
         contrato_id: renovacao.contrato_id,
         renovacao_id: renovacao.id,
         status,
-        nota_fiscal,
+        projetos,
         data_pagamento,
       })
 

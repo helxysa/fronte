@@ -19,6 +19,9 @@ export default class Contratos extends BaseModel {
   declare data_fim: DateTime
 
   @column()
+  declare observacoes: string
+
+  @column()
   declare saldo_contrato: string
 
   @column()

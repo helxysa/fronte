@@ -9,6 +9,7 @@ export default class extends BaseSchema {
       table.dropColumn('vigencia')
       table.date('data_inicio')
       table.date('data_fim')
+      table.string('observacoes').nullable()
     })
   }
 

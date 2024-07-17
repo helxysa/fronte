@@ -22,7 +22,7 @@ export default class Faturamentos extends BaseModel {
   declare data_pagamento: DateTime
 
   @column()
-  declare nota_fiscal: string
+  declare projetos: string
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
