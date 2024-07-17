@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node bin/server.js",
     "build": "node ace build && cd dist && npm ci --omit='dev' && cd .. && cp .env dist/.env",
-    "migrations": "node ace migration:fresh",
+    "migrations": "node ace migration:fresh --force",
     "seed": "node ace db:seed",
     "dev": "node ace serve --hmr",
     "test": "node ace test",
