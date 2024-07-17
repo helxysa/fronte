@@ -7,12 +7,19 @@ import ContratoItens from '#models/contrato_itens'
 export default class FaturamentosController {
   async createFaturamento({ request, response, params }: HttpContext) {
     const { id } = params
-    const { status, itens } = request.only(['status', 'itens'])
+    const { status, projetos, data_pagamento, itens } = request.only([
+      'status',
+      'itens',
+      'projetos',
+      'data_pagamento',
+    ])
 
     try {
       const novoFaturamento = await Faturamentos.create({
         contrato_id: id,
         status,
+        projetos: projetos,
+        data_pagamento: data_pagamento,
       })
 
       const faturamentoComItens = await Promise.all(
@@ -47,7 +54,10 @@ export default class FaturamentosController {
 
   async getFaturamentos({ response }: HttpContext) {
     try {
-      const faturamentos = await Faturamentos.query().preload('faturamentoItens').exec()
+      const faturamentos = await Faturamentos.query()
+        .whereNull('renovacao_id')
+        .preload('faturamentoItens')
+        .exec()
       return response.json(faturamentos)
     } catch (err) {
       console.error(err)
@@ -77,7 +87,12 @@ export default class FaturamentosController {
 
   async updateFaturamento({ request, response, params }: HttpContext) {
     const { id } = params
-    const { status, itens } = request.only(['status', 'itens'])
+    const { status, itens, projetos, data_pagamento } = request.only([
+      'status',
+      'itens',
+      'projetos',
+      'data_pagamento',
+    ])
 
     try {
       const faturamento = await Faturamentos.find(id)
@@ -87,6 +102,9 @@ export default class FaturamentosController {
       }
 
       faturamento.status = status
+      faturamento.projetos = projetos
+      faturamento.data_pagamento = data_pagamento
+
       await faturamento.save()
 
       await Promise.all(

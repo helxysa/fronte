@@ -3,6 +3,7 @@ import { BaseModel, beforeDelete, belongsTo, column } from '@adonisjs/lucid/orm'
 import Contratos from '#models/contratos'
 import FaturamentoItens from '#models/faturamento_itens'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
+import Renovacao from '#models/renovacao'
 
 export default class ContratoItens extends BaseModel {
   @column({ isPrimary: true })
@@ -10,6 +11,9 @@ export default class ContratoItens extends BaseModel {
 
   @column()
   declare contrato_id: number
+
+  @column()
+  declare renovacao_id: number
 
   @column()
   declare titulo: string
@@ -33,6 +37,9 @@ export default class ContratoItens extends BaseModel {
     foreignKey: 'contrato_id',
   })
   declare contratos: BelongsTo<typeof Contratos>
+
+  @belongsTo(() => Renovacao)
+  declare renovacao: BelongsTo<typeof Renovacao>
 
   @beforeDelete()
   static async setNullFaturamentoItems(contratoItem: ContratoItens) {

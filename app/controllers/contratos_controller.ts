@@ -2,6 +2,9 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import Contrato from '#models/contratos'
 import ContratoItem from '#models/contrato_itens'
+// import Renovacao from '#models/renovacao'
+// import Faturamentos from '#models/faturamentos'
+// import FaturamentoItens from '#models/faturamento_itens'
 
 export default class ContratosController {
   async createContract({ request, response }: HttpContext) {
@@ -9,6 +12,7 @@ export default class ContratosController {
       nome_cliente,
       data_inicio,
       data_fim,
+      observacoes,
       saldo_contrato,
       fiscal,
       ponto_focal,
@@ -19,6 +23,7 @@ export default class ContratosController {
       'nome_cliente',
       'data_inicio',
       'data_fim',
+      'observacoes',
       'saldo_contrato',
       'fiscal',
       'ponto_focal',
@@ -32,6 +37,7 @@ export default class ContratosController {
         nome_cliente: nome_cliente,
         data_inicio,
         data_fim,
+        observacoes,
         saldo_contrato: saldo_contrato,
         fiscal,
         ponto_focal: ponto_focal,
@@ -72,9 +78,18 @@ export default class ContratosController {
   async getContracts({ response }: HttpContext) {
     try {
       const contratos = await Contrato.query()
-        .preload('contratoItens')
+        .preload('contratoItens', (query) => {
+          query.whereNull('renovacao_id')
+        })
         .preload('faturamentos', (query) => {
+          query.whereNull('renovacao_id')
           query.preload('faturamentoItens')
+        })
+        .preload('renovacao', (query) => {
+          query.preload('contratoItens')
+          query.preload('faturamentos', (faturamentoQuery) => {
+            faturamentoQuery.preload('faturamentoItens')
+          })
         })
         .exec()
 
@@ -88,9 +103,17 @@ export default class ContratosController {
   async getContractById({ params, response }: HttpContext) {
     try {
       const contrato = await Contrato.query()
-        .preload('contratoItens')
+        .preload('contratoItens', (query) => {
+          query.whereNull('renovacao_id')
+        })
         .preload('faturamentos', (query) => {
           query.preload('faturamentoItens')
+        })
+        .preload('renovacao', (query) => {
+          query.preload('contratoItens')
+          query.preload('faturamentos', (faturamentoQuery) => {
+            faturamentoQuery.preload('faturamentoItens')
+          })
         })
         .where('id', params.id)
         .first()
@@ -112,6 +135,7 @@ export default class ContratosController {
         nome_cliente,
         data_inicio,
         data_fim,
+        observacoes,
         saldo_contrato,
         fiscal,
         ponto_focal,
@@ -122,6 +146,7 @@ export default class ContratosController {
         'nome_cliente',
         'data_inicio',
         'data_fim',
+        'observacoes',
         'saldo_contrato',
         'fiscal',
         'ponto_focal',
@@ -139,6 +164,7 @@ export default class ContratosController {
       contrato.nome_cliente = nome_cliente
       contrato.data_inicio = data_inicio
       contrato.data_fim = data_fim
+      contrato.observacoes = observacoes
       contrato.saldo_contrato = saldo_contrato
       contrato.fiscal = fiscal
       contrato.ponto_focal = ponto_focal
