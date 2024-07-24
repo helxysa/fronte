@@ -2,9 +2,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import Contrato from '#models/contratos'
 import ContratoItem from '#models/contrato_itens'
-// import Renovacao from '#models/renovacao'
-// import Faturamentos from '#models/faturamentos'
-// import FaturamentoItens from '#models/faturamento_itens'
 
 export default class ContratosController {
   async createContract({ request, response }: HttpContext) {
@@ -81,14 +78,14 @@ export default class ContratosController {
         .preload('contratoItens', (query) => {
           query.whereNull('renovacao_id')
         })
-        .preload('faturamentos', (query) => {
+        .preload('lancamentos', (query) => {
           query.whereNull('renovacao_id')
-          query.preload('faturamentoItens')
+          query.preload('lancamentoItens')
         })
         .preload('renovacao', (query) => {
           query.preload('contratoItens')
-          query.preload('faturamentos', (faturamentoQuery) => {
-            faturamentoQuery.preload('faturamentoItens')
+          query.preload('lancamentos', (lancamentoQuery) => {
+            lancamentoQuery.preload('lancamentoItens')
           })
         })
         .exec()
@@ -106,13 +103,13 @@ export default class ContratosController {
         .preload('contratoItens', (query) => {
           query.whereNull('renovacao_id')
         })
-        .preload('faturamentos', (query) => {
-          query.preload('faturamentoItens')
+        .preload('lancamentos', (query) => {
+          query.preload('lancamentoItens')
         })
         .preload('renovacao', (query) => {
           query.preload('contratoItens')
-          query.preload('faturamentos', (faturamentoQuery) => {
-            faturamentoQuery.preload('faturamentoItens')
+          query.preload('lancamentos', (lancamentoQuery) => {
+            lancamentoQuery.preload('lancamentoItens')
           })
         })
         .where('id', params.id)

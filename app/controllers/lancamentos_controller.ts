@@ -1,11 +1,11 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import type { HttpContext } from '@adonisjs/core/http'
-import Faturamentos from '#models/faturamentos'
-import FaturamentoItens from '#models/faturamento_itens'
+import Lancamentos from '#models/lancamentos'
+import LancamentoItens from '#models/lancamento_itens'
 import ContratoItens from '#models/contrato_itens'
 
-export default class FaturamentosController {
-  async createFaturamento({ request, response, params }: HttpContext) {
+export default class LancamentosController {
+  async createLancamento({ request, response, params }: HttpContext) {
     const { id } = params
     const { status, projetos, data_pagamento, itens } = request.only([
       'status',
@@ -15,22 +15,22 @@ export default class FaturamentosController {
     ])
 
     try {
-      const novoFaturamento = await Faturamentos.create({
+      const novoLancamento = await Lancamentos.create({
         contrato_id: id,
         status,
         projetos: projetos,
         data_pagamento: data_pagamento,
       })
 
-      const faturamentoComItens = await Promise.all(
+      const lancamentoComItens = await Promise.all(
         itens.map(async (item: { id_item: number; quantidade_itens: string }) => {
           const contratoItem = await ContratoItens.find(item.id_item)
           if (!contratoItem) {
             throw new Error(`Item de contrato com id ${item.id_item} não encontrado.`)
           }
 
-          const novoItem = await FaturamentoItens.create({
-            faturamento_id: novoFaturamento.id,
+          const novoItem = await LancamentoItens.create({
+            lancamento_id: novoLancamento.id,
             contrato_item_id: contratoItem.id,
             titulo: contratoItem.titulo,
             unidade_medida: contratoItem.unidade_medida,
@@ -43,8 +43,8 @@ export default class FaturamentosController {
       )
 
       return response.status(201).json({
-        ...novoFaturamento.toJSON(),
-        itens: faturamentoComItens,
+        ...novoLancamento.toJSON(),
+        itens: lancamentoComItens,
       })
     } catch (err) {
       console.error(err)
@@ -52,40 +52,40 @@ export default class FaturamentosController {
     }
   }
 
-  async getFaturamentos({ response }: HttpContext) {
+  async getLancamentos({ response }: HttpContext) {
     try {
-      const faturamentos = await Faturamentos.query()
+      const lancamentos = await Lancamentos.query()
         .whereNull('renovacao_id')
-        .preload('faturamentoItens')
+        .preload('lancamentoItens')
         .exec()
-      return response.json(faturamentos)
+      return response.json(lancamentos)
     } catch (err) {
       console.error(err)
       return response.status(500).send('Server error')
     }
   }
 
-  async getFaturamentoById({ params, response }: HttpContext) {
+  async getLancamentoById({ params, response }: HttpContext) {
     const { id } = params
 
     try {
-      const faturamento = await Faturamentos.query()
+      const lancamento = await Lancamentos.query()
         .where('id', id)
-        .preload('faturamentoItens')
+        .preload('lancamentoItens')
         .first()
 
-      if (!faturamento) {
-        return response.status(404).send('Faturamento não encontrado.')
+      if (!lancamento) {
+        return response.status(404).send('Lançamento não encontrado.')
       }
 
-      return response.json(faturamento)
+      return response.json(lancamento)
     } catch (err) {
       console.error(err)
       return response.status(500).send('Server error')
     }
   }
 
-  async updateFaturamento({ request, response, params }: HttpContext) {
+  async updateLancamento({ request, response, params }: HttpContext) {
     const { id } = params
     const { status, itens, projetos, data_pagamento } = request.only([
       'status',
@@ -95,82 +95,82 @@ export default class FaturamentosController {
     ])
 
     try {
-      const faturamento = await Faturamentos.find(id)
+      const lancamento = await Lancamentos.find(id)
 
-      if (!faturamento) {
-        return response.status(404).send('Faturamento não encontrado.')
+      if (!lancamento) {
+        return response.status(404).send('Lançamento não encontrado.')
       }
 
-      faturamento.status = status
-      faturamento.projetos = projetos
-      faturamento.data_pagamento = data_pagamento
+      lancamento.status = status
+      lancamento.projetos = projetos
+      lancamento.data_pagamento = data_pagamento
 
-      await faturamento.save()
+      await lancamento.save()
 
       await Promise.all(
         itens.map(async (item: { id: number; quantidade_itens: string }) => {
-          const faturamentoItem = await FaturamentoItens.find(item.id)
+          const lancamentoItem = await LancamentoItens.find(item.id)
 
-          if (faturamentoItem) {
-            faturamentoItem.merge({
+          if (lancamentoItem) {
+            lancamentoItem.merge({
               quantidade_itens: item.quantidade_itens,
             })
-            await faturamentoItem.save()
+            await lancamentoItem.save()
           }
         })
       )
 
-      await faturamento.load('faturamentoItens')
+      await lancamento.load('lancamentoItens')
 
-      return response.status(200).json(faturamento)
+      return response.status(200).json(lancamento)
     } catch (err) {
       console.error(err)
       return response.status(500).send('Server error')
     }
   }
 
-  async deleteFaturamento({ params, response }: HttpContext) {
+  async deleteLancamento({ params, response }: HttpContext) {
     const { id } = params
 
     try {
-      const faturamento = await Faturamentos.find(id)
+      const lancamento = await Lancamentos.find(id)
 
-      if (!faturamento) {
-        return response.status(404).send('Faturamento não encontrado.')
+      if (!lancamento) {
+        return response.status(404).send('Lançamento não encontrado.')
       }
 
-      await faturamento.delete()
+      await lancamento.delete()
 
-      return response.status(200).send('Faturamento deletado com sucesso.')
+      return response.status(200).send('Lançamento deletado com sucesso.')
     } catch (err) {
       console.error(err)
       return response.status(500).send('Server error')
     }
   }
 
-  async deleteFaturamentoItem({ params, response }: HttpContext) {
+  async deleteLancamentoItem({ params, response }: HttpContext) {
     const { id, itemId } = params
 
     try {
-      const faturamentoItem = await FaturamentoItens.query()
-        .where('faturamento_id', id)
+      const lancamentoItem = await LancamentoItens.query()
+        .where('lancamento_id', id)
         .andWhere('id', itemId)
         .first()
 
-      if (!faturamentoItem) {
-        return response.status(404).send('item do faturamento não encontrado.')
+      if (!lancamentoItem) {
+        return response.status(404).send('item do lancamento não encontrado.')
       }
 
-      await faturamentoItem.delete()
+      await lancamentoItem.delete()
 
-      return response.status(200).send('Item do faturamento deletado com sucesso.')
+      return response.status(200).send('Item do lancamento deletado com sucesso.')
     } catch (err) {
       console.error(err)
       return response.status(500).send('Server error')
     }
   }
 
-  async addFaturamentoItem({ request, response, params }: HttpContext) {
+  async addLancamentoItem({ request, response, params }: HttpContext) {
     const { id } = params
     const { contrato_item_id, quantidade_itens } = request.only([
       'contrato_item_id',
@@ -178,25 +178,25 @@ export default class FaturamentosController {
     ])
 
     try {
-      const faturamento = await Faturamentos.query().where('id', id).preload('contratos').first()
+      const lancamento = await Lancamentos.query().where('id', id).preload('contratos').first()
 
-      if (!faturamento) {
-        return response.status(404).send('Faturamento não encontrado')
+      if (!lancamento) {
+        return response.status(404).send('Lançamento não encontrado')
       }
 
       const contratoItem = await ContratoItens.query()
         .where('id', contrato_item_id)
-        .where('contrato_id', faturamento.contratos.id)
+        .where('contrato_id', lancamento.contratos.id)
         .first()
 
       if (!contratoItem) {
         return response
           .status(404)
-          .send('Item do contrato não encontrado ou não associado ao contrato do faturamento.')
+          .send('Item do contrato não encontrado ou não associado ao contrato do lançamento.')
       }
 
-      const faturamentoItem = await FaturamentoItens.create({
-        faturamento_id: faturamento.id,
+      const lancamentoItem = await LancamentoItens.create({
+        lancamento_id: lancamento.id,
         contrato_item_id: contratoItem.id,
         titulo: contratoItem.titulo,
         unidade_medida: contratoItem.unidade_medida,
@@ -205,7 +205,7 @@ export default class FaturamentosController {
         quantidade_itens: quantidade_itens,
       })
 
-      return response.status(201).json(faturamentoItem)
+      return response.status(201).json(lancamentoItem)
     } catch (err) {
       console.error(err)
       response.status(500).send('Server error')

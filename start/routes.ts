@@ -8,7 +8,7 @@ const AuthController = () => import('#controllers/auth_controller')
 const ContratosController = () => import('#controllers/contratos_controller')
 const RenovacaoController = () => import('#controllers/renovacao_controller')
 const ContratoItemController = () => import('#controllers/contrato_item_controller')
-const FaturamentosController = () => import('#controllers/faturamentos_controller')
+const LancamentosController = () => import('#controllers/lancamentos_controller')
 
 // Registro, Login e Autenticação
 router.post('/register', [AuthController, 'register']).as('auth.register')
@@ -35,14 +35,14 @@ router.post('/contratos/:id/items', [ContratoItemController, 'createContractItem
 router.get('/contratos/:id/items', [ContratoItemController, 'getContractItem'])
 router.put('/contratos/items/:itemId', [ContratoItemController, 'updateContractItem'])
 router.delete('/contratos/items/:itemId', [ContratoItemController, 'deleteContractItem'])
-//Faturamentos
-router.post('/contratos/:id/faturamentos', [FaturamentosController, 'createFaturamento'])
-router.get('/faturamentos', [FaturamentosController, 'getFaturamentos'])
-router.get('/faturamentos/:id', [FaturamentosController, 'getFaturamentoById'])
-router.put('/faturamentos/:id', [FaturamentosController, 'updateFaturamento'])
-router.delete('/faturamentos/:id', [FaturamentosController, 'deleteFaturamento'])
-router.delete('/faturamentos/:id/items/:itemId', [FaturamentosController, 'deleteFaturamentoItem'])
-router.post('/faturamentos/:id/items', [FaturamentosController, 'addFaturamentoItem'])
+//Lancamentos
+router.post('/contratos/:id/lancamentos', [LancamentosController, 'createLancamento'])
+router.get('/lancamentos', [LancamentosController, 'getLancamentos'])
+router.get('/lancamentos/:id', [LancamentosController, 'getLancamentoById'])
+router.put('/lancamentos/:id', [LancamentosController, 'updateLancamento'])
+router.delete('/lancamentos/:id', [LancamentosController, 'deleteLancamento'])
+router.delete('/lancamentos/:id/items/:itemId', [LancamentosController, 'deleteLancamentoItem'])
+router.post('/lancamentos/:id/items', [LancamentosController, 'addLancamentoItem'])
 
 //Renovacoes
 //Criar renovação
@@ -57,12 +57,12 @@ router.get('/renovacoes/:renovacao_id', [RenovacaoController, 'getRenovacaoById'
 router.delete('/renovacao/:renovacao_id', [RenovacaoController, 'deleteRenovacao'])
 //deletar item da renovação
 router.delete('/renovacao/item/:item_id', [RenovacaoController, 'deleteRenovacaoItem'])
-//deletar faturamento da renovação
-router.delete('/renovacao/faturamento/item/:id_item', [RenovacaoController, 'deleteRenovacaoFaturamentoItem'])
-//Criar faturamento da renovação
-router.post('/renovacoes/:renovacao_id/faturamentos', [RenovacaoController, 'createFaturamentoRenovacao'])
-//adicionar item no faturamento da renovação
-router.post('/renovacoes/faturamentos/:faturamento_id', [RenovacaoController, 'addItemToFaturamento'])
+//deletar lancamento da renovação
+router.delete('/renovacao/lancamento/item/:id_item', [RenovacaoController, 'deleteRenovacaoLancamentoItem'])
+//Criar lancamento da renovação
+router.post('/renovacoes/:renovacao_id/lancamentos', [RenovacaoController, 'createLancamentoRenovacao'])
+//adicionar item no lancamento da renovação
+router.post('/renovacoes/lancamentos/:lancamento_id', [RenovacaoController, 'addItemToLancamento'])
 //atualizar renovação
 router.put('/renovacao/:renovacao_id', [RenovacaoController, 'updateRenovacao'])
 //atualizar item da renovação
