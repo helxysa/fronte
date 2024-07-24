@@ -2,7 +2,7 @@ import { DateTime } from 'luxon'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
 import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
 import ContratoItens from './contrato_itens.js'
-import Faturamentos from './faturamentos.js'
+import Lancamentos from './lancamentos.js'
 import Renovacao from './renovacao.js'
 
 export default class Contratos extends BaseModel {
@@ -52,6 +52,6 @@ export default class Contratos extends BaseModel {
   })
   declare renovacao: HasMany<typeof Renovacao>
 
-  @hasMany(() => Faturamentos, { foreignKey: 'contrato_id' })
-  declare faturamentos: HasMany<typeof Faturamentos>
+  @hasMany(() => Lancamentos, { foreignKey: 'contrato_id' })
+  declare lancamentos: HasMany<typeof Lancamentos>
 }

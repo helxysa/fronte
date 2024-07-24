@@ -3,8 +3,8 @@ import type { HttpContext } from '@adonisjs/core/http'
 import Contrato from '#models/contratos'
 import ContratoItem from '#models/contrato_itens'
 import Renovacao from '#models/renovacao'
-import Faturamentos from '#models/faturamentos'
-import FaturamentoItens from '#models/faturamento_itens'
+import Lancamentos from '#models/lancamentos'
+import LancamentoItens from '#models/lancamento_itens'
 
 export default class RenovacaoController {
   async createRenovacao({ params, request, response }: HttpContext) {
@@ -100,7 +100,7 @@ export default class RenovacaoController {
     }
   }
 
-  async createFaturamentoRenovacao({ request, response, params }: HttpContext) {
+  async createLancamentoRenovacao({ request, response, params }: HttpContext) {
     const { renovacao_id } = params
     const { status, itens, projetos, data_pagamento } = request.only([
       'status',
@@ -115,7 +115,7 @@ export default class RenovacaoController {
         return response.status(404).json({ message: 'Renovação não encontrada' })
       }
 
-      const novoFaturamento = await Faturamentos.create({
+      const novoLancamento = await Lancamentos.create({
         contrato_id: renovacao.contrato_id,
         renovacao_id: renovacao.id,
         status,
@@ -123,7 +123,7 @@ export default class RenovacaoController {
         data_pagamento,
       })
 
-      const faturamentoComItens = await Promise.all(
+      const lancamentoComItens = await Promise.all(
         itens.map(async (item: { id_item: number; quantidade_itens: string }) => {
           const contratoItem = await ContratoItem.query()
             .where('id', item.id_item)
@@ -136,8 +136,8 @@ export default class RenovacaoController {
             )
           }
 
-          const novoItem = await FaturamentoItens.create({
-            faturamento_id: novoFaturamento.id,
+          const novoItem = await LancamentoItens.create({
+            lancamento_id: novoLancamento.id,
             contrato_item_id: contratoItem.id,
             titulo: contratoItem.titulo,
             unidade_medida: contratoItem.unidade_medida,
@@ -150,8 +150,8 @@ export default class RenovacaoController {
       )
 
       return response.status(201).json({
-        ...novoFaturamento.toJSON(),
-        itens: faturamentoComItens,
+        ...novoLancamento.toJSON(),
+        itens: lancamentoComItens,
       })
     } catch (err) {
       console.error(err)
@@ -159,29 +159,29 @@ export default class RenovacaoController {
     }
   }
 
-  async addItemToFaturamento({ params, request, response }: HttpContext) {
+  async addItemToLancamento({ params, request, response }: HttpContext) {
     const { contrato_item_id, quantidade_itens } = request.only([
       'contrato_item_id',
       'quantidade_itens',
     ])
-    const { faturamento_id } = params
+    const { lancamento_id } = params
 
     try {
-      const faturamento = await Faturamentos.findOrFail(faturamento_id)
+      const lancamento = await Lancamentos.findOrFail(lancamento_id)
 
       const contratoItem = await ContratoItem.query()
         .where('id', contrato_item_id)
-        .andWhere('renovacao_id', faturamento.renovacao_id)
+        .andWhere('renovacao_id', lancamento.renovacao_id)
         .first()
 
       if (!contratoItem || !contratoItem.renovacao_id) {
         throw new Error(
-          `Item de contrato com ID ${contrato_item_id} não encontrado ou não associado à renovação do faturamento.`
+          `Item de contrato com ID ${contrato_item_id} não encontrado ou não associado à renovação.`
         )
       }
 
-      const novoItemFaturamento = await FaturamentoItens.create({
-        faturamento_id: faturamento.id,
+      const novoItemLancamento = await LancamentoItens.create({
+        lancamento_id: lancamento.id,
         contrato_item_id: contratoItem.id,
         titulo: contratoItem.titulo,
         unidade_medida: contratoItem.unidade_medida,
@@ -190,10 +190,10 @@ export default class RenovacaoController {
         quantidade_itens: quantidade_itens,
       })
 
-      return response.status(201).json(novoItemFaturamento)
+      return response.status(201).json(novoItemLancamento)
     } catch (err) {
       console.error(err)
-      return response.status(500).send('Erro ao adicionar item ao faturamento')
+      return response.status(500).send('Erro ao adicionar item ao lançamento')
     }
   }
 
@@ -260,8 +260,8 @@ export default class RenovacaoController {
       const renovacoes = await Renovacao.query()
         .where('contrato_id', params.contrato_id)
         .preload('contratoItens')
-        .preload('faturamentos', (query) => {
-          query.preload('faturamentoItens')
+        .preload('lancamentos', (query) => {
+          query.preload('lancamentoItens')
         })
 
       return response.status(200).json(renovacoes)
@@ -276,8 +276,8 @@ export default class RenovacaoController {
       const renovacao = await Renovacao.query()
         .where('id', params.renovacao_id)
         .preload('contratoItens')
-        .preload('faturamentos', (query) => {
-          query.preload('faturamentoItens')
+        .preload('lancamentos', (query) => {
+          query.preload('lancamentoItens')
         })
         .first()
 
@@ -325,19 +325,19 @@ export default class RenovacaoController {
     }
   }
 
-  async deleteRenovacaoFaturamentoItem({ params, response }: HttpContext) {
+  async deleteRenovacaoLancamentoItem({ params, response }: HttpContext) {
     try {
-      const faturamentoItem = await FaturamentoItens.find(params.id_item)
-      if (!faturamentoItem) {
-        return response.status(404).json({ message: 'Item do faturamento não encontrado' })
+      const lancamentoItem = await LancamentoItens.find(params.id_item)
+      if (!lancamentoItem) {
+        return response.status(404).json({ message: 'Item do lançamento não encontrado' })
       }
 
-      await faturamentoItem.delete()
+      await lancamentoItem.delete()
 
-      return response.status(200).json({ message: 'Item do faturamento deletado com sucesso' })
+      return response.status(200).json({ message: 'Item do lançamento deletado com sucesso' })
     } catch (err) {
       console.error(err)
-      return response.status(500).json({ message: 'Erro ao deletar item do faturamento' })
+      return response.status(500).json({ message: 'Erro ao deletar item do lançamento' })
     }
   }
 }
