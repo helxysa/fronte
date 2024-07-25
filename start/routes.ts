@@ -9,6 +9,7 @@ const ContratosController = () => import('#controllers/contratos_controller')
 const RenovacaoController = () => import('#controllers/renovacao_controller')
 const ContratoItemController = () => import('#controllers/contrato_item_controller')
 const LancamentosController = () => import('#controllers/lancamentos_controller')
+const FaturamentosController = () => import('#controllers/faturamentos_controller')
 
 // Registro, Login e Autenticação
 router.post('/register', [AuthController, 'register']).as('auth.register')
@@ -43,6 +44,11 @@ router.put('/lancamentos/:id', [LancamentosController, 'updateLancamento'])
 router.delete('/lancamentos/:id', [LancamentosController, 'deleteLancamento'])
 router.delete('/lancamentos/:id/items/:itemId', [LancamentosController, 'deleteLancamentoItem'])
 router.post('/lancamentos/:id/items', [LancamentosController, 'addLancamentoItem'])
+//Faturamento
+router.post('/contratos/:id/faturamentos', [FaturamentosController, 'createFaturamentos'])
+router.put('/faturamentos/:id', [FaturamentosController, 'updateFaturamento'])
+router.get('/contratos/:id/faturamentos', [FaturamentosController, 'getFaturamentosByContratoId'])
+router.delete('/faturamentos/:id', [FaturamentosController, 'deleteFaturamento'])
 
 //Renovacoes
 //Criar renovação

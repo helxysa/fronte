@@ -4,6 +4,7 @@ import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
 import ContratoItens from './contrato_itens.js'
 import Lancamentos from './lancamentos.js'
 import Renovacao from './renovacao.js'
+import Faturamentos from './faturamentos.js'
 
 export default class Contratos extends BaseModel {
   @column({ isPrimary: true })
@@ -54,4 +55,7 @@ export default class Contratos extends BaseModel {
 
   @hasMany(() => Lancamentos, { foreignKey: 'contrato_id' })
   declare lancamentos: HasMany<typeof Lancamentos>
+
+  @hasMany(() => Faturamentos, { foreignKey: 'contrato_id' })
+  declare faturamentos: HasMany<typeof Faturamentos>
 }
