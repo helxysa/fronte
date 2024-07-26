@@ -128,6 +128,31 @@ export default class ContratosController {
         .preload('contratoItens', (query) => {
           query.whereNull('renovacao_id')
         })
+        .preload('faturamentos', (faturamentosQuery) => {
+          faturamentosQuery
+            .select([
+              'id',
+              'contrato_id',
+              'nota_fiscal',
+              'data_faturamento',
+              'created_at',
+              'updated_at',
+            ])
+            .preload('faturamentoItens', (faturamentoItensQuery) => {
+              faturamentoItensQuery.preload('lancamento', (lancamentoQuery) => {
+                lancamentoQuery
+                  .select(['id', 'status', 'projetos', 'data_pagamento'])
+                  .preload('lancamentoItens', (lancamentoItensQuery) => {
+                    lancamentoItensQuery.select([
+                      'id',
+                      'unidade_medida',
+                      'valor_unitario',
+                      'quantidade_itens',
+                    ])
+                  })
+              })
+            })
+        })
         .preload('lancamentos', (query) => {
           query.preload('lancamentoItens')
         })
