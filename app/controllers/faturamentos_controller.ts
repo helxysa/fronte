@@ -109,9 +109,26 @@ export default class FaturamentosController {
     try {
       const faturamentos = await Faturamentos.query()
         .where('contrato_id', id)
+        .select([
+          'id',
+          'contrato_id',
+          'nota_fiscal',
+          'data_faturamento',
+          'created_at',
+          'updated_at',
+        ])
         .preload('faturamentoItens', (faturamentoItensQuery) => {
           faturamentoItensQuery.preload('lancamento', (lancamentoQuery) => {
-            lancamentoQuery.preload('lancamentoItens')
+            lancamentoQuery
+              .select(['id', 'status', 'projetos', 'data_pagamento'])
+              .preload('lancamentoItens', (lancamentoItensQuery) => {
+                lancamentoItensQuery.select([
+                  'id',
+                  'unidade_medida',
+                  'valor_unitario',
+                  'quantidade_itens',
+                ])
+              })
           })
         })
 
