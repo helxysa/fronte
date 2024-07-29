@@ -1,15 +1,15 @@
 import { DateTime } from 'luxon'
 import { BaseModel, belongsTo, column } from '@adonisjs/lucid/orm'
-import Faturamentos from './faturamentos.js'
+import Lancamentos from './lancamentos.js'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 import ContratoItens from './contrato_itens.js'
 
-export default class FaturamentoItens extends BaseModel {
+export default class LancamentoItens extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
 
   @column()
-  declare faturamento_id: number
+  declare lancamento_id: number
 
   @column()
   declare contrato_item_id: number
@@ -35,8 +35,8 @@ export default class FaturamentoItens extends BaseModel {
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
 
-  @belongsTo(() => Faturamentos, { foreignKey: 'faturamento_id' })
-  declare faturamentos: BelongsTo<typeof Faturamentos>
+  @belongsTo(() => Lancamentos, { foreignKey: 'lancamento_id' })
+  declare lancamentos: BelongsTo<typeof Lancamentos>
 
   @belongsTo(() => ContratoItens)
   declare contratoItens: BelongsTo<typeof ContratoItens>

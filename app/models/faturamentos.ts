@@ -2,8 +2,8 @@ import { DateTime } from 'luxon'
 import { BaseModel, belongsTo, column, hasMany } from '@adonisjs/lucid/orm'
 import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import Contratos from './contratos.js'
-import FaturamentoItens from './faturamento_itens.js'
-import Renovacao from '#models/renovacao'
+import Lancamentos from './lancamentos.js'
+import FaturamentoItem from './faturamento_item.js'
 
 export default class Faturamentos extends BaseModel {
   @column({ isPrimary: true })
@@ -13,16 +13,13 @@ export default class Faturamentos extends BaseModel {
   declare contrato_id: number
 
   @column()
-  declare renovacao_id: number
+  declare nota_fiscal: string
 
   @column()
-  declare status: string
+  declare data_faturamento: DateTime
 
   @column()
-  declare data_pagamento: DateTime
-
-  @column()
-  declare projetos: string
+  declare descricao_nota: string
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -30,12 +27,12 @@ export default class Faturamentos extends BaseModel {
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
 
-  @belongsTo(() => Contratos, { foreignKey: 'contrato_id' })
-  declare contratos: BelongsTo<typeof Contratos>
+  @belongsTo(() => Contratos)
+  declare contrato: BelongsTo<typeof Contratos>
 
-  @belongsTo(() => Renovacao, { foreignKey: 'renovacao_id' })
-  declare renovacao: BelongsTo<typeof Renovacao>
+  @hasMany(() => Lancamentos, { foreignKey: 'lancamento_id' })
+  declare lancamentos: HasMany<typeof Lancamentos>
 
-  @hasMany(() => FaturamentoItens, { foreignKey: 'faturamento_id' })
-  declare faturamentoItens: HasMany<typeof FaturamentoItens>
+  @hasMany(() => FaturamentoItem, { foreignKey: 'faturamento_id' })
+  declare faturamentoItens: HasMany<typeof FaturamentoItem>
 }

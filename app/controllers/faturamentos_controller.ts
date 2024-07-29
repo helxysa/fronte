@@ -1,214 +1,170 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import type { HttpContext } from '@adonisjs/core/http'
 import Faturamentos from '#models/faturamentos'
-import FaturamentoItens from '#models/faturamento_itens'
-import ContratoItens from '#models/contrato_itens'
+import FaturamentoItem from '#models/faturamento_item'
+import Contrato from '#models/contratos'
+import { DateTime } from 'luxon'
 
 export default class FaturamentosController {
-  async createFaturamento({ request, response, params }: HttpContext) {
-    const { id } = params
-    const { status, projetos, data_pagamento, itens } = request.only([
-      'status',
-      'itens',
-      'projetos',
-      'data_pagamento',
+  async createFaturamentos({ params, request, response }: HttpContext) {
+    const { nota_fiscal, data_faturamento, descricao_nota } = request.only([
+      'nota_fiscal',
+      'data_faturamento',
+      'descricao_nota',
     ])
 
     try {
-      const novoFaturamento = await Faturamentos.create({
-        contrato_id: id,
-        status,
-        projetos: projetos,
-        data_pagamento: data_pagamento,
+      const contrato = await Contrato.find(params.id)
+
+      if (!contrato) {
+        return response.status(404).json({ message: 'Contrato não encontrado' })
+      }
+
+      const notaArray = Array.isArray(descricao_nota) ? descricao_nota : []
+
+      const faturamento = await Faturamentos.create({
+        contrato_id: contrato.id,
+        nota_fiscal,
+        data_faturamento,
       })
 
-      const faturamentoComItens = await Promise.all(
-        itens.map(async (item: { id_item: number; quantidade_itens: string }) => {
-          const contratoItem = await ContratoItens.find(item.id_item)
-          if (!contratoItem) {
-            throw new Error(`Item de contrato com id ${item.id_item} não encontrado.`)
-          }
-
-          const novoItem = await FaturamentoItens.create({
-            faturamento_id: novoFaturamento.id,
-            contrato_item_id: contratoItem.id,
-            titulo: contratoItem.titulo,
-            unidade_medida: contratoItem.unidade_medida,
-            valor_unitario: contratoItem.valor_unitario,
-            saldo_quantidade_contratada: contratoItem.saldo_quantidade_contratada,
-            quantidade_itens: item.quantidade_itens,
-          })
-          return novoItem
+      for (const lancamentoId of notaArray) {
+        await FaturamentoItem.create({
+          faturamento_id: faturamento.id,
+          lancamento_id: lancamentoId,
         })
-      )
+      }
 
-      return response.status(201).json({
-        ...novoFaturamento.toJSON(),
-        itens: faturamentoComItens,
+      await faturamento.load('faturamentoItens', (faturamentoItensQuery) => {
+        faturamentoItensQuery.preload('lancamento', (lancamentoQuery) => {
+          lancamentoQuery.preload('lancamentoItens')
+        })
       })
-    } catch (err) {
-      console.error(err)
-      return response.status(500).send('Server error')
+
+      return response.status(201).json(faturamento)
+    } catch (error) {
+      console.error(error)
+      response.status(500).send('erro ao criar faturamento.')
     }
   }
 
-  async getFaturamentos({ response }: HttpContext) {
+  async updateFaturamento({ params, request, response }: HttpContext) {
+    const faturamentoId = params.id
+
+    // Verifica se o ID é um número válido
+    if (faturamentoId <= 0) {
+      return response.status(400).json({ message: 'ID inválido.' })
+    }
+
+    // Obtém os dados para atualização
+    const { nota_fiscal, data_faturamento, descricao_nota } = request.only([
+      'nota_fiscal',
+      'data_faturamento',
+      'descricao_nota',
+    ])
+
+    // Encontra o faturamento
+    const faturamento = await Faturamentos.find(faturamentoId)
+
+    if (!faturamento) {
+      return response.status(404).json({ message: 'Faturamento não encontrado.' })
+    }
+
+    // Atualiza os campos do faturamento
+    faturamento.nota_fiscal = nota_fiscal ?? faturamento.nota_fiscal
+    faturamento.data_faturamento = data_faturamento
+      ? DateTime.fromISO(data_faturamento)
+      : faturamento.data_faturamento
+
+    await faturamento.save()
+
+    // Atualiza os itens do faturamento se necessário
+    if (descricao_nota) {
+      const notaArray = Array.isArray(descricao_nota) ? descricao_nota : []
+
+      // Remove todos os itens existentes
+      await FaturamentoItem.query().where('faturamento_id', faturamentoId).delete()
+
+      // Adiciona os novos itens
+      for (const lancamentoId of notaArray) {
+        await FaturamentoItem.create({
+          faturamento_id: faturamentoId,
+          lancamento_id: lancamentoId,
+        })
+      }
+    }
+
+    await faturamento.load('faturamentoItens', (faturamentoItensQuery) => {
+      faturamentoItensQuery.preload('lancamento', (lancamentoQuery) => {
+        lancamentoQuery.preload('lancamentoItens')
+      })
+    })
+
+    return response.status(200).json(faturamento)
+  }
+
+  async getFaturamentosByContratoId({ params, response }: HttpContext) {
+    const { id } = params
+
     try {
       const faturamentos = await Faturamentos.query()
-        .whereNull('renovacao_id')
-        .preload('faturamentoItens')
-        .exec()
-      return response.json(faturamentos)
-    } catch (err) {
-      console.error(err)
-      return response.status(500).send('Server error')
-    }
-  }
-
-  async getFaturamentoById({ params, response }: HttpContext) {
-    const { id } = params
-
-    try {
-      const faturamento = await Faturamentos.query()
-        .where('id', id)
-        .preload('faturamentoItens')
-        .first()
-
-      if (!faturamento) {
-        return response.status(404).send('Faturamento não encontrado.')
-      }
-
-      return response.json(faturamento)
-    } catch (err) {
-      console.error(err)
-      return response.status(500).send('Server error')
-    }
-  }
-
-  async updateFaturamento({ request, response, params }: HttpContext) {
-    const { id } = params
-    const { status, itens, projetos, data_pagamento } = request.only([
-      'status',
-      'itens',
-      'projetos',
-      'data_pagamento',
-    ])
-
-    try {
-      const faturamento = await Faturamentos.find(id)
-
-      if (!faturamento) {
-        return response.status(404).send('Faturamento não encontrado.')
-      }
-
-      faturamento.status = status
-      faturamento.projetos = projetos
-      faturamento.data_pagamento = data_pagamento
-
-      await faturamento.save()
-
-      await Promise.all(
-        itens.map(async (item: { id: number; quantidade_itens: string }) => {
-          const faturamentoItem = await FaturamentoItens.find(item.id)
-
-          if (faturamentoItem) {
-            faturamentoItem.merge({
-              quantidade_itens: item.quantidade_itens,
-            })
-            await faturamentoItem.save()
-          }
+        .where('contrato_id', id)
+        .select([
+          'id',
+          'contrato_id',
+          'nota_fiscal',
+          'data_faturamento',
+          'created_at',
+          'updated_at',
+        ])
+        .preload('faturamentoItens', (faturamentoItensQuery) => {
+          faturamentoItensQuery.preload('lancamento', (lancamentoQuery) => {
+            lancamentoQuery
+              .select(['id', 'status', 'projetos', 'data_pagamento'])
+              .preload('lancamentoItens', (lancamentoItensQuery) => {
+                lancamentoItensQuery.select([
+                  'id',
+                  'unidade_medida',
+                  'valor_unitario',
+                  'quantidade_itens',
+                ])
+              })
+          })
         })
-      )
 
-      await faturamento.load('faturamentoItens')
+      if (faturamentos.length === 0) {
+        return response
+          .status(404)
+          .json({ message: 'Nenhum faturamento encontrado para o contrato fornecido.' })
+      }
 
-      return response.status(200).json(faturamento)
-    } catch (err) {
-      console.error(err)
-      return response.status(500).send('Server error')
+      return response.status(200).json(faturamentos)
+    } catch (error) {
+      return response
+        .status(500)
+        .json({ message: 'Erro ao buscar faturamentos', error: error.message })
     }
   }
 
   async deleteFaturamento({ params, response }: HttpContext) {
-    const { id } = params
+    const faturamentoId = Number(params.id)
 
-    try {
-      const faturamento = await Faturamentos.find(id)
-
-      if (!faturamento) {
-        return response.status(404).send('Faturamento não encontrado.')
-      }
-
-      await faturamento.delete()
-
-      return response.status(200).send('Faturamento deletado com sucesso.')
-    } catch (err) {
-      console.error(err)
-      return response.status(500).send('Server error')
+    if (faturamentoId <= 0) {
+      return response.status(400).json({ message: 'ID inválido.' })
     }
-  }
 
-  async deleteFaturamentoItem({ params, response }: HttpContext) {
-    const { id, itemId } = params
+    const faturamento = await Faturamentos.find(faturamentoId)
 
-    try {
-      const faturamentoItem = await FaturamentoItens.query()
-        .where('faturamento_id', id)
-        .andWhere('id', itemId)
-        .first()
-
-      if (!faturamentoItem) {
-        return response.status(404).send('item do faturamento não encontrado.')
-      }
-
-      await faturamentoItem.delete()
-
-      return response.status(200).send('Item do faturamento deletado com sucesso.')
-    } catch (err) {
-      console.error(err)
-      return response.status(500).send('Server error')
+    if (!faturamento) {
+      return response.status(404).json({ message: 'Faturamento não encontrado.' })
     }
-  }
 
-  async addFaturamentoItem({ request, response, params }: HttpContext) {
-    const { id } = params
-    const { contrato_item_id, quantidade_itens } = request.only([
-      'contrato_item_id',
-      'quantidade_itens',
-    ])
+    // Remove os itens relacionados do faturamento
+    await FaturamentoItem.query().where('faturamento_id', faturamentoId).delete()
 
-    try {
-      const faturamento = await Faturamentos.query().where('id', id).preload('contratos').first()
+    // Remove o faturamento
+    await faturamento.delete()
 
-      if (!faturamento) {
-        return response.status(404).send('Faturamento não encontrado')
-      }
-
-      const contratoItem = await ContratoItens.query()
-        .where('id', contrato_item_id)
-        .where('contrato_id', faturamento.contratos.id)
-        .first()
-
-      if (!contratoItem) {
-        return response
-          .status(404)
-          .send('Item do contrato não encontrado ou não associado ao contrato do faturamento.')
-      }
-
-      const faturamentoItem = await FaturamentoItens.create({
-        faturamento_id: faturamento.id,
-        contrato_item_id: contratoItem.id,
-        titulo: contratoItem.titulo,
-        unidade_medida: contratoItem.unidade_medida,
-        valor_unitario: contratoItem.valor_unitario,
-        saldo_quantidade_contratada: contratoItem.saldo_quantidade_contratada,
-        quantidade_itens: quantidade_itens,
-      })
-
-      return response.status(201).json(faturamentoItem)
-    } catch (err) {
-      console.error(err)
-      response.status(500).send('Server error')
-    }
+    return response.status(200).json({ message: 'Faturamento deletado com sucesso.' })
   }
 }
