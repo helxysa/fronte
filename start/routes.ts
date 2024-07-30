@@ -49,6 +49,7 @@ router.post('/contratos/:id/faturamentos', [FaturamentosController, 'createFatur
 router.put('/faturamentos/:id', [FaturamentosController, 'updateFaturamento'])
 router.get('/contratos/:id/faturamentos', [FaturamentosController, 'getFaturamentosByContratoId'])
 router.delete('/faturamentos/:id', [FaturamentosController, 'deleteFaturamento'])
+router.put('/faturamentos/restore/:id', [FaturamentosController, 'restoreFaturamento'])
 
 //Renovacoes
 //Criar renovação

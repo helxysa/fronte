@@ -36,7 +36,7 @@ export default class FaturamentosController {
       }
 
       await faturamento.load('faturamentoItens', (faturamentoItensQuery) => {
-        faturamentoItensQuery.preload('lancamento', (lancamentoQuery) => {
+        faturamentoItensQuery.preload('lancamento', (lancamentoQuery: any) => {
           lancamentoQuery.preload('lancamentoItens')
         })
       })
@@ -95,7 +95,7 @@ export default class FaturamentosController {
     }
 
     await faturamento.load('faturamentoItens', (faturamentoItensQuery) => {
-      faturamentoItensQuery.preload('lancamento', (lancamentoQuery) => {
+      faturamentoItensQuery.preload('lancamento', (lancamentoQuery: any) => {
         lancamentoQuery.preload('lancamentoItens')
       })
     })
@@ -160,11 +160,41 @@ export default class FaturamentosController {
     }
 
     // Remove os itens relacionados do faturamento
-    await FaturamentoItem.query().where('faturamento_id', faturamentoId).delete()
-
+    await FaturamentoItem.query()
+      .where('faturamento_id', faturamentoId)
+      .update({ deletedAt: DateTime.local() })
     // Remove o faturamento
     await faturamento.delete()
 
     return response.status(200).json({ message: 'Faturamento deletado com sucesso.' })
+  }
+
+  async restoreFaturamento({ params, response }: HttpContext) {
+    const faturamentoId = params.id
+
+    if (faturamentoId <= 0) {
+      return response.status(400).json({ message: 'ID inválido.' })
+    }
+
+    try {
+      const faturamento: any = await Faturamentos.withTrashed()
+        .where('id', faturamentoId)
+        .firstOrFail()
+      const faturamentoItens = FaturamentoItem.query().where('faturamento_id', faturamentoId)
+
+      if (!faturamento) {
+        return response.status(404).json({ message: 'Faturamento não encontrado.' })
+      }
+
+      // Restaura os itens relacionados do faturamento
+      await faturamentoItens.update({ deletedAt: null })
+      // Restaura o faturamento
+      await faturamento.restore()
+      return response.status(200).json({ message: 'Faturamento restaurado com sucesso.' })
+    } catch (error) {
+      return response.status(404).json({
+        message: 'Faturamento não encontrado.',
+      })
+    }
   }
 }
