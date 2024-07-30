@@ -2,6 +2,12 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import Contrato from '#models/contratos'
 import ContratoItem from '#models/contrato_itens'
+import Faturamento from '#models/faturamentos'
+import FaturamentoItem from '#models/faturamento_item'
+import Lancamento from '#models/lancamentos'
+import LancamentoItens from '#models/lancamento_itens'
+import { DateTime } from 'luxon'
+import Renovacao from '#models/renovacao'
 
 export default class ContratosController {
   async createContract({ request, response }: HttpContext) {
@@ -75,11 +81,13 @@ export default class ContratosController {
   async getContracts({ response }: HttpContext) {
     try {
       const contratos = await Contrato.query()
+        .whereNull('deleted_at')
         .preload('contratoItens', (query) => {
-          query.whereNull('renovacao_id')
+          query.whereNull('renovacao_id').whereNull('deleted_at')
         })
         .preload('faturamentos', (faturamentosQuery) => {
           faturamentosQuery
+            .whereNull('deleted_at')
             .select([
               'id',
               'contrato_id',
@@ -89,27 +97,30 @@ export default class ContratosController {
               'updated_at',
             ])
             .preload('faturamentoItens', (faturamentoItensQuery) => {
-              faturamentoItensQuery.preload('lancamento', (lancamentoQuery) => {
-                lancamentoQuery
-                  .select(['id', 'status', 'projetos', 'data_pagamento'])
-                  .preload('lancamentoItens', (lancamentoItensQuery) => {
-                    lancamentoItensQuery.select([
-                      'id',
-                      'unidade_medida',
-                      'valor_unitario',
-                      'quantidade_itens',
-                    ])
-                  })
-              })
+              faturamentoItensQuery
+                .whereNull('deleted_at')
+                .preload('lancamento', (lancamentoQuery) => {
+                  lancamentoQuery
+                    .whereNull('deleted_at')
+                    .select(['id', 'status', 'projetos', 'data_pagamento'])
+                    .preload('lancamentoItens', (lancamentoItensQuery) => {
+                      lancamentoItensQuery
+                        .whereNull('deleted_at')
+                        .select(['id', 'unidade_medida', 'valor_unitario', 'quantidade_itens'])
+                    })
+                })
             })
         })
         .preload('lancamentos', (query) => {
+          query.whereNull('deleted_at')
           query.whereNull('renovacao_id')
           query.preload('lancamentoItens')
         })
         .preload('renovacao', (query) => {
+          query.whereNull('deleted_at')
           query.preload('contratoItens')
           query.preload('lancamentos', (lancamentoQuery) => {
+            lancamentoQuery.whereNull('deleted_at')
             lancamentoQuery.preload('lancamentoItens')
           })
         })
@@ -125,11 +136,15 @@ export default class ContratosController {
   async getContractById({ params, response }: HttpContext) {
     try {
       const contrato = await Contrato.query()
+        .where('id', params.id)
+        .whereNull('deleted_at')
         .preload('contratoItens', (query) => {
           query.whereNull('renovacao_id')
+          query.whereNull('deleted_at')
         })
         .preload('faturamentos', (faturamentosQuery) => {
           faturamentosQuery
+            .whereNull('deleted_at')
             .select([
               'id',
               'contrato_id',
@@ -139,30 +154,38 @@ export default class ContratosController {
               'updated_at',
             ])
             .preload('faturamentoItens', (faturamentoItensQuery) => {
-              faturamentoItensQuery.preload('lancamento', (lancamentoQuery) => {
-                lancamentoQuery
-                  .select(['id', 'status', 'projetos', 'data_pagamento'])
-                  .preload('lancamentoItens', (lancamentoItensQuery) => {
-                    lancamentoItensQuery.select([
-                      'id',
-                      'unidade_medida',
-                      'valor_unitario',
-                      'quantidade_itens',
-                    ])
-                  })
-              })
+              faturamentoItensQuery
+                .whereNull('deleted_at')
+                .preload('lancamento', (lancamentoQuery) => {
+                  lancamentoQuery
+                    .whereNull('deleted_at')
+                    .select(['id', 'status', 'projetos', 'data_pagamento'])
+                    .preload('lancamentoItens', (lancamentoItensQuery) => {
+                      lancamentoItensQuery
+                        .whereNull('deleted_at')
+                        .select(['id', 'unidade_medida', 'valor_unitario', 'quantidade_itens'])
+                    })
+                })
             })
         })
         .preload('lancamentos', (query) => {
-          query.preload('lancamentoItens')
-        })
-        .preload('renovacao', (query) => {
-          query.preload('contratoItens')
-          query.preload('lancamentos', (lancamentoQuery) => {
-            lancamentoQuery.preload('lancamentoItens')
+          query.whereNull('deleted_at')
+          query.preload('lancamentoItens', (lancamentoItensQuery) => {
+            lancamentoItensQuery.whereNull('deleted_at')
           })
         })
-        .where('id', params.id)
+        .preload('renovacao', (query) => {
+          query.whereNull('deleted_at')
+          query.preload('contratoItens', (contratoItensQuery) => {
+            contratoItensQuery.whereNull('deleted_at')
+          })
+          query.preload('lancamentos', (lancamentoQuery) => {
+            lancamentoQuery.whereNull('deleted_at')
+            lancamentoQuery.preload('lancamentoItens', (lancamentoItensQuery) => {
+              lancamentoItensQuery.whereNull('deleted_at')
+            })
+          })
+        })
         .first()
 
       if (!contrato) {
@@ -266,17 +289,122 @@ export default class ContratosController {
     }
   }
 
+  // async deleteContract({ params, response }: HttpContext) {
+  //   try {
+  //     const contrato = await Contrato.find(params.id)
+
+  //     if (!contrato) {
+  //       return response.status(404).json({ message: 'Contrato não encontrado' })
+  //     }
+
+  //     await contrato.delete()
+
+  //     return response.status(202).json({ message: 'Contrato deletado com sucesso.' })
+  //   } catch (err) {
+  //     console.error(err)
+  //     return response.status(500).send('Erro no servidor')
+  //   }
+  // }
+
   async deleteContract({ params, response }: HttpContext) {
     try {
-      const contrato = await Contrato.find(params.id)
+      const contratoId = params.id
+      const contrato = await Contrato.find(contratoId)
 
       if (!contrato) {
         return response.status(404).json({ message: 'Contrato não encontrado' })
       }
 
-      await contrato?.delete()
+      // Soft delete nos contratos itens relacionados
+      await ContratoItem.query()
+        .where('contrato_id', contratoId)
+        .update({ deletedAt: DateTime.local() })
+
+      // Soft delete nos lançamentos relacionados
+      const lancamentos = await Lancamento.query().where('contrato_id', contratoId)
+      for (const lancamento of lancamentos) {
+        await LancamentoItens.query()
+          .where('lancamento_id', lancamento.id)
+          .update({ deletedAt: DateTime.local() })
+        await lancamento.merge({ deletedAt: DateTime.local() }).save()
+      }
+
+      // Soft delete nos faturamentos relacionados
+      const faturamentos = await Faturamento.query().where('contrato_id', contratoId)
+      for (const faturamento of faturamentos) {
+        await FaturamentoItem.query()
+          .where('faturamento_id', faturamento.id)
+          .update({ deletedAt: DateTime.local() })
+        await faturamento.merge({ deletedAt: DateTime.local() }).save()
+      }
+
+      //Soft delete nas renovacoes relacionadas
+      await Renovacao.query()
+        .where('contrato_id', contratoId)
+        .update({ deletedAt: DateTime.local() })
+
+      // Soft delete no contrato
+      await contrato.merge({ deletedAt: DateTime.local() }).save()
 
       return response.status(202).json({ message: 'Contrato deletado com sucesso.' })
+    } catch (err) {
+      console.error(err)
+      return response.status(500).send('Erro no servidor')
+    }
+  }
+
+  async restoreContract({ params, response }: HttpContext) {
+    try {
+      const contratoId = params.id
+
+      const contrato: any = await Contrato.withTrashed().where('id', contratoId).firstOrFail()
+
+      if (!contrato) {
+        return response.status(404).json({ message: 'Contrato não encontrado' })
+      }
+
+      // Restaurar os contratos itens relacionados
+      await ContratoItem.query()
+        .where('contrato_id', contratoId)
+        .whereNotNull('deleted_at')
+        .update({ deleted_at: null })
+
+      // Restaurar os lançamentos relacionados
+      const lancamentos: any = await Lancamento.withTrashed()
+        .where('contrato_id', contratoId)
+        .whereNotNull('deleted_at')
+
+      for (const lancamento of lancamentos) {
+        await LancamentoItens.query()
+          .where('lancamento_id', lancamento.id)
+          .whereNotNull('deleted_at')
+          .update({ deleted_at: null })
+        await lancamento.merge({ deletedAt: null }).save()
+      }
+
+      // Restaurar os faturamentos relacionados
+      const faturamentos: any = await Faturamento.withTrashed()
+        .where('contrato_id', contratoId)
+        .whereNotNull('deleted_at')
+
+      for (const faturamento of faturamentos) {
+        await FaturamentoItem.query()
+          .where('faturamento_id', faturamento.id)
+          .whereNotNull('deleted_at')
+          .update({ deleted_at: null })
+        await faturamento.merge({ deletedAt: null }).save()
+      }
+
+      // Restaurar as renovações relacionadas
+      await Renovacao.query()
+        .where('contrato_id', contratoId)
+        .whereNotNull('deleted_at')
+        .update({ deleted_at: null })
+
+      // Restaurar o contrato
+      await contrato.merge({ deleted_at: null }).save()
+
+      return response.status(202).json({ message: 'Contrato restaurado com sucesso.' })
     } catch (err) {
       console.error(err)
       return response.status(500).send('Erro no servidor')

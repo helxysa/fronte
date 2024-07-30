@@ -159,11 +159,11 @@ export default class FaturamentosController {
       return response.status(404).json({ message: 'Faturamento não encontrado.' })
     }
 
-    // Remove os itens relacionados do faturamento
+    // Soft delete nos itens relacionados do faturamento
     await FaturamentoItem.query()
       .where('faturamento_id', faturamentoId)
       .update({ deletedAt: DateTime.local() })
-    // Remove o faturamento
+    // Soft delete no faturamento
     await faturamento.delete()
 
     return response.status(200).json({ message: 'Faturamento deletado com sucesso.' })

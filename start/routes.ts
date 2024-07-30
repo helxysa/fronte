@@ -30,6 +30,7 @@ router.post('/contratos', [ContratosController, 'createContract'])
 router.get('/contratos', [ContratosController, 'getContracts'])
 router.get('/contratos/:id', [ContratosController, 'getContractById'])
 router.put('/contratos/:id', [ContratosController, 'updateContract'])
+router.put('/contratos/restore/:id', [ContratosController, 'restoreContract'])
 router.delete('/contratos/:id', [ContratosController, 'deleteContract'])
 // Itens de contratos
 router.post('/contratos/:id/items', [ContratoItemController, 'createContractItem'])
