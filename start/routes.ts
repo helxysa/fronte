@@ -30,6 +30,7 @@ router.post('/contratos', [ContratosController, 'createContract'])
 router.get('/contratos', [ContratosController, 'getContracts'])
 router.get('/contratos/:id', [ContratosController, 'getContractById'])
 router.put('/contratos/:id', [ContratosController, 'updateContract'])
+router.put('/contratos/restore/:id', [ContratosController, 'restoreContract'])
 router.delete('/contratos/:id', [ContratosController, 'deleteContract'])
 // Itens de contratos
 router.post('/contratos/:id/items', [ContratoItemController, 'createContractItem'])
@@ -42,6 +43,7 @@ router.get('/lancamentos', [LancamentosController, 'getLancamentos'])
 router.get('/lancamentos/:id', [LancamentosController, 'getLancamentoById'])
 router.put('/lancamentos/:id', [LancamentosController, 'updateLancamento'])
 router.delete('/lancamentos/:id', [LancamentosController, 'deleteLancamento'])
+router.delete('/lancamentos/restore/:id', [LancamentosController, 'restoreLancamento'])
 router.delete('/lancamentos/:id/items/:itemId', [LancamentosController, 'deleteLancamentoItem'])
 router.post('/lancamentos/:id/items', [LancamentosController, 'addLancamentoItem'])
 //Faturamento
@@ -49,6 +51,7 @@ router.post('/contratos/:id/faturamentos', [FaturamentosController, 'createFatur
 router.put('/faturamentos/:id', [FaturamentosController, 'updateFaturamento'])
 router.get('/contratos/:id/faturamentos', [FaturamentosController, 'getFaturamentosByContratoId'])
 router.delete('/faturamentos/:id', [FaturamentosController, 'deleteFaturamento'])
+router.put('/faturamentos/restore/:id', [FaturamentosController, 'restoreFaturamento'])
 
 //Renovacoes
 //Criar renovação
