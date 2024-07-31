@@ -4,8 +4,10 @@ import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import Contratos from './contratos.js'
 import Lancamentos from './lancamentos.js'
 import FaturamentoItem from './faturamento_item.js'
+import { SoftDeletes } from 'adonis-lucid-soft-deletes'
+import { compose } from '@adonisjs/core/helpers'
 
-export default class Faturamentos extends BaseModel {
+export default class Faturamentos extends compose(BaseModel, SoftDeletes) {
   @column({ isPrimary: true })
   declare id: number
 
@@ -26,6 +28,9 @@ export default class Faturamentos extends BaseModel {
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
+
+  @column.dateTime()
+  declare deletedAt: DateTime | null
 
   @belongsTo(() => Contratos)
   declare contrato: BelongsTo<typeof Contratos>

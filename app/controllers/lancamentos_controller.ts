@@ -3,6 +3,8 @@ import type { HttpContext } from '@adonisjs/core/http'
 import Lancamentos from '#models/lancamentos'
 import LancamentoItens from '#models/lancamento_itens'
 import ContratoItens from '#models/contrato_itens'
+import { DateTime } from 'luxon'
+import FaturamentoItem from '#models/faturamento_item'
 
 export default class LancamentosController {
   async createLancamento({ request, response, params }: HttpContext) {
@@ -139,9 +141,47 @@ export default class LancamentosController {
         return response.status(404).send('Lançamento não encontrado.')
       }
 
+      const relacionados = await FaturamentoItem.query()
+        .where('lancamento_id', id)
+        .count('* as total')
+
+      const totalRelacionados = Number.parseInt(relacionados[0].$extras.total, 10) || 0
+
+      if (totalRelacionados > 0) {
+        return response.status(400).json({
+          message:
+            'Não foi possível deletar o lançamento, pois está vínculado com um ou mais faturamentos.',
+        })
+      }
+
+      //soft delete nos itens relacionados ao lançamento
+      await LancamentoItens.query()
+        .where('lancamento_id', params.id)
+        .update({ deletedAt: DateTime.local() })
       await lancamento.delete()
 
       return response.status(200).send('Lançamento deletado com sucesso.')
+    } catch (err) {
+      console.error(err)
+      return response.status(500).send('Server error')
+    }
+  }
+
+  async restoreLancamento({ params, response }: HttpContext) {
+    const { id } = params
+
+    try {
+      const lancamento: any = await Lancamentos.withTrashed().where('id', id).firstOrFail()
+
+      if (!lancamento) {
+        return response.status(404).send('Lançamento não encontrado.')
+      }
+
+      //soft delete nos itens relacionados ao lançamento
+      await LancamentoItens.query().where('lancamento_id', params.id).update({ deletedAt: null })
+      await lancamento.restore()
+
+      return response.status(200).send('Lançamento restaurado com sucesso.')
     } catch (err) {
       console.error(err)
       return response.status(500).send('Server error')

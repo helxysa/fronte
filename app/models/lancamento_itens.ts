@@ -3,8 +3,10 @@ import { BaseModel, belongsTo, column } from '@adonisjs/lucid/orm'
 import Lancamentos from './lancamentos.js'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 import ContratoItens from './contrato_itens.js'
+import { SoftDeletes } from 'adonis-lucid-soft-deletes'
+import { compose } from '@adonisjs/core/helpers'
 
-export default class LancamentoItens extends BaseModel {
+export default class LancamentoItens extends compose(BaseModel, SoftDeletes) {
   @column({ isPrimary: true })
   declare id: number
 
@@ -34,6 +36,9 @@ export default class LancamentoItens extends BaseModel {
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
+
+  @column.dateTime()
+  declare deletedAt: DateTime | null
 
   @belongsTo(() => Lancamentos, { foreignKey: 'lancamento_id' })
   declare lancamentos: BelongsTo<typeof Lancamentos>
