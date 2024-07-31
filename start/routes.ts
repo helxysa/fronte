@@ -43,6 +43,7 @@ router.get('/lancamentos', [LancamentosController, 'getLancamentos'])
 router.get('/lancamentos/:id', [LancamentosController, 'getLancamentoById'])
 router.put('/lancamentos/:id', [LancamentosController, 'updateLancamento'])
 router.delete('/lancamentos/:id', [LancamentosController, 'deleteLancamento'])
+router.delete('/lancamentos/restore/:id', [LancamentosController, 'restoreLancamento'])
 router.delete('/lancamentos/:id/items/:itemId', [LancamentosController, 'deleteLancamentoItem'])
 router.post('/lancamentos/:id/items', [LancamentosController, 'addLancamentoItem'])
 //Faturamento
