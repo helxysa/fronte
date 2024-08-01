@@ -99,6 +99,8 @@ export default class ContratosController {
               'contrato_id',
               'nota_fiscal',
               'data_faturamento',
+              'status',
+              'observacoes',
               'created_at',
               'updated_at',
             ])
@@ -156,6 +158,8 @@ export default class ContratosController {
               'contrato_id',
               'nota_fiscal',
               'data_faturamento',
+              'status',
+              'observacoes',
               'created_at',
               'updated_at',
             ])
