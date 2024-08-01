@@ -12,20 +12,24 @@ import Renovacao from '#models/renovacao'
 export default class ContratosController {
   async createContract({ request, response }: HttpContext) {
     const {
+      nome_contrato,
       nome_cliente,
       data_inicio,
       data_fim,
+      lembrete_vencimento,
       observacoes,
       saldo_contrato,
-      fiscal,
+      fiscal: { nome, telefone, email },
       ponto_focal,
       cidade,
       objeto_contrato,
       items,
     } = request.only([
+      'nome_contrato',
       'nome_cliente',
       'data_inicio',
       'data_fim',
+      'lembrete_vencimento',
       'observacoes',
       'saldo_contrato',
       'fiscal',
@@ -37,15 +41,17 @@ export default class ContratosController {
 
     try {
       const novoContrato = await Contrato.create({
-        nome_cliente: nome_cliente,
+        nome_contrato,
+        nome_cliente,
         data_inicio,
         data_fim,
+        lembrete_vencimento,
         observacoes,
-        saldo_contrato: saldo_contrato,
-        fiscal,
-        ponto_focal: ponto_focal,
+        saldo_contrato,
+        fiscal: { nome, telefone, email },
+        ponto_focal,
         cidade,
-        objeto_contrato: objeto_contrato,
+        objeto_contrato,
       })
 
       const contratoComItens = await Promise.all(
@@ -202,20 +208,24 @@ export default class ContratosController {
   async updateContract({ params, request, response }: HttpContext) {
     try {
       const {
+        nome_contrato,
         nome_cliente,
         data_inicio,
         data_fim,
+        lembrete_vencimento,
         observacoes,
         saldo_contrato,
-        fiscal,
+        fiscal: { nome, telefone, email },
         ponto_focal,
         cidade,
         objeto_contrato,
         items,
       } = request.only([
+        'nome_contrato',
         'nome_cliente',
         'data_inicio',
         'data_fim',
+        'lembrete_vencimento',
         'observacoes',
         'saldo_contrato',
         'fiscal',
@@ -231,16 +241,17 @@ export default class ContratosController {
         return response.status(404).json({ message: 'Contrato não encontrado' })
       }
 
+      contrato.nome_contrato = nome_contrato
       contrato.nome_cliente = nome_cliente
       contrato.data_inicio = data_inicio
       contrato.data_fim = data_fim
+      contrato.lembrete_vencimento = lembrete_vencimento
       contrato.observacoes = observacoes
       contrato.saldo_contrato = saldo_contrato
-      contrato.fiscal = fiscal
+      contrato.fiscal = { nome, telefone, email }
       contrato.ponto_focal = ponto_focal
       contrato.cidade = cidade
       contrato.objeto_contrato = objeto_contrato
-
       await contrato.save()
 
       // Atualiza os itens do contrato, se necessário
@@ -288,23 +299,6 @@ export default class ContratosController {
       return response.status(500).send('Erro no servidor')
     }
   }
-
-  // async deleteContract({ params, response }: HttpContext) {
-  //   try {
-  //     const contrato = await Contrato.find(params.id)
-
-  //     if (!contrato) {
-  //       return response.status(404).json({ message: 'Contrato não encontrado' })
-  //     }
-
-  //     await contrato.delete()
-
-  //     return response.status(202).json({ message: 'Contrato deletado com sucesso.' })
-  //   } catch (err) {
-  //     console.error(err)
-  //     return response.status(500).send('Erro no servidor')
-  //   }
-  // }
 
   async deleteContract({ params, response }: HttpContext) {
     try {
