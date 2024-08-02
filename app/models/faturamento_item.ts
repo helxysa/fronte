@@ -7,9 +7,6 @@ import { SoftDeletes } from 'adonis-lucid-soft-deletes'
 import { compose } from '@adonisjs/core/helpers'
 
 export default class FaturamentoItem extends compose(BaseModel, SoftDeletes) {
-  total(total: any, arg1: number) {
-    throw new Error('Method not implemented.')
-  }
   @column({ isPrimary: true })
   declare id: number
 
