@@ -13,6 +13,9 @@ export default class Contratos extends compose(BaseModel, SoftDeletes) {
   declare id: number
 
   @column()
+  declare nome_contrato: string
+
+  @column()
   declare nome_cliente: string
 
   @column.date()
@@ -22,13 +25,16 @@ export default class Contratos extends compose(BaseModel, SoftDeletes) {
   declare data_fim: DateTime
 
   @column()
+  declare lembrete_vencimento: string
+
+  @column()
   declare observacoes: string
 
   @column()
   declare saldo_contrato: string
 
   @column()
-  declare fiscal: string
+  declare fiscal: { nome: string; telefone: string; email: string }
 
   @column()
   declare ponto_focal: string

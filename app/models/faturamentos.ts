@@ -23,6 +23,12 @@ export default class Faturamentos extends compose(BaseModel, SoftDeletes) {
   @column()
   declare descricao_nota: string
 
+  @column()
+  declare status: string
+
+  @column()
+  declare observacoes: string
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

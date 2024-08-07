@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 /* eslint-disable @typescript-eslint/naming-convention */
 import type { HttpContext } from '@adonisjs/core/http'
 import Faturamentos from '#models/faturamentos'
@@ -7,10 +8,12 @@ import { DateTime } from 'luxon'
 
 export default class FaturamentosController {
   async createFaturamentos({ params, request, response }: HttpContext) {
-    const { nota_fiscal, data_faturamento, descricao_nota } = request.only([
+    const { nota_fiscal, data_faturamento, descricao_nota, status, observacoes } = request.only([
       'nota_fiscal',
       'data_faturamento',
       'descricao_nota',
+      'status',
+      'observacoes',
     ])
 
     try {
@@ -26,6 +29,8 @@ export default class FaturamentosController {
         contrato_id: contrato.id,
         nota_fiscal,
         data_faturamento,
+        status,
+        observacoes,
       })
 
       for (const lancamentoId of notaArray) {
@@ -57,10 +62,12 @@ export default class FaturamentosController {
     }
 
     // Obtém os dados para atualização
-    const { nota_fiscal, data_faturamento, descricao_nota } = request.only([
+    const { nota_fiscal, data_faturamento, descricao_nota, status, observacoes } = request.only([
       'nota_fiscal',
       'data_faturamento',
       'descricao_nota',
+      'status',
+      'observacoes',
     ])
 
     // Encontra o faturamento
@@ -72,10 +79,9 @@ export default class FaturamentosController {
 
     // Atualiza os campos do faturamento
     faturamento.nota_fiscal = nota_fiscal ?? faturamento.nota_fiscal
-    faturamento.data_faturamento = data_faturamento
-      ? DateTime.fromISO(data_faturamento)
-      : faturamento.data_faturamento
-
+    faturamento.data_faturamento = data_faturamento ? DateTime.fromISO(data_faturamento) : faturamento.data_faturamento
+    faturamento.status = status ?? faturamento.status
+    faturamento.observacoes = observacoes ?? faturamento.observacoes
     await faturamento.save()
 
     // Atualiza os itens do faturamento se necessário
@@ -114,6 +120,8 @@ export default class FaturamentosController {
           'contrato_id',
           'nota_fiscal',
           'data_faturamento',
+          'status',
+          'observacoes',
           'created_at',
           'updated_at',
         ])
