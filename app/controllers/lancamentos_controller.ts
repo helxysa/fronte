@@ -25,10 +25,15 @@ export default class LancamentosController {
       })
 
       const lancamentoComItens = await Promise.all(
-        itens.map(async (item: { id_item: number; quantidade_itens: string }) => {
+        itens.map(async (item: { id_item: number; quantidade_itens: string; data: string }) => {
           const contratoItem = await ContratoItens.find(item.id_item)
           if (!contratoItem) {
             throw new Error(`Item de contrato com id ${item.id_item} não encontrado.`)
+          }
+
+          const dataConvertida = parseDate(item.data)
+          if (!dataConvertida) {
+            throw new Error(`A data ${item.data} é inválida.`)
           }
 
           const novoItem = await LancamentoItens.create({
@@ -39,6 +44,7 @@ export default class LancamentosController {
             valor_unitario: contratoItem.valor_unitario,
             saldo_quantidade_contratada: contratoItem.saldo_quantidade_contratada,
             quantidade_itens: item.quantidade_itens,
+            data: dataConvertida,
           })
           return novoItem
         })
@@ -110,12 +116,13 @@ export default class LancamentosController {
       await lancamento.save()
 
       await Promise.all(
-        itens.map(async (item: { id: number; quantidade_itens: string }) => {
+        itens.map(async (item: { id: number; quantidade_itens: string; data: Date }) => {
           const lancamentoItem = await LancamentoItens.find(item.id)
 
           if (lancamentoItem) {
             lancamentoItem.merge({
               quantidade_itens: item.quantidade_itens,
+              data: DateTime.fromJSDate(item.data).startOf('day'),
             })
             await lancamentoItem.save()
           }
@@ -212,9 +219,10 @@ export default class LancamentosController {
 
   async addLancamentoItem({ request, response, params }: HttpContext) {
     const { id } = params
-    const { contrato_item_id, quantidade_itens } = request.only([
+    const { contrato_item_id, quantidade_itens, data } = request.only([
       'contrato_item_id',
       'quantidade_itens',
+      'data',
     ])
 
     try {
@@ -243,6 +251,7 @@ export default class LancamentosController {
         valor_unitario: contratoItem.valor_unitario,
         saldo_quantidade_contratada: contratoItem.saldo_quantidade_contratada,
         quantidade_itens: quantidade_itens,
+        data: data,
       })
 
       return response.status(201).json(lancamentoItem)
@@ -251,4 +260,16 @@ export default class LancamentosController {
       response.status(500).send('Server error')
     }
   }
+}
+
+function parseDate(dateString: string): DateTime | null {
+  const formats = ['dd/MM/yyyy', 'yyyy/MM/dd', 'yyyy-MM-dd', 'dd-MM-yyyy']
+
+  for (const format of formats) {
+    const date = DateTime.fromFormat(dateString, format)
+    if (date.isValid) {
+      return date.startOf('day')
+    }
+  }
+  return null
 }
