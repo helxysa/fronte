@@ -16,6 +16,10 @@ export default class LancamentosController {
       'data_pagamento',
     ])
 
+    if (!projetos || !itens || !itens.length) {
+      return response.status(400).send('nome do projeto e itens são obrigatórios.')
+    }
+
     try {
       const novoLancamento = await Lancamentos.create({
         contrato_id: id,
@@ -27,6 +31,11 @@ export default class LancamentosController {
       const lancamentoComItens = await Promise.all(
         itens.map(async (item: { id_item: number; quantidade_itens: string; data: string }) => {
           const contratoItem = await ContratoItens.find(item.id_item)
+
+          if (!item.id_item || !item.quantidade_itens || !item.data) {
+            throw new Error('Cada item deve conter id do item, a quantidade de itens e data.')
+          }
+
           if (!contratoItem) {
             throw new Error(`Item de contrato com id ${item.id_item} não encontrado.`)
           }
@@ -111,18 +120,20 @@ export default class LancamentosController {
 
       lancamento.status = status
       lancamento.projetos = projetos
-      lancamento.data_pagamento = data_pagamento
+      if (data_pagamento) {
+        lancamento.data_pagamento = DateTime.fromFormat(data_pagamento, 'dd/MM/yyyy')
+      }
 
       await lancamento.save()
 
       await Promise.all(
-        itens.map(async (item: { id: number; quantidade_itens: string; data: Date }) => {
-          const lancamentoItem = await LancamentoItens.find(item.id)
+        itens.map(async (item: { id_item: number; quantidade_itens: string; data: string }) => {
+          const lancamentoItem = await LancamentoItens.find(item.id_item)
 
           if (lancamentoItem) {
             lancamentoItem.merge({
               quantidade_itens: item.quantidade_itens,
-              data: DateTime.fromJSDate(item.data).startOf('day'),
+              data: DateTime.fromISO(item.data).startOf('day'),
             })
             await lancamentoItem.save()
           }
