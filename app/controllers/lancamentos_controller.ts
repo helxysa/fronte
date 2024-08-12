@@ -16,6 +16,10 @@ export default class LancamentosController {
       'data_pagamento',
     ])
 
+    if (!projetos || !itens || !itens.length) {
+      return response.status(400).send('nome do projeto e itens são obrigatórios.')
+    }
+
     try {
       const novoLancamento = await Lancamentos.create({
         contrato_id: id,
@@ -25,10 +29,20 @@ export default class LancamentosController {
       })
 
       const lancamentoComItens = await Promise.all(
-        itens.map(async (item: { id_item: number; quantidade_itens: string }) => {
+        itens.map(async (item: { id_item: number; quantidade_itens: string; data: string }) => {
           const contratoItem = await ContratoItens.find(item.id_item)
+
+          if (!item.id_item || !item.quantidade_itens || !item.data) {
+            throw new Error('Cada item deve conter id do item, a quantidade de itens e data.')
+          }
+
           if (!contratoItem) {
             throw new Error(`Item de contrato com id ${item.id_item} não encontrado.`)
+          }
+
+          const dataConvertida = parseDate(item.data)
+          if (!dataConvertida) {
+            throw new Error(`A data ${item.data} é inválida.`)
           }
 
           const novoItem = await LancamentoItens.create({
@@ -39,6 +53,7 @@ export default class LancamentosController {
             valor_unitario: contratoItem.valor_unitario,
             saldo_quantidade_contratada: contratoItem.saldo_quantidade_contratada,
             quantidade_itens: item.quantidade_itens,
+            data: dataConvertida,
           })
           return novoItem
         })
@@ -105,17 +120,20 @@ export default class LancamentosController {
 
       lancamento.status = status
       lancamento.projetos = projetos
-      lancamento.data_pagamento = data_pagamento
+      if (data_pagamento) {
+        lancamento.data_pagamento = DateTime.fromFormat(data_pagamento, 'dd/MM/yyyy')
+      }
 
       await lancamento.save()
 
       await Promise.all(
-        itens.map(async (item: { id: number; quantidade_itens: string }) => {
-          const lancamentoItem = await LancamentoItens.find(item.id)
+        itens.map(async (item: { id_item: number; quantidade_itens: string; data: string }) => {
+          const lancamentoItem = await LancamentoItens.find(item.id_item)
 
           if (lancamentoItem) {
             lancamentoItem.merge({
               quantidade_itens: item.quantidade_itens,
+              data: DateTime.fromISO(item.data).startOf('day'),
             })
             await lancamentoItem.save()
           }
@@ -212,9 +230,10 @@ export default class LancamentosController {
 
   async addLancamentoItem({ request, response, params }: HttpContext) {
     const { id } = params
-    const { contrato_item_id, quantidade_itens } = request.only([
+    const { contrato_item_id, quantidade_itens, data } = request.only([
       'contrato_item_id',
       'quantidade_itens',
+      'data',
     ])
 
     try {
@@ -243,6 +262,7 @@ export default class LancamentosController {
         valor_unitario: contratoItem.valor_unitario,
         saldo_quantidade_contratada: contratoItem.saldo_quantidade_contratada,
         quantidade_itens: quantidade_itens,
+        data: data,
       })
 
       return response.status(201).json(lancamentoItem)
@@ -251,4 +271,16 @@ export default class LancamentosController {
       response.status(500).send('Server error')
     }
   }
+}
+
+function parseDate(dateString: string): DateTime | null {
+  const formats = ['dd/MM/yyyy', 'yyyy/MM/dd', 'yyyy-MM-dd', 'dd-MM-yyyy']
+
+  for (const format of formats) {
+    const date = DateTime.fromFormat(dateString, format)
+    if (date.isValid) {
+      return date.startOf('day')
+    }
+  }
+  return null
 }
