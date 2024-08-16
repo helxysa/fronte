@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 /* eslint-disable @typescript-eslint/naming-convention */
 import type { HttpContext } from '@adonisjs/core/http'
 import Lancamentos from '#models/lancamentos'
@@ -9,11 +10,13 @@ import FaturamentoItem from '#models/faturamento_item'
 export default class LancamentosController {
   async createLancamento({ request, response, params }: HttpContext) {
     const { id } = params
-    const { status, projetos, data_pagamento, itens } = request.only([
+    const { status, projetos, data_medicao, itens, tarefa_medicao, tipo_medicao } = request.only([
       'status',
       'itens',
       'projetos',
-      'data_pagamento',
+      'data_medicao',
+      'tarefa_medicao',
+      'tipo_medicao',
     ])
 
     if (!projetos || !itens || !itens.length) {
@@ -21,11 +24,25 @@ export default class LancamentosController {
     }
 
     try {
+      const existeLancamento = await Lancamentos.query()
+        .where('contrato_id', id)
+        .andWhere('data_medicao', data_medicao)
+        .andWhere('tarefa_medicao', tarefa_medicao)
+        .first()
+
+      if (existeLancamento) {
+        return response
+          .status(400)
+          .send('Já existe um lançamento com a mesma data e tarefa de medição para este contrato.')
+      }
+
       const novoLancamento = await Lancamentos.create({
         contrato_id: id,
-        status,
+        status: status || null,
         projetos: projetos,
-        data_pagamento: data_pagamento,
+        data_medicao: data_medicao,
+        tarefa_medicao,
+        tipo_medicao,
       })
 
       const lancamentoComItens = await Promise.all(
@@ -104,24 +121,42 @@ export default class LancamentosController {
 
   async updateLancamento({ request, response, params }: HttpContext) {
     const { id } = params
-    const { status, itens, projetos, data_pagamento } = request.only([
+    const { status, itens, projetos, data_medicao, tarefa_medicao, tipo_medicao } = request.only([
       'status',
       'itens',
       'projetos',
-      'data_pagamento',
+      'data_medicao',
+      'tarefa_medicao',
+      'tipo_medicao',
     ])
 
     try {
+      const existeLancamento = await Lancamentos.query()
+        .where('contrato_id', id)
+        .andWhere('data_medicao', data_medicao)
+        .andWhere('tarefa_medicao', tarefa_medicao)
+        .whereNot('id', id)
+        .first()
+
+      if (existeLancamento) {
+        return response
+          .status(400)
+          .send('Já existe um lançamento com a mesma data e tarefa de medição para este contrato.')
+      }
+
       const lancamento = await Lancamentos.find(id)
 
       if (!lancamento) {
         return response.status(404).send('Lançamento não encontrado.')
       }
 
-      lancamento.status = status
+      lancamento.status = status || null
       lancamento.projetos = projetos
-      if (data_pagamento) {
-        lancamento.data_pagamento = DateTime.fromFormat(data_pagamento, 'dd/MM/yyyy')
+      lancamento.tarefa_medicao = tarefa_medicao
+      lancamento.tipo_medicao = tipo_medicao
+
+      if (data_medicao) {
+        lancamento.data_medicao = DateTime.fromFormat(data_medicao, 'dd/MM/yyyy')
       }
 
       await lancamento.save()
