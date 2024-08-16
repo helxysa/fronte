@@ -110,7 +110,7 @@ export default class ContratosController {
                 .preload('lancamento', (lancamentoQuery) => {
                   lancamentoQuery
                     .whereNull('deleted_at')
-                    .select(['id', 'status', 'projetos', 'data_pagamento'])
+                    .select(['id', 'status', 'projetos', 'data_medicao'])
                     .preload('lancamentoItens', (lancamentoItensQuery) => {
                       lancamentoItensQuery
                         .whereNull('deleted_at')
@@ -169,7 +169,7 @@ export default class ContratosController {
                 .preload('lancamento', (lancamentoQuery) => {
                   lancamentoQuery
                     .whereNull('deleted_at')
-                    .select(['id', 'status', 'projetos', 'data_pagamento'])
+                    .select(['id', 'status', 'projetos', 'data_medicao'])
                     .preload('lancamentoItens', (lancamentoItensQuery) => {
                       lancamentoItensQuery
                         .whereNull('deleted_at')

@@ -102,11 +102,11 @@ export default class RenovacaoController {
 
   async createLancamentoRenovacao({ request, response, params }: HttpContext) {
     const { renovacao_id } = params
-    const { status, itens, projetos, data_pagamento } = request.only([
+    const { status, itens, projetos, data_medicao } = request.only([
       'status',
       'itens',
       'projetos',
-      'data_pagamento',
+      'data_medicao',
     ])
 
     try {
@@ -120,7 +120,7 @@ export default class RenovacaoController {
         renovacao_id: renovacao.id,
         status,
         projetos,
-        data_pagamento,
+        data_medicao,
       })
 
       const lancamentoComItens = await Promise.all(
