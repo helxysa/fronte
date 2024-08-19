@@ -131,9 +131,14 @@ export default class LancamentosController {
     ])
 
     try {
+      const lancamentoAtual = await Lancamentos.find(id)
+      if (!lancamentoAtual) {
+        return response.status(404).send('Lançamento não encontrado.')
+      }
+
       const existeLancamento = await Lancamentos.query()
-        .where('contrato_id', id)
-        .andWhere('data_medicao', data_medicao)
+        .where('contrato_id', lancamentoAtual.contrato_id)
+        .andWhere('data_medicao', DateTime.fromFormat(data_medicao, 'dd/MM/yyyy').toISODate())
         .andWhere('tarefa_medicao', tarefa_medicao)
         .whereNot('id', id)
         .first()
@@ -144,22 +149,16 @@ export default class LancamentosController {
           .send('Já existe um lançamento com a mesma data e tarefa de medição para este contrato.')
       }
 
-      const lancamento = await Lancamentos.find(id)
-
-      if (!lancamento) {
-        return response.status(404).send('Lançamento não encontrado.')
-      }
-
-      lancamento.status = status || null
-      lancamento.projetos = projetos
-      lancamento.tarefa_medicao = tarefa_medicao
-      lancamento.tipo_medicao = tipo_medicao
+      lancamentoAtual.status = status || null
+      lancamentoAtual.projetos = projetos
+      lancamentoAtual.tarefa_medicao = tarefa_medicao
+      lancamentoAtual.tipo_medicao = tipo_medicao
 
       if (data_medicao) {
-        lancamento.data_medicao = DateTime.fromFormat(data_medicao, 'dd/MM/yyyy')
+        lancamentoAtual.data_medicao = DateTime.fromFormat(data_medicao, 'dd/MM/yyyy')
       }
 
-      await lancamento.save()
+      await lancamentoAtual.save()
 
       await Promise.all(
         itens.map(async (item: { id_item: number; quantidade_itens: string; data: string }) => {
@@ -175,9 +174,9 @@ export default class LancamentosController {
         })
       )
 
-      await lancamento.load('lancamentoItens')
+      await lancamentoAtual.load('lancamentoItens')
 
-      return response.status(200).json(lancamento)
+      return response.status(200).json(lancamentoAtual)
     } catch (err) {
       console.error(err)
       return response.status(500).send('Server error')
