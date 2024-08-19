@@ -136,9 +136,15 @@ export default class LancamentosController {
         return response.status(404).send('Lançamento não encontrado.')
       }
 
+      // const dataMedicaoISO = DateTime.fromFormat(data_medicao, 'dd/MM/yyyy').toISODate()
+
+      // if (!dataMedicaoISO) {
+      //   return response.status(400).send('Data de medição inválida.')
+      // }
+
       const existeLancamento = await Lancamentos.query()
         .where('contrato_id', lancamentoAtual.contrato_id)
-        .andWhere('data_medicao', DateTime.fromFormat(data_medicao, 'dd/MM/yyyy').toISODate())
+        .andWhere('data_medicao', data_medicao)
         .andWhere('tarefa_medicao', tarefa_medicao)
         .whereNot('id', id)
         .first()
