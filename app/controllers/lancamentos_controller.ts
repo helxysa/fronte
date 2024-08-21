@@ -20,10 +20,11 @@ export default class LancamentosController {
     ])
 
     if (!projetos || !itens || !itens.length) {
-      return response.status(400).send('nome do projeto e itens são obrigatórios.')
+      return response.status(400).send('Nome do projeto e itens são obrigatórios.')
     }
 
     try {
+      // Verificação se já existe um lançamento com a mesma data e tarefa para o contrato
       const existeLancamento = await Lancamentos.query()
         .where('contrato_id', id)
         .andWhere('data_medicao', data_medicao)
@@ -36,6 +37,7 @@ export default class LancamentosController {
           .send('Já existe um lançamento com a mesma data e tarefa de medição para este contrato.')
       }
 
+      // Criação do novo lançamento
       const novoLancamento = await Lancamentos.create({
         contrato_id: id,
         status: status || null,
@@ -45,18 +47,21 @@ export default class LancamentosController {
         tipo_medicao,
       })
 
+      // Processamento dos itens
       const lancamentoComItens = await Promise.all(
         itens.map(async (item: { id_item: number; quantidade_itens: string; }) => {
-          const contratoItem = await ContratoItens.find(item.id_item)
-
+          // Verificação se o item contém os campos necessários
           if (!item.id_item || !item.quantidade_itens) {
-            throw new Error('Cada item deve conter id do item, a quantidade de itens.')
+            throw new Error('Cada item deve conter id do item e a quantidade de itens.')
           }
 
+          // Verificação se o item de contrato existe
+          const contratoItem = await ContratoItens.find(item.id_item)
           if (!contratoItem) {
             throw new Error(`Item de contrato com id ${item.id_item} não encontrado.`)
           }
 
+          // Criação do item no lançamento
           const novoItem = await LancamentoItens.create({
             lancamento_id: novoLancamento.id,
             contrato_item_id: contratoItem.id,
@@ -70,13 +75,17 @@ export default class LancamentosController {
         })
       )
 
+      // Retorno da resposta com sucesso
       return response.status(201).json({
         ...novoLancamento.toJSON(),
         itens: lancamentoComItens,
       })
     } catch (err) {
-      console.error(err)
-      return response.status(500).send('Server error')
+      console.error('Erro ao criar lançamento:', err)
+      if (err instanceof Error) {
+        return response.status(500).send(`Erro no servidor: ${err.message}`)
+      }
+      return response.status(500).send('Erro inesperado no servidor.')
     }
   }
 
