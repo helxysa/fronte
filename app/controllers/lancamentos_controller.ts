@@ -139,19 +139,10 @@ export default class LancamentosController {
         return response.status(404).send('Lançamento não encontrado.')
       }
 
-      let dataMedicao: DateTime | null = null;
-      if (data_medicao) {
-        dataMedicao = DateTime.fromFormat(data_medicao, 'yyyy-MM-dd');
-        if (!dataMedicao) {
-          return response.status(400).send('Data de medição inválida.');
-        }
+      const dataMedicao = DateTime.fromFormat(data_medicao, 'yyyy-MM-dd');
+      if (!dataMedicao) {
+        return response.status(400).send('Data de medição inválida.');
       }
-
-      // const dataMedicaoISO = DateTime.fromFormat(data_medicao, 'yyyy-MM-dd')
-
-      // if (!dataMedicaoISO) {
-      //   return response.status(400).send('Data de medição inválida.')
-      // }
 
       const existeLancamento = await Lancamentos.query()
         .where('contrato_id', lancamentoAtual.contrato_id)
@@ -170,12 +161,7 @@ export default class LancamentosController {
       lancamentoAtual.projetos = projetos
       lancamentoAtual.tarefa_medicao = tarefa_medicao
       lancamentoAtual.tipo_medicao = tipo_medicao
-
-      if (data_medicao) {
-        lancamentoAtual.data_medicao = DateTime.fromFormat(data_medicao, 'dd/MM/yyyy')
-      } else {
-        lancamentoAtual.data_medicao = null;
-      }
+      lancamentoAtual.data_medicao = dataMedicao;
 
       await lancamentoAtual.save()
 
