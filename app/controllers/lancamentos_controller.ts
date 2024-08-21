@@ -158,7 +158,7 @@ export default class LancamentosController {
           .send('Já existe um lançamento com a mesma data e tarefa de medição para este contrato.')
       }
 
-      lancamentoAtual.status = status || null
+      lancamentoAtual.status = status
       lancamentoAtual.projetos = projetos
       lancamentoAtual.tarefa_medicao = tarefa_medicao
       lancamentoAtual.tipo_medicao = tipo_medicao
@@ -186,8 +186,14 @@ export default class LancamentosController {
 
       return response.status(200).json(lancamentoAtual)
     } catch (err) {
-      console.error(err)
-      return response.status(500).send('Server error')
+      // console.error(err)
+      // return response.status(500).send('Server error')
+      console.error('Erro ao atualizar lançamento:', err)
+      return response.status(500).json({
+        error: 'Erro interno do servidor.',
+        message: err.message,
+        statusCode: 500
+      })
     }
   }
 
