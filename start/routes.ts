@@ -35,7 +35,8 @@ router.put('/contratos/restore/:id', [ContratosController, 'restoreContract'])
 router.delete('/contratos/:id', [ContratosController, 'deleteContract'])
 // Itens de contratos
 router.post('/contratos/:id/items', [ContratoItemController, 'createContractItem'])
-router.get('/contratos/:id/items', [ContratoItemController, 'getContractItem'])
+// router.get('/contratos/:id/items', [ContratoItemController, 'getContractItem'])
+router.get('/contratos/:id/items', [ContratoItemController, 'getContractItemByContract'])
 router.put('/contratos/items/:itemId', [ContratoItemController, 'updateContractItem'])
 router.delete('/contratos/items/:itemId', [ContratoItemController, 'deleteContractItem'])
 //Lancamentos

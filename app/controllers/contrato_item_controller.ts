@@ -39,6 +39,31 @@ export default class ContratoItemController {
     }
   }
 
+  async getContractItemByContract({ params, request, response }: HttpContext) {
+    const page = request.input('page', 1)
+    const limit = request.input('limit', 10)
+    const search = request.input('search')
+
+    try {
+      let query = ContratoItens.query().where('contrato_id', params.id)
+
+      if (search) {
+        query = query.whereILike('titulo', `%${search}%`)
+      }
+
+      const contratoItens = await query.paginate(page, limit)
+
+      if (contratoItens.total === 0) {
+        return response.status(404).json({ message: 'Nenhum item encontrado' })
+      }
+
+      return response.json(contratoItens)
+    } catch (error) {
+      console.error(error)
+      return response.status(500).json({ message: 'Erro no servidor' })
+    }
+  }
+
   async updateContractItem({ request, response, params }: HttpContext) {
     const { itemId } = params
     const data = request.only([
