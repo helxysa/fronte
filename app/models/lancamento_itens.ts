@@ -31,9 +31,6 @@ export default class LancamentoItens extends compose(BaseModel, SoftDeletes) {
   @column()
   declare quantidade_itens: string
 
-  @column.date()
-  declare data: DateTime
-
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

@@ -23,7 +23,13 @@ export default class Lancamentos extends compose(BaseModel, SoftDeletes) {
   declare status: string
 
   @column()
-  declare data_pagamento: DateTime
+  declare tarefa_medicao: string
+
+  @column()
+  declare tipo_medicao: string
+
+  @column()
+  declare data_medicao: DateTime | null
 
   @column()
   declare projetos: string

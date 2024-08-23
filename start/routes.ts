@@ -10,6 +10,7 @@ const RenovacaoController = () => import('#controllers/renovacao_controller')
 const ContratoItemController = () => import('#controllers/contrato_item_controller')
 const LancamentosController = () => import('#controllers/lancamentos_controller')
 const FaturamentosController = () => import('#controllers/faturamentos_controller')
+const UnidadeMedidaController = () => import('#controllers/unidade_medida_controller')
 
 // Registro, Login e Autenticação
 router.post('/register', [AuthController, 'register']).as('auth.register')
@@ -52,7 +53,12 @@ router.put('/faturamentos/:id', [FaturamentosController, 'updateFaturamento'])
 router.get('/contratos/:id/faturamentos', [FaturamentosController, 'getFaturamentosByContratoId'])
 router.delete('/faturamentos/:id', [FaturamentosController, 'deleteFaturamento'])
 router.put('/faturamentos/restore/:id', [FaturamentosController, 'restoreFaturamento'])
-
+//Unidade de medida
+router.post('/unidade_medida', [UnidadeMedidaController, 'store'])
+router.get('/unidade_medida', [UnidadeMedidaController, 'index'])
+router.get('/unidade_medida/:id', [UnidadeMedidaController, 'show'])
+router.put('/unidade_medida/:id', [UnidadeMedidaController, 'update'])
+router.delete('/unidade_medida/:id', [UnidadeMedidaController, 'destroy'])
 //Renovacoes
 //Criar renovação
 router.post('/contratos/:id/renovar', [RenovacaoController, 'createRenovacao'])

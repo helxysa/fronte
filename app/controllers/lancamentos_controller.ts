@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 /* eslint-disable @typescript-eslint/naming-convention */
 import type { HttpContext } from '@adonisjs/core/http'
 import Lancamentos from '#models/lancamentos'
@@ -9,42 +10,58 @@ import FaturamentoItem from '#models/faturamento_item'
 export default class LancamentosController {
   async createLancamento({ request, response, params }: HttpContext) {
     const { id } = params
-    const { status, projetos, data_pagamento, itens } = request.only([
+    const { status, projetos, data_medicao, itens, tarefa_medicao, tipo_medicao } = request.only([
       'status',
       'itens',
       'projetos',
-      'data_pagamento',
+      'data_medicao',
+      'tarefa_medicao',
+      'tipo_medicao',
     ])
 
     if (!projetos || !itens || !itens.length) {
-      return response.status(400).send('nome do projeto e itens são obrigatórios.')
+      return response.status(400).send('Nome do projeto e itens são obrigatórios.')
     }
 
     try {
+      // Verificação se já existe um lançamento com a mesma data e tarefa para o contrato
+      const existeLancamento = await Lancamentos.query()
+        .where('contrato_id', id)
+        .andWhere('data_medicao', data_medicao)
+        .andWhere('tarefa_medicao', tarefa_medicao)
+        .first()
+
+      if (existeLancamento) {
+        return response
+          .status(400)
+          .send('Já existe um lançamento com a mesma data e tarefa de medição para este contrato.')
+      }
+
+      // Criação do novo lançamento
       const novoLancamento = await Lancamentos.create({
         contrato_id: id,
-        status,
+        status: status || null,
         projetos: projetos,
-        data_pagamento: data_pagamento,
+        data_medicao: data_medicao,
+        tarefa_medicao,
+        tipo_medicao,
       })
 
+      // Processamento dos itens
       const lancamentoComItens = await Promise.all(
-        itens.map(async (item: { id_item: number; quantidade_itens: string; data: string }) => {
-          const contratoItem = await ContratoItens.find(item.id_item)
-
-          if (!item.id_item || !item.quantidade_itens || !item.data) {
-            throw new Error('Cada item deve conter id do item, a quantidade de itens e data.')
+        itens.map(async (item: { id_item: number; quantidade_itens: string; }) => {
+          // Verificação se o item contém os campos necessários
+          if (!item.id_item || !item.quantidade_itens) {
+            throw new Error('Cada item deve conter id do item e a quantidade de itens.')
           }
 
+          // Verificação se o item de contrato existe
+          const contratoItem = await ContratoItens.find(item.id_item)
           if (!contratoItem) {
             throw new Error(`Item de contrato com id ${item.id_item} não encontrado.`)
           }
 
-          const dataConvertida = parseDate(item.data)
-          if (!dataConvertida) {
-            throw new Error(`A data ${item.data} é inválida.`)
-          }
-
+          // Criação do item no lançamento
           const novoItem = await LancamentoItens.create({
             lancamento_id: novoLancamento.id,
             contrato_item_id: contratoItem.id,
@@ -53,19 +70,22 @@ export default class LancamentosController {
             valor_unitario: contratoItem.valor_unitario,
             saldo_quantidade_contratada: contratoItem.saldo_quantidade_contratada,
             quantidade_itens: item.quantidade_itens,
-            data: dataConvertida,
           })
           return novoItem
         })
       )
 
+      // Retorno da resposta com sucesso
       return response.status(201).json({
         ...novoLancamento.toJSON(),
         itens: lancamentoComItens,
       })
     } catch (err) {
-      console.error(err)
-      return response.status(500).send('Server error')
+      console.error('Erro ao criar lançamento:', err)
+      if (err instanceof Error) {
+        return response.status(500).send(`Erro no servidor: ${err.message}`)
+      }
+      return response.status(500).send('Erro inesperado no servidor.')
     }
   }
 
@@ -104,48 +124,72 @@ export default class LancamentosController {
 
   async updateLancamento({ request, response, params }: HttpContext) {
     const { id } = params
-    const { status, itens, projetos, data_pagamento } = request.only([
+    const { status, itens, projetos, data_medicao, tarefa_medicao, tipo_medicao } = request.only([
       'status',
       'itens',
       'projetos',
-      'data_pagamento',
+      'data_medicao',
+      'tarefa_medicao',
+      'tipo_medicao',
     ])
 
     try {
-      const lancamento = await Lancamentos.find(id)
-
-      if (!lancamento) {
+      const lancamentoAtual = await Lancamentos.find(id)
+      if (!lancamentoAtual) {
         return response.status(404).send('Lançamento não encontrado.')
       }
 
-      lancamento.status = status
-      lancamento.projetos = projetos
-      if (data_pagamento) {
-        lancamento.data_pagamento = DateTime.fromFormat(data_pagamento, 'dd/MM/yyyy')
+      const dataMedicao = DateTime.fromFormat(data_medicao, 'yyyy-MM-dd');
+      if (!dataMedicao) {
+        return response.status(400).send('Data de medição inválida.');
       }
 
-      await lancamento.save()
+      const existeLancamento = await Lancamentos.query()
+        .where('contrato_id', lancamentoAtual.contrato_id)
+        .andWhere('data_medicao', data_medicao)
+        .andWhere('tarefa_medicao', tarefa_medicao)
+        .whereNot('id', id)
+        .first()
+
+      if (existeLancamento) {
+        return response
+          .status(400)
+          .send('Já existe um lançamento com a mesma data e tarefa de medição para este contrato.')
+      }
+
+      lancamentoAtual.status = status
+      lancamentoAtual.projetos = projetos
+      lancamentoAtual.tarefa_medicao = tarefa_medicao
+      lancamentoAtual.tipo_medicao = tipo_medicao
+      lancamentoAtual.data_medicao = dataMedicao;
+
+      await lancamentoAtual.save()
 
       await Promise.all(
-        itens.map(async (item: { id_item: number; quantidade_itens: string; data: string }) => {
+        itens.map(async (item: { id_item: number; quantidade_itens: string; }) => {
           const lancamentoItem = await LancamentoItens.find(item.id_item)
 
           if (lancamentoItem) {
             lancamentoItem.merge({
               quantidade_itens: item.quantidade_itens,
-              data: DateTime.fromISO(item.data).startOf('day'),
             })
             await lancamentoItem.save()
           }
         })
       )
 
-      await lancamento.load('lancamentoItens')
+      await lancamentoAtual.load('lancamentoItens')
 
-      return response.status(200).json(lancamento)
+      return response.status(200).json(lancamentoAtual)
     } catch (err) {
-      console.error(err)
-      return response.status(500).send('Server error')
+      // console.error(err)
+      // return response.status(500).send('Server error')
+      console.error('Erro ao atualizar lançamento:', err)
+      return response.status(500).json({
+        error: 'Erro interno do servidor.',
+        message: err.message,
+        statusCode: 500
+      })
     }
   }
 
@@ -230,10 +274,9 @@ export default class LancamentosController {
 
   async addLancamentoItem({ request, response, params }: HttpContext) {
     const { id } = params
-    const { contrato_item_id, quantidade_itens, data } = request.only([
+    const { contrato_item_id, quantidade_itens } = request.only([
       'contrato_item_id',
       'quantidade_itens',
-      'data',
     ])
 
     try {
@@ -262,7 +305,6 @@ export default class LancamentosController {
         valor_unitario: contratoItem.valor_unitario,
         saldo_quantidade_contratada: contratoItem.saldo_quantidade_contratada,
         quantidade_itens: quantidade_itens,
-        data: data,
       })
 
       return response.status(201).json(lancamentoItem)
@@ -273,14 +315,14 @@ export default class LancamentosController {
   }
 }
 
-function parseDate(dateString: string): DateTime | null {
-  const formats = ['dd/MM/yyyy', 'yyyy/MM/dd', 'yyyy-MM-dd', 'dd-MM-yyyy']
+// function parseDate(dateString: string): DateTime | null {
+//   const formats = ['dd/MM/yyyy', 'yyyy/MM/dd', 'yyyy-MM-dd', 'dd-MM-yyyy']
 
-  for (const format of formats) {
-    const date = DateTime.fromFormat(dateString, format)
-    if (date.isValid) {
-      return date.startOf('day')
-    }
-  }
-  return null
-}
+//   for (const format of formats) {
+//     const date = DateTime.fromFormat(dateString, format)
+//     if (date.isValid) {
+//       return date.startOf('day')
+//     }
+//   }
+//   return null
+// }
