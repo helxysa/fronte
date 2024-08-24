@@ -43,6 +43,7 @@ router.delete('/contratos/items/:itemId', [ContratoItemController, 'deleteContra
 router.post('/contratos/:id/lancamentos', [LancamentosController, 'createLancamento'])
 router.get('/lancamentos', [LancamentosController, 'getLancamentos'])
 router.get('/lancamentos/:id', [LancamentosController, 'getLancamentoById'])
+router.get('/contratos/:id/lancamentos', [LancamentosController, 'getLancamentoByContract'])
 router.put('/lancamentos/:id', [LancamentosController, 'updateLancamento'])
 router.delete('/lancamentos/:id', [LancamentosController, 'deleteLancamento'])
 router.delete('/lancamentos/restore/:id', [LancamentosController, 'restoreLancamento'])

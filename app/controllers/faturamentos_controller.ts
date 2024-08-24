@@ -109,9 +109,10 @@ export default class FaturamentosController {
     return response.status(200).json(faturamento)
   }
 
-  async getFaturamentosByContratoId({ params, response }: HttpContext) {
+  async getFaturamentosByContratoId({ params, request, response }: HttpContext) {
     const { id } = params
-
+    const page = request.input('page', 1)
+    const limit = request.input('limit', 10)
     try {
       const faturamentos = await Faturamentos.query()
         .where('contrato_id', id)
@@ -139,6 +140,7 @@ export default class FaturamentosController {
               })
           })
         })
+      .paginate(page, limit)
 
       if (faturamentos.length === 0) {
         return response
