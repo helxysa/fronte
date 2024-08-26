@@ -51,7 +51,7 @@ export default class ContratoItemController {
         query = query.whereILike('titulo', `%${search}%`)
       }
 
-      const contratoItens = await query.paginate(page, limit)
+      const contratoItens = await query.orderBy('created_at', 'desc').paginate(page, limit)
 
       if (contratoItens.total === 0) {
         return response.status(404).json({ message: 'Nenhum item encontrado' })

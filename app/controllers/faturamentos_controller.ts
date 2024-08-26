@@ -140,6 +140,7 @@ export default class FaturamentosController {
               })
           })
         })
+      .orderBy('created_at', 'desc')
       .paginate(page, limit)
 
       if (faturamentos.length === 0) {

@@ -110,6 +110,7 @@ export default class LancamentosController {
       const lancamento = await Lancamentos.query()
         .where('contrato_id', id)
         .preload('lancamentoItens')
+        .orderBy('created_at', 'desc')
         .paginate(page, limit)
 
       if (!lancamento) {
