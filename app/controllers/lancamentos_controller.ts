@@ -102,6 +102,28 @@ export default class LancamentosController {
     }
   }
 
+  async getLancamentoByContract({ params, request, response }: HttpContext) {
+    const { id } = params
+    const page = request.input('page', 1)
+    const limit = request.input('limit', 10)
+    try {
+      const lancamento = await Lancamentos.query()
+        .where('contrato_id', id)
+        .preload('lancamentoItens')
+        .orderBy('created_at', 'desc')
+        .paginate(page, limit)
+
+      if (!lancamento) {
+        return response.status(404).send('Lançamento não encontrado.')
+      }
+
+      return response.json(lancamento)
+    } catch (err) {
+      console.error(err)
+      return response.status(500).send('Server error')
+    }
+  }
+
   async getLancamentoById({ params, response }: HttpContext) {
     const { id } = params
 
