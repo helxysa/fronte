@@ -146,6 +146,7 @@ export default class ContratosController {
       const contrato = await Contrato.query()
         .where('id', params.id)
         .whereNull('deleted_at')
+        .preload('projetos')
         .preload('contratoItens', (query) => {
           query.whereNull('renovacao_id')
           query.whereNull('deleted_at')

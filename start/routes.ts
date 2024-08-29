@@ -11,7 +11,7 @@ const ContratoItemController = () => import('#controllers/contrato_item_controll
 const LancamentosController = () => import('#controllers/lancamentos_controller')
 const FaturamentosController = () => import('#controllers/faturamentos_controller')
 const UnidadeMedidaController = () => import('#controllers/unidade_medida_controller')
-
+const ProjetosController = () => import('#controllers/projetos_controller')
 // Registro, Login e Autenticação
 router.post('/register', [AuthController, 'register']).as('auth.register')
 router.post('/login', [AuthController, 'login']).as('auth.login')
@@ -39,6 +39,12 @@ router.post('/contratos/:id/items', [ContratoItemController, 'createContractItem
 router.get('/contratos/:id/items', [ContratoItemController, 'getContractItemByContract'])
 router.put('/contratos/items/:itemId', [ContratoItemController, 'updateContractItem'])
 router.delete('/contratos/items/:itemId', [ContratoItemController, 'deleteContractItem'])
+//Projetos
+router.post('/contratos/:contrato_id/projetos', [ProjetosController, 'store'])
+router.get('/contratos/:contrato_id/projetos', [ProjetosController, 'index'])
+router.get('/projetos/:id', [ProjetosController, 'show'])
+router.put('/projetos/:id', [ProjetosController, 'update'])
+router.delete('/projetos/:id', [ProjetosController, 'destroy'])
 //Lancamentos
 router.post('/contratos/:id/lancamentos', [LancamentosController, 'createLancamento'])
 router.get('/lancamentos', [LancamentosController, 'getLancamentos'])
