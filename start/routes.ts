@@ -41,6 +41,7 @@ router.put('/contratos/items/:itemId', [ContratoItemController, 'updateContractI
 router.delete('/contratos/items/:itemId', [ContratoItemController, 'deleteContractItem'])
 //Projetos
 router.post('/contratos/:contrato_id/projetos', [ProjetosController, 'store'])
+router.post('/contratos/:contrato_id/projetos/multiplos', [ProjetosController, 'storeMultiple'])
 router.get('/contratos/:contrato_id/projetos', [ProjetosController, 'index'])
 router.get('/projetos/:id', [ProjetosController, 'show'])
 router.put('/projetos/:id', [ProjetosController, 'update'])
