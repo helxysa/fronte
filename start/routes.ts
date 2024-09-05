@@ -26,6 +26,8 @@ router.delete('users/:id', [UsersController, 'destroy'])
 router.get('files/:filename', async ({ params, response }) => {
   return response.attachment(Application.tmpPath('uploads', params.filename), params.filename)
 })
+// Dashboard
+router.get('/getDoughnut', [ContratosController, 'getDoughnut'])
 // Contratos
 router.post('/contratos', [ContratosController, 'createContract'])
 router.get('/contratos', [ContratosController, 'getContracts'])

@@ -8,6 +8,7 @@ import Lancamento from '#models/lancamentos'
 import LancamentoItens from '#models/lancamento_itens'
 import { DateTime } from 'luxon'
 import Renovacao from '#models/renovacao'
+import Faturamentos from '#models/faturamentos'
 
 export default class ContratosController {
   async createContract({ request, response }: HttpContext) {
@@ -408,5 +409,31 @@ export default class ContratosController {
       console.error(err)
       return response.status(500).send('Erro no servidor')
     }
+  }
+
+  async getDoughnut({ response }: HttpContext) {
+    const totalResult = await Contrato.query().whereNull('deleted_at').count('* as total')
+    const totalContratos = totalResult[0]?.$extras?.total || 0
+
+    const [aguardandoFaturamentoResult, aguardandoPagamentoResult, pagoResult] = await Promise.all([
+      Faturamentos.query().where('status', 'Aguardando Faturamento').count('* as total'),
+      Faturamentos.query().where('status', 'Aguardando Pagamento').count('* as total'),
+      Faturamentos.query().where('status', 'Pago').count('* as total'),
+    ])
+    const totalAguardandoFaturamento = aguardandoFaturamentoResult[0].$extras.total || 0
+    const totalAguardandoPagamento = aguardandoPagamentoResult[0].$extras.total || 0
+    const totalPago = pagoResult[0].$extras.total || 0
+
+    return response.json({
+      doughnut: {
+        total_contratos: Number(totalContratos),
+        total_aguardando_faturamento: Number(totalAguardandoFaturamento),
+        total_aguardando_pagamento: Number(totalAguardandoPagamento),
+        total_pago: Number(totalPago),
+      },
+      top5: [],
+      stamps: [],
+      map: [],
+    })
   }
 }
