@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 /* eslint-disable @typescript-eslint/naming-convention */
 import type { HttpContext } from '@adonisjs/core/http'
 import Contrato from '#models/contratos'
@@ -427,8 +428,7 @@ export default class ContratosController {
 
     const contratos = await this.fetchContracts()
 
-    const { stampTotalAguardandoFaturamento, stampTotalAguardandoPagamento, stampTotalPago } =
-      await this.getStampData(contratos)
+    const { stampTotalAguardandoFaturamento, stampTotalAguardandoPagamento, stampTotalPago, totalUtilizado } = await this.getStampData(contratos)
 
     const stampTotalValorContratado = contratos.reduce((acc, contrato) => {
       const saldo = Number(contrato.saldo_contrato) || 0
@@ -454,6 +454,7 @@ export default class ContratosController {
       top5: [],
       stamps: {
         total_valor_contratado: stampTotalValorContratado,
+        total_saldo_disponível: stampTotalValorContratado - totalUtilizado,
         total_aguardando_faturamento: stampTotalAguardandoFaturamento,
         total_aguardando_pagamento: stampTotalAguardandoPagamento,
         total_pago: stampTotalPago,
@@ -485,15 +486,15 @@ export default class ContratosController {
       }, 0)
     }
 
-    // Calcula e retorna os totais para cada status
+    const stampTotalAguardandoFaturamento = await calculateTotalByStatus(STATUS_AGUARDANDO_FATURAMENTO)
+    const stampTotalAguardandoPagamento = await calculateTotalByStatus(STATUS_AGUARDANDO_PAGAMENTO)
+    const stampTotalPago = await calculateTotalByStatus(STATUS_PAGO)
+    const totalUtilizado = stampTotalAguardandoFaturamento + stampTotalAguardandoPagamento + stampTotalPago
     return {
-      stampData: {
-        stampTotalAguardandoFaturamento: await calculateTotalByStatus(
-          STATUS_AGUARDANDO_FATURAMENTO
-        ),
-        stampTotalAguardandoPagamento: await calculateTotalByStatus(STATUS_AGUARDANDO_PAGAMENTO),
-        stampTotalPago: await calculateTotalByStatus(STATUS_PAGO),
-      },
+      stampTotalAguardandoFaturamento,
+      stampTotalAguardandoPagamento,
+      stampTotalPago,
+      totalUtilizado,
     }
   }
 }
