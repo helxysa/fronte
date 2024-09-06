@@ -422,12 +422,8 @@ export default class ContratosController {
     }
   }
 
-  async getDoughnut({ response }: HttpContext) {
-    const totalResult = await Contrato.query().whereNull('deleted_at').count('* as total')
-    const totalContratos = totalResult[0]?.$extras?.total || 0
-
+  async getDashboard({ response }: HttpContext) {
     const contratos = await this.fetchContracts()
-
     const { stampTotalAguardandoFaturamento, stampTotalAguardandoPagamento, stampTotalPago, totalUtilizado } = await this.getStampData(contratos)
 
     const stampTotalValorContratado = contratos.reduce((acc, contrato) => {
@@ -435,33 +431,48 @@ export default class ContratosController {
       return acc + saldo
     }, 0)
 
-    const [aguardandoFaturamentoResult, aguardandoPagamentoResult, pagoResult] = await Promise.all([
-      Faturamentos.query().where('status', 'Aguardando Faturamento').count('* as total'),
-      Faturamentos.query().where('status', 'Aguardando Pagamento').count('* as total'),
-      Faturamentos.query().where('status', 'Pago').count('* as total'),
-    ])
-    const totalAguardandoFaturamento = aguardandoFaturamentoResult[0].$extras.total || 0
-    const totalAguardandoPagamento = aguardandoPagamentoResult[0].$extras.total || 0
-    const totalPago = pagoResult[0].$extras.total || 0
+    const top5 = await this.getTop5Contratos(contratos);
 
     return response.json({
-      doughnut: {
-        total_contratos: Number(totalContratos),
-        total_aguardando_faturamento: Number(totalAguardandoFaturamento),
-        total_aguardando_pagamento: Number(totalAguardandoPagamento),
-        total_pago: Number(totalPago),
-      },
-      top5: [],
-      stamps: {
+      top5,
+      valores_totais_status: {
         total_valor_contratado: stampTotalValorContratado,
         total_saldo_disponível: stampTotalValorContratado - totalUtilizado,
         total_aguardando_faturamento: stampTotalAguardandoFaturamento,
         total_aguardando_pagamento: stampTotalAguardandoPagamento,
         total_pago: stampTotalPago,
       },
-      map: [],
+      map: [], // id contrato, cidade, latitude e a longitude, soma do valor contratado total por cidade
       contratos: contratos,
     })
+  }
+
+  async getTop5Contratos(contratos: any[]) {
+    const calcularTotalUtilizadoTop5 = (contractId: any) => {
+      const total = contratos
+        .filter(contrato => contrato.id === contractId)
+        .flatMap(contrato => contrato.faturamentos)
+        .flatMap(faturamento => faturamento.faturamentoItens)
+        .flatMap(faturamentoItem => faturamentoItem.lancamento.lancamentoItens)
+        .reduce((sum, itemLancamento) => {
+          const quantidadeItens = Number.parseFloat(itemLancamento.quantidade_itens) || 0;
+          const valorUnitario = Number.parseFloat(itemLancamento.valor_unitario) || 0;
+          console.log(`Quantidade: ${quantidadeItens}, Valor Unitário: ${valorUnitario}`);
+          return sum + quantidadeItens * valorUnitario;
+        }, 0);
+      return total;
+    };
+
+    const top5 = contratos.map(contrato => ({
+      nome_cliente: contrato.nome_cliente,
+      id: contrato.id,
+      saldo_contrato: Number(contrato.saldo_contrato) || 0,
+      totalUtilizado: calcularTotalUtilizadoTop5(contrato.id),
+    }))
+      .sort((a, b) => b.saldo_contrato - a.saldo_contrato)
+      .slice(0, 5); 
+      console.log('Top 5 Contratos:', top5);
+    return top5;
   }
 
   async getStampData(contratos: any[]) {

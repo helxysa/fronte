@@ -27,7 +27,7 @@ router.get('files/:filename', async ({ params, response }) => {
   return response.attachment(Application.tmpPath('uploads', params.filename), params.filename)
 })
 // Dashboard
-router.get('/getDoughnut', [ContratosController, 'getDoughnut'])
+router.get('/dashboard', [ContratosController, 'getDashboard'])
 // Contratos
 router.post('/contratos', [ContratosController, 'createContract'])
 router.get('/contratos', [ContratosController, 'getContracts'])
