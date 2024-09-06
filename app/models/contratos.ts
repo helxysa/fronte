@@ -9,6 +9,7 @@ import Projetos from './projetos.js'
 import { SoftDeletes } from 'adonis-lucid-soft-deletes'
 import { compose } from '@adonisjs/core/helpers'
 export default class Contratos extends compose(BaseModel, SoftDeletes) {
+  [x: string]: number
   @column({ isPrimary: true })
   declare id: number
 

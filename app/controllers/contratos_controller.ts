@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 /* eslint-disable @typescript-eslint/naming-convention */
 import type { HttpContext } from '@adonisjs/core/http'
 import Contrato from '#models/contratos'
@@ -86,6 +87,16 @@ export default class ContratosController {
 
   async getContracts({ response }: HttpContext) {
     try {
+      const contratos = await this.fetchContracts()
+      return response.json(contratos)
+    } catch (err) {
+      console.error(err)
+      response.status(500).send('Server error')
+    }
+  }
+
+  private async fetchContracts() {
+    try {
       const contratos = await Contrato.query()
         .whereNull('deleted_at')
         .preload('contratoItens', (query) => {
@@ -134,10 +145,10 @@ export default class ContratosController {
         })
         .exec()
 
-      return response.json(contratos)
+      return contratos
     } catch (err) {
       console.error(err)
-      response.status(500).send('Server error')
+      throw new Error('Erro ao buscar contratos')
     }
   }
 
@@ -407,6 +418,117 @@ export default class ContratosController {
     } catch (err) {
       console.error(err)
       return response.status(500).send('Erro no servidor')
+    }
+  }
+
+  async getDashboard({ response }: HttpContext) {
+    const contratos = await this.fetchContracts()
+    const { stampTotalAguardandoFaturamento, stampTotalAguardandoPagamento, stampTotalPago, totalUtilizado } = await this.getStampData(contratos)
+
+    const stampTotalValorContratado = contratos.reduce((acc, contrato) => {
+      const saldo = Number(contrato.saldo_contrato) || 0
+      return acc + saldo
+    }, 0)
+
+    const top5 = await this.getTop5Contratos(contratos);
+
+    const contratosPorVencimentoMap = {};
+
+    contratos.forEach(contrato => {
+      const lembreteVencimento = contrato.lembrete_vencimento;
+      const idContrato = contrato.id;
+
+      if (lembreteVencimento) {
+        if (!contratosPorVencimentoMap[lembreteVencimento]) {
+          contratosPorVencimentoMap[lembreteVencimento] = { qtd_contratos: 0, id_contratos: [] };
+        }
+        const current = contratosPorVencimentoMap[lembreteVencimento];
+        current.qtd_contratos++;
+        current.id_contratos.push(idContrato);
+      }
+    });
+
+    const contratos_por_vencimento = Object.keys(contratosPorVencimentoMap).map(lembrete_vencimento => {
+      const { qtd_contratos, id_contratos } = contratosPorVencimentoMap[lembrete_vencimento];
+      return {
+        lembrete_vencimento,
+        qtd_contratos,
+        id_contratos: id_contratos.join(',')
+      };
+    });
+
+    return response.json({
+      valores_totais_status: {
+        total_valor_contratado: stampTotalValorContratado,
+        total_saldo_disponível: stampTotalValorContratado - totalUtilizado,
+        total_aguardando_faturamento: stampTotalAguardandoFaturamento,
+        total_aguardando_pagamento: stampTotalAguardandoPagamento,
+        total_pago: stampTotalPago,
+      },
+      contratos_por_vencimento,
+      top5,
+      map: [], // id contrato, cidade, latitude e a longitude, soma do valor contratado total por cidade
+      contratos: contratos,
+    })
+  }
+
+  async getTop5Contratos(contratos: any[]) {
+    const calcularTotalUtilizadoTop5 = (contractId: any) => {
+      const total = contratos
+        .filter(contrato => contrato.id === contractId)
+        .flatMap(contrato => contrato.faturamentos)
+        .flatMap(faturamento => faturamento.faturamentoItens)
+        .flatMap(faturamentoItem => faturamentoItem.lancamento.lancamentoItens)
+        .reduce((sum, itemLancamento) => {
+          const quantidadeItens = Number.parseFloat(itemLancamento.quantidade_itens) || 0;
+          const valorUnitario = Number.parseFloat(itemLancamento.valor_unitario) || 0;
+          return sum + quantidadeItens * valorUnitario;
+        }, 0);
+      return total;
+    };
+
+    const top5 = contratos.map(contrato => ({
+      nome_cliente: contrato.nome_cliente,
+      id: contrato.id,
+      saldo_contrato: Number(contrato.saldo_contrato) || 0,
+      totalUtilizado: calcularTotalUtilizadoTop5(contrato.id),
+    }))
+      .sort((a, b) => b.saldo_contrato - a.saldo_contrato)
+      .slice(0, 5);
+    return top5;
+  }
+
+  async getStampData(contratos: any[]) {
+    const STATUS_AGUARDANDO_FATURAMENTO = 'Aguardando Faturamento'
+    const STATUS_AGUARDANDO_PAGAMENTO = 'Aguardando Pagamento'
+    const STATUS_PAGO = 'Pago'
+
+    const calculateTotalByStatus = (status: string) => {
+      return contratos.reduce((total, contrato) => {
+        return (
+          total +
+          contrato.faturamentos
+            .filter((faturamento: any) => faturamento.status === status)
+            .flatMap((faturamento: any) => faturamento.faturamentoItens)
+            .flatMap((faturamentoItem: any) => faturamentoItem.lancamento.lancamentoItens)
+            .reduce((sum: any, itemLancamento: any) => {
+              const quantidadeItens = Number.parseFloat(itemLancamento.quantidade_itens) || 0
+              const valorUnitario = Number.parseFloat(itemLancamento.valor_unitario) || 0
+              return sum + quantidadeItens * valorUnitario
+            }, 0)
+        )
+      }, 0)
+    }
+
+    const stampTotalAguardandoFaturamento = await calculateTotalByStatus(STATUS_AGUARDANDO_FATURAMENTO)
+    const stampTotalAguardandoPagamento = await calculateTotalByStatus(STATUS_AGUARDANDO_PAGAMENTO)
+    const stampTotalPago = await calculateTotalByStatus(STATUS_PAGO)
+    const totalUtilizado = stampTotalAguardandoFaturamento + stampTotalAguardandoPagamento + stampTotalPago
+    return {
+      stampTotalAguardandoFaturamento,
+      stampTotalAguardandoPagamento,
+      stampTotalPago,
+      totalUtilizado,
     }
   }
 }
