@@ -87,6 +87,16 @@ export default class ContratosController {
 
   async getContracts({ response }: HttpContext) {
     try {
+      const contratos = await this.fetchContracts()
+      return response.json(contratos)
+    } catch (err) {
+      console.error(err)
+      response.status(500).send('Server error')
+    }
+  }
+
+  private async fetchContracts() {
+    try {
       const contratos = await Contrato.query()
         .whereNull('deleted_at')
         .preload('contratoItens', (query) => {
@@ -135,10 +145,10 @@ export default class ContratosController {
         })
         .exec()
 
-      return response.json(contratos)
+      return contratos
     } catch (err) {
       console.error(err)
-      response.status(500).send('Server error')
+      throw new Error('Erro ao buscar contratos')
     }
   }
 
@@ -415,6 +425,16 @@ export default class ContratosController {
     const totalResult = await Contrato.query().whereNull('deleted_at').count('* as total')
     const totalContratos = totalResult[0]?.$extras?.total || 0
 
+    const contratos = await this.fetchContracts()
+
+    const { stampTotalAguardandoFaturamento, stampTotalAguardandoPagamento, stampTotalPago } =
+      await this.getStampData(contratos)
+
+    const stampTotalValorContratado = contratos.reduce((acc, contrato) => {
+      const saldo = Number(contrato.saldo_contrato) || 0
+      return acc + saldo
+    }, 0)
+
     const [aguardandoFaturamentoResult, aguardandoPagamentoResult, pagoResult] = await Promise.all([
       Faturamentos.query().where('status', 'Aguardando Faturamento').count('* as total'),
       Faturamentos.query().where('status', 'Aguardando Pagamento').count('* as total'),
@@ -432,8 +452,48 @@ export default class ContratosController {
         total_pago: Number(totalPago),
       },
       top5: [],
-      stamps: [],
+      stamps: {
+        total_valor_contratado: stampTotalValorContratado,
+        total_aguardando_faturamento: stampTotalAguardandoFaturamento,
+        total_aguardando_pagamento: stampTotalAguardandoPagamento,
+        total_pago: stampTotalPago,
+      },
       map: [],
+      contratos: contratos,
     })
+  }
+
+  async getStampData(contratos: any[]) {
+    const STATUS_AGUARDANDO_FATURAMENTO = 'Aguardando Faturamento'
+    const STATUS_AGUARDANDO_PAGAMENTO = 'Aguardando Pagamento'
+    const STATUS_PAGO = 'Pago'
+
+    const calculateTotalByStatus = (status: string) => {
+      return contratos.reduce((total, contrato) => {
+        return (
+          total +
+          contrato.faturamentos
+            .filter((faturamento: any) => faturamento.status === status)
+            .flatMap((faturamento: any) => faturamento.faturamentoItens)
+            .flatMap((faturamentoItem: any) => faturamentoItem.lancamento.lancamentoItens)
+            .reduce((sum: any, itemLancamento: any) => {
+              const quantidadeItens = Number.parseFloat(itemLancamento.quantidade_itens) || 0
+              const valorUnitario = Number.parseFloat(itemLancamento.valor_unitario) || 0
+              return sum + quantidadeItens * valorUnitario
+            }, 0)
+        )
+      }, 0)
+    }
+
+    // Calcula e retorna os totais para cada status
+    return {
+      stampData: {
+        stampTotalAguardandoFaturamento: await calculateTotalByStatus(
+          STATUS_AGUARDANDO_FATURAMENTO
+        ),
+        stampTotalAguardandoPagamento: await calculateTotalByStatus(STATUS_AGUARDANDO_PAGAMENTO),
+        stampTotalPago: await calculateTotalByStatus(STATUS_PAGO),
+      },
+    }
   }
 }
