@@ -9,7 +9,6 @@ import Lancamento from '#models/lancamentos'
 import LancamentoItens from '#models/lancamento_itens'
 import { DateTime } from 'luxon'
 import Renovacao from '#models/renovacao'
-import Faturamentos from '#models/faturamentos'
 
 export default class ContratosController {
   async createContract({ request, response }: HttpContext) {
@@ -433,8 +432,32 @@ export default class ContratosController {
 
     const top5 = await this.getTop5Contratos(contratos);
 
+    const contratosPorVencimentoMap = {};
+
+    contratos.forEach(contrato => {
+      const lembreteVencimento = contrato.lembrete_vencimento;
+      const idContrato = contrato.id;
+
+      if (lembreteVencimento) {
+        if (!contratosPorVencimentoMap[lembreteVencimento]) {
+          contratosPorVencimentoMap[lembreteVencimento] = { qtd_contratos: 0, id_contratos: [] };
+        }
+        const current = contratosPorVencimentoMap[lembreteVencimento];
+        current.qtd_contratos++;
+        current.id_contratos.push(idContrato);
+      }
+    });
+
+    const contratos_por_vencimento = Object.keys(contratosPorVencimentoMap).map(lembrete_vencimento => {
+      const { qtd_contratos, id_contratos } = contratosPorVencimentoMap[lembrete_vencimento];
+      return {
+        lembrete_vencimento,
+        qtd_contratos,
+        id_contratos: id_contratos.join(',')
+      };
+    });
+
     return response.json({
-      top5,
       valores_totais_status: {
         total_valor_contratado: stampTotalValorContratado,
         total_saldo_disponível: stampTotalValorContratado - totalUtilizado,
@@ -442,6 +465,8 @@ export default class ContratosController {
         total_aguardando_pagamento: stampTotalAguardandoPagamento,
         total_pago: stampTotalPago,
       },
+      contratos_por_vencimento,
+      top5,
       map: [], // id contrato, cidade, latitude e a longitude, soma do valor contratado total por cidade
       contratos: contratos,
     })
@@ -457,7 +482,6 @@ export default class ContratosController {
         .reduce((sum, itemLancamento) => {
           const quantidadeItens = Number.parseFloat(itemLancamento.quantidade_itens) || 0;
           const valorUnitario = Number.parseFloat(itemLancamento.valor_unitario) || 0;
-          console.log(`Quantidade: ${quantidadeItens}, Valor Unitário: ${valorUnitario}`);
           return sum + quantidadeItens * valorUnitario;
         }, 0);
       return total;
@@ -470,8 +494,7 @@ export default class ContratosController {
       totalUtilizado: calcularTotalUtilizadoTop5(contrato.id),
     }))
       .sort((a, b) => b.saldo_contrato - a.saldo_contrato)
-      .slice(0, 5); 
-      console.log('Top 5 Contratos:', top5);
+      .slice(0, 5);
     return top5;
   }
 
