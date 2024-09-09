@@ -1,6 +1,5 @@
 /* eslint-disable prettier/prettier */
 /* eslint-disable @typescript-eslint/naming-convention */
-// @ts-nocheck
 import type { HttpContext } from '@adonisjs/core/http'
 import Contrato from '#models/contratos'
 import ContratoItem from '#models/contrato_itens'
