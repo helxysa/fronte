@@ -99,9 +99,19 @@ export default class ContratosController {
     }
   }
 
-  private async fetchContracts() {
+  private async fetchContracts({
+    page,
+    limit,
+    sortBy,
+    sortOrder,
+  }: {
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  } = {}) {
     try {
-      const contratos = await Contrato.query()
+      let contratos = Contrato.query()
         .whereNull('deleted_at')
         .preload('contratoItens', (query) => {
           query.whereNull('renovacao_id').whereNull('deleted_at')
@@ -147,9 +157,16 @@ export default class ContratosController {
             lancamentoQuery.preload('lancamentoItens')
           })
         })
-        .exec()
 
-      return contratos
+      if (sortBy) {
+        contratos = contratos.orderBy(sortBy, sortOrder);
+      }
+
+      if (page !== undefined && limit !== undefined) {
+        return await contratos.paginate(page, limit);
+      }
+
+      return await contratos.exec()
     } catch (err) {
       console.error(err)
       throw new Error('Erro ao buscar contratos')
@@ -427,17 +444,47 @@ export default class ContratosController {
       return response.status(500).send('Erro no servidor')
     }
   }
-  async getDashboard({ response }: HttpContext) {
-    const contratos = await this.fetchContracts()
+
+  async getDashboard({ request, response }: HttpContext) {
+    const page = request.input('page', 1)
+    const limit = request.input('limit', 5)
+    const sortBy = request.input('sortBy', 'data_fim')
+    const sortOrder = request.input('sortOrder', 'asc')
+
+    const contratos = await this.fetchContracts({
+      page: page,
+      limit: limit,
+      sortBy: sortBy,
+      sortOrder: sortOrder
+    })
+
     const { stampTotalAguardandoFaturamento, stampTotalAguardandoPagamento, stampTotalPago, totalUtilizado } = await this.getStampData(contratos)
 
     const stampTotalValorContratado = contratos.reduce((acc, contrato) => {
       const saldo = Number(contrato.saldo_contrato) || 0
       return acc + saldo
     }, 0)
+    const contratosTop5 = await this.fetchContracts()
+    const top5 = await this.getTop5Contratos(contratosTop5);
+    const contratos_por_vencimento = await this.getContratosPorVencimento(contratos);
+    const map = await this.getCidadeData(contratos);
 
-    const top5 = await this.getTop5Contratos(contratos);
+    return response.json({
+      valores_totais_status: {
+        total_valor_contratado: stampTotalValorContratado,
+        total_saldo_disponível: stampTotalValorContratado - totalUtilizado,
+        total_aguardando_faturamento: stampTotalAguardandoFaturamento,
+        total_aguardando_pagamento: stampTotalAguardandoPagamento,
+        total_pago: stampTotalPago,
+      },
+      contratos_por_vencimento,
+      top5,
+      map,
+      contratos: contratos,
+    })
+  }
 
+  async getContratosPorVencimento(contratos: any[]) {
     const contratosPorVencimentoMap: any = {};
 
     contratos.forEach(contrato => {
@@ -454,7 +501,7 @@ export default class ContratosController {
       }
     });
 
-    const contratos_por_vencimento = Object.keys(contratosPorVencimentoMap).map(lembrete_vencimento => {
+    return Object.keys(contratosPorVencimentoMap).map(lembrete_vencimento => {
       const { qtd_contratos, id_contratos } = contratosPorVencimentoMap[lembrete_vencimento];
       return {
         lembrete_vencimento,
@@ -462,21 +509,6 @@ export default class ContratosController {
         id_contratos: id_contratos.join(',')
       };
     });
-    const map = await this.getCidadeData(contratos);
-
-    return response.json({
-      valores_totais_status: {
-        total_valor_contratado: stampTotalValorContratado,
-        total_saldo_disponível: stampTotalValorContratado - totalUtilizado,
-        total_aguardando_faturamento: stampTotalAguardandoFaturamento,
-        total_aguardando_pagamento: stampTotalAguardandoPagamento,
-        total_pago: stampTotalPago,
-      },
-      contratos_por_vencimento,
-      top5,
-      map, // id contrato, cidade, latitude e a longitude, soma do valor contratado total por cidade
-      contratos: contratos,
-    })
   }
 
   async getTop5Contratos(contratos: any[]) {
