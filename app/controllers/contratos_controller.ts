@@ -9,7 +9,8 @@ import Lancamento from '#models/lancamentos'
 import LancamentoItens from '#models/lancamento_itens'
 import { DateTime } from 'luxon'
 import Renovacao from '#models/renovacao'
-
+import axios from 'axios'
+import Cidade from '#models/cidade'
 export default class ContratosController {
   async createContract({ request, response }: HttpContext) {
     const {
@@ -23,6 +24,7 @@ export default class ContratosController {
       fiscal: { nome, telefone, email },
       ponto_focal,
       cidade,
+      estado,
       objeto_contrato,
       items,
     } = request.only([
@@ -36,6 +38,7 @@ export default class ContratosController {
       'fiscal',
       'ponto_focal',
       'cidade',
+      'estado',
       'objeto_contrato',
       'items',
     ])
@@ -52,6 +55,7 @@ export default class ContratosController {
         fiscal: { nome, telefone, email },
         ponto_focal,
         cidade,
+        estado,
         objeto_contrato,
       })
 
@@ -234,6 +238,7 @@ export default class ContratosController {
         fiscal: { nome, telefone, email },
         ponto_focal,
         cidade,
+        estado,
         objeto_contrato,
         items,
       } = request.only([
@@ -247,6 +252,7 @@ export default class ContratosController {
         'fiscal',
         'ponto_focal',
         'cidade',
+        'estado',
         'objeto_contrato',
         'items',
       ])
@@ -267,6 +273,7 @@ export default class ContratosController {
       contrato.fiscal = { nome, telefone, email }
       contrato.ponto_focal = ponto_focal
       contrato.cidade = cidade
+      contrato.estado = estado
       contrato.objeto_contrato = objeto_contrato
       await contrato.save()
 
@@ -420,7 +427,6 @@ export default class ContratosController {
       return response.status(500).send('Erro no servidor')
     }
   }
-
   async getDashboard({ response }: HttpContext) {
     const contratos = await this.fetchContracts()
     const { stampTotalAguardandoFaturamento, stampTotalAguardandoPagamento, stampTotalPago, totalUtilizado } = await this.getStampData(contratos)
@@ -457,6 +463,36 @@ export default class ContratosController {
       };
     });
 
+    const cidadeDataMap: { [cidade: string]: { total: number, latitude: string | null, longitude: string | null } } = {};
+
+    for (const contrato of contratos) {
+      const cidade = contrato.cidade;
+      const estado = contrato.estado;
+      const valorContratado = Number(contrato.saldo_contrato) || 0;
+
+      if (!cidadeDataMap[`${cidade}, ${estado}`]) {
+        const locationData = await getLocationData(cidade, estado);
+        cidadeDataMap[`${cidade}, ${estado}`] = {
+          total: 0,
+          latitude: locationData.latitude,
+          longitude: locationData.longitude,
+        };
+      }
+
+      cidadeDataMap[`${cidade}, ${estado}`].total += valorContratado;
+    }
+
+    const map = Object.keys(cidadeDataMap).map(cidadeEstado => {
+      const [cidade, estado] = cidadeEstado.split(', ');
+      return {
+        cidade: cidade,
+        estado: estado,
+        latitude: cidadeDataMap[cidadeEstado].latitude,
+        longitude: cidadeDataMap[cidadeEstado].longitude,
+        valor_total: cidadeDataMap[cidadeEstado].total,
+      };
+    });
+
     return response.json({
       valores_totais_status: {
         total_valor_contratado: stampTotalValorContratado,
@@ -467,7 +503,7 @@ export default class ContratosController {
       },
       contratos_por_vencimento,
       top5,
-      map: [], // id contrato, cidade, latitude e a longitude, soma do valor contratado total por cidade
+      map, // id contrato, cidade, latitude e a longitude, soma do valor contratado total por cidade
       contratos: contratos,
     })
   }
@@ -531,4 +567,66 @@ export default class ContratosController {
       totalUtilizado,
     }
   }
+}
+const REQUEST_INTERVAL = 2000; // 2000 ms = 2 segundos
+const queue: (() => Promise<void>)[] = [];
+let isProcessingQueue = false;
+
+async function processQueue() {
+  if (isProcessingQueue) return;
+  isProcessingQueue = true;
+
+  while (queue.length > 0) {
+    const task = queue.shift();
+    if (task) {
+      await task();
+      await new Promise(resolve => setTimeout(resolve, REQUEST_INTERVAL));
+    }
+  }
+
+  isProcessingQueue = false;
+}
+
+async function getLocationData(cidade: string, estado: string): Promise<{ latitude: string | null; longitude: string | null }> {
+  try {
+    // Verifica se a combinação cidade e estado já existe no banco de dados usando o modelo Cidade
+    const cityData = await Cidade.query()
+      .where('cidade', cidade)
+      .where('estado', estado)
+      .first();
+
+    if (cityData) {
+      return {
+        latitude: cityData.latitude,
+        longitude: cityData.longitude,
+      };
+    }
+
+    // Se não existir, faz a requisição ao Nominatim
+    const res = await axios.get('https://nominatim.openstreetmap.org/search', {
+      params: {
+        q: `${cidade}, ${estado}`,
+        format: 'json',
+        addressdetails: 1,
+      },
+    });
+    console.log(res);
+    const data = res.data[0];
+    if (data) {
+      const latitude = data.lat;
+      const longitude = data.lon;
+
+      // Armazena a nova coordenada no banco de dados
+      await Cidade.updateOrCreate(
+        { cidade, estado },
+        { latitude, longitude }
+      );
+
+      return { latitude, longitude };
+    }
+  } catch (error) {
+    console.error(`Erro ao tentar buscar localização para ${cidade}`, error);
+  }
+
+  return { latitude: null, longitude: null };
 }
