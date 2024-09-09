@@ -9,7 +9,8 @@ import Lancamento from '#models/lancamentos'
 import LancamentoItens from '#models/lancamento_itens'
 import { DateTime } from 'luxon'
 import Renovacao from '#models/renovacao'
-
+import axios from 'axios'
+import Cidade from '#models/cidade'
 export default class ContratosController {
   async createContract({ request, response }: HttpContext) {
     const {
@@ -23,6 +24,7 @@ export default class ContratosController {
       fiscal: { nome, telefone, email },
       ponto_focal,
       cidade,
+      estado,
       objeto_contrato,
       items,
     } = request.only([
@@ -36,6 +38,7 @@ export default class ContratosController {
       'fiscal',
       'ponto_focal',
       'cidade',
+      'estado',
       'objeto_contrato',
       'items',
     ])
@@ -52,6 +55,7 @@ export default class ContratosController {
         fiscal: { nome, telefone, email },
         ponto_focal,
         cidade,
+        estado,
         objeto_contrato,
       })
 
@@ -95,9 +99,19 @@ export default class ContratosController {
     }
   }
 
-  private async fetchContracts() {
+  private async fetchContracts({
+    page,
+    limit,
+    sortBy,
+    sortOrder,
+  }: {
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+  } = {}) {
     try {
-      const contratos = await Contrato.query()
+      let contratos = Contrato.query()
         .whereNull('deleted_at')
         .preload('contratoItens', (query) => {
           query.whereNull('renovacao_id').whereNull('deleted_at')
@@ -143,9 +157,16 @@ export default class ContratosController {
             lancamentoQuery.preload('lancamentoItens')
           })
         })
-        .exec()
 
-      return contratos
+      if (sortBy) {
+        contratos = contratos.orderBy(sortBy, sortOrder);
+      }
+
+      if (page !== undefined && limit !== undefined) {
+        return await contratos.paginate(page, limit);
+      }
+
+      return await contratos.exec()
     } catch (err) {
       console.error(err)
       throw new Error('Erro ao buscar contratos')
@@ -234,6 +255,7 @@ export default class ContratosController {
         fiscal: { nome, telefone, email },
         ponto_focal,
         cidade,
+        estado,
         objeto_contrato,
         items,
       } = request.only([
@@ -247,6 +269,7 @@ export default class ContratosController {
         'fiscal',
         'ponto_focal',
         'cidade',
+        'estado',
         'objeto_contrato',
         'items',
       ])
@@ -267,6 +290,7 @@ export default class ContratosController {
       contrato.fiscal = { nome, telefone, email }
       contrato.ponto_focal = ponto_focal
       contrato.cidade = cidade
+      contrato.estado = estado
       contrato.objeto_contrato = objeto_contrato
       await contrato.save()
 
@@ -421,17 +445,46 @@ export default class ContratosController {
     }
   }
 
-  async getDashboard({ response }: HttpContext) {
-    const contratos = await this.fetchContracts()
+  async getDashboard({ request, response }: HttpContext) {
+    const page = request.input('page', 1)
+    const limit = request.input('limit', 5)
+    const sortBy = request.input('sortBy', 'data_fim')
+    const sortOrder = request.input('sortOrder', 'asc')
+
+    const contratos = await this.fetchContracts({
+      page: page,
+      limit: limit,
+      sortBy: sortBy,
+      sortOrder: sortOrder
+    })
+
     const { stampTotalAguardandoFaturamento, stampTotalAguardandoPagamento, stampTotalPago, totalUtilizado } = await this.getStampData(contratos)
 
     const stampTotalValorContratado = contratos.reduce((acc, contrato) => {
       const saldo = Number(contrato.saldo_contrato) || 0
       return acc + saldo
     }, 0)
+    const contratosTop5 = await this.fetchContracts()
+    const top5 = await this.getTop5Contratos(contratosTop5);
+    const contratos_por_vencimento = await this.getContratosPorVencimento(contratos);
+    const map = await this.getCidadeData(contratos);
 
-    const top5 = await this.getTop5Contratos(contratos);
+    return response.json({
+      valores_totais_status: {
+        total_valor_contratado: stampTotalValorContratado,
+        total_saldo_disponível: stampTotalValorContratado - totalUtilizado,
+        total_aguardando_faturamento: stampTotalAguardandoFaturamento,
+        total_aguardando_pagamento: stampTotalAguardandoPagamento,
+        total_pago: stampTotalPago,
+      },
+      contratos_por_vencimento,
+      top5,
+      map,
+      contratos: contratos,
+    })
+  }
 
+  async getContratosPorVencimento(contratos: any[]) {
     const contratosPorVencimentoMap: any = {};
 
     contratos.forEach(contrato => {
@@ -448,7 +501,7 @@ export default class ContratosController {
       }
     });
 
-    const contratos_por_vencimento = Object.keys(contratosPorVencimentoMap).map(lembrete_vencimento => {
+    return Object.keys(contratosPorVencimentoMap).map(lembrete_vencimento => {
       const { qtd_contratos, id_contratos } = contratosPorVencimentoMap[lembrete_vencimento];
       return {
         lembrete_vencimento,
@@ -456,20 +509,6 @@ export default class ContratosController {
         id_contratos: id_contratos.join(',')
       };
     });
-
-    return response.json({
-      valores_totais_status: {
-        total_valor_contratado: stampTotalValorContratado,
-        total_saldo_disponível: stampTotalValorContratado - totalUtilizado,
-        total_aguardando_faturamento: stampTotalAguardandoFaturamento,
-        total_aguardando_pagamento: stampTotalAguardandoPagamento,
-        total_pago: stampTotalPago,
-      },
-      contratos_por_vencimento,
-      top5,
-      map: [], // id contrato, cidade, latitude e a longitude, soma do valor contratado total por cidade
-      contratos: contratos,
-    })
   }
 
   async getTop5Contratos(contratos: any[]) {
@@ -531,4 +570,88 @@ export default class ContratosController {
       totalUtilizado,
     }
   }
+
+  async getCidadeData(contratos: Array<{ cidade: string; estado: string; saldo_contrato: string }>): Promise<Array<{ cidade: string; estado: string; latitude: string | null; longitude: string | null; valor_total: number }>> {
+    const cidadeDataMap: { [key: string]: { total: number; latitude: string | null; longitude: string | null; quantidade: number } } = {};
+
+    for (const contrato of contratos) {
+      const cidade = contrato.cidade;
+      const estado = contrato.estado;
+      const valorContratado = Number(contrato.saldo_contrato) || 0;
+      const key = `${cidade}, ${estado}`;
+
+      if (!cidadeDataMap[`${cidade}, ${estado}`]) {
+        const locationData = await fetchLocationData(cidade, estado);
+        cidadeDataMap[`${cidade}, ${estado}`] = {
+          total: 0,
+          latitude: locationData.latitude,
+          longitude: locationData.longitude,
+          quantidade: 0,
+        };
+      }
+
+      cidadeDataMap[`${cidade}, ${estado}`].total += valorContratado;
+      cidadeDataMap[key].quantidade += 1;
+    }
+
+    return Object.keys(cidadeDataMap).map(cidadeEstado => {
+      const [cidade, estado] = cidadeEstado.split(', ');
+      const data = cidadeDataMap[cidadeEstado];
+      return {
+        cidade,
+        estado,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        valor_total: data.total,
+        quantidade_contratos: data.quantidade,
+      };
+    });
+  }
+
+}
+
+const sleep = (ms: any) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function fetchLocationData(cidade: string, estado: string): Promise<{ latitude: string | null; longitude: string | null }> {
+  try {
+    const cityData = await Cidade.query()
+      .where('cidade', cidade)
+      .where('estado', estado)
+      .first();
+
+    if (cityData) {
+      return {
+        latitude: cityData.latitude,
+        longitude: cityData.longitude,
+      };
+    }
+
+    await sleep(2000);
+
+    // Se não existir cidade e estado, faz a requisição ao Nominatim
+    const res = await axios.get('https://nominatim.openstreetmap.org/search', {
+      params: {
+        q: `${cidade}, ${estado}`,
+        format: 'json',
+        addressdetails: 1,
+      },
+    });
+    const data = res.data[0];
+    if (data) {
+      const latitude = data.lat;
+      const longitude = data.lon;
+
+      // Armazena a nova coordenada no banco de dados
+      await Cidade.updateOrCreate(
+        { cidade, estado },
+        { latitude, longitude }
+      );
+
+      return { latitude, longitude };
+    }
+  } catch (error) {
+    console.error(`Erro ao tentar buscar localização para ${cidade}`, error);
+  }
+
+  return { latitude: null, longitude: null };
 }
