@@ -462,36 +462,7 @@ export default class ContratosController {
         id_contratos: id_contratos.join(',')
       };
     });
-
-    const cidadeDataMap: { [cidade: string]: { total: number, latitude: string | null, longitude: string | null } } = {};
-
-    for (const contrato of contratos) {
-      const cidade = contrato.cidade;
-      const estado = contrato.estado;
-      const valorContratado = Number(contrato.saldo_contrato) || 0;
-
-      if (!cidadeDataMap[`${cidade}, ${estado}`]) {
-        const locationData = await getLocationData(cidade, estado);
-        cidadeDataMap[`${cidade}, ${estado}`] = {
-          total: 0,
-          latitude: locationData.latitude,
-          longitude: locationData.longitude,
-        };
-      }
-
-      cidadeDataMap[`${cidade}, ${estado}`].total += valorContratado;
-    }
-
-    const map = Object.keys(cidadeDataMap).map(cidadeEstado => {
-      const [cidade, estado] = cidadeEstado.split(', ');
-      return {
-        cidade: cidade,
-        estado: estado,
-        latitude: cidadeDataMap[cidadeEstado].latitude,
-        longitude: cidadeDataMap[cidadeEstado].longitude,
-        valor_total: cidadeDataMap[cidadeEstado].total,
-      };
-    });
+    const map = await this.getCidadeData(contratos);
 
     return response.json({
       valores_totais_status: {
@@ -567,29 +538,50 @@ export default class ContratosController {
       totalUtilizado,
     }
   }
-}
-const REQUEST_INTERVAL = 2000; // 2000 ms = 2 segundos
-const queue: (() => Promise<void>)[] = [];
-let isProcessingQueue = false;
 
-async function processQueue() {
-  if (isProcessingQueue) return;
-  isProcessingQueue = true;
+  async getCidadeData(contratos: Array<{ cidade: string; estado: string; saldo_contrato: string }>): Promise<Array<{ cidade: string; estado: string; latitude: string | null; longitude: string | null; valor_total: number }>> {
+    const cidadeDataMap: { [key: string]: { total: number; latitude: string | null; longitude: string | null; quantidade: number } } = {};
 
-  while (queue.length > 0) {
-    const task = queue.shift();
-    if (task) {
-      await task();
-      await new Promise(resolve => setTimeout(resolve, REQUEST_INTERVAL));
+    for (const contrato of contratos) {
+      const cidade = contrato.cidade;
+      const estado = contrato.estado;
+      const valorContratado = Number(contrato.saldo_contrato) || 0;
+      const key = `${cidade}, ${estado}`;
+
+      if (!cidadeDataMap[`${cidade}, ${estado}`]) {
+        const locationData = await fetchLocationData(cidade, estado);
+        cidadeDataMap[`${cidade}, ${estado}`] = {
+          total: 0,
+          latitude: locationData.latitude,
+          longitude: locationData.longitude,
+          quantidade: 0,
+        };
+      }
+
+      cidadeDataMap[`${cidade}, ${estado}`].total += valorContratado;
+      cidadeDataMap[key].quantidade += 1;
     }
+
+    return Object.keys(cidadeDataMap).map(cidadeEstado => {
+      const [cidade, estado] = cidadeEstado.split(', ');
+      const data = cidadeDataMap[cidadeEstado];
+      return {
+        cidade,
+        estado,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        valor_total: data.total,
+        quantidade_contratos: data.quantidade,
+      };
+    });
   }
 
-  isProcessingQueue = false;
 }
 
-async function getLocationData(cidade: string, estado: string): Promise<{ latitude: string | null; longitude: string | null }> {
+const sleep = (ms: any) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function fetchLocationData(cidade: string, estado: string): Promise<{ latitude: string | null; longitude: string | null }> {
   try {
-    // Verifica se a combinação cidade e estado já existe no banco de dados usando o modelo Cidade
     const cityData = await Cidade.query()
       .where('cidade', cidade)
       .where('estado', estado)
@@ -602,7 +594,9 @@ async function getLocationData(cidade: string, estado: string): Promise<{ latitu
       };
     }
 
-    // Se não existir, faz a requisição ao Nominatim
+    await sleep(2000);
+
+    // Se não existir cidade e estado, faz a requisição ao Nominatim
     const res = await axios.get('https://nominatim.openstreetmap.org/search', {
       params: {
         q: `${cidade}, ${estado}`,
@@ -610,7 +604,6 @@ async function getLocationData(cidade: string, estado: string): Promise<{ latitu
         addressdetails: 1,
       },
     });
-    console.log(res);
     const data = res.data[0];
     if (data) {
       const latitude = data.lat;
