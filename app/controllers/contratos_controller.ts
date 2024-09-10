@@ -104,11 +104,13 @@ export default class ContratosController {
     limit,
     sortBy,
     sortOrder,
+    statusFaturamento,
   }: {
     page?: number;
     limit?: number;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
+      statusFaturamento?: string;
   } = {}) {
     try {
       let contratos = Contrato.query()
@@ -157,6 +159,13 @@ export default class ContratosController {
             lancamentoQuery.preload('lancamentoItens')
           })
         })
+
+      if (statusFaturamento) {
+        contratos = contratos
+          .whereHas('faturamentos', (query) => {
+            query.where('status', statusFaturamento)
+          });
+      }
 
       if (sortBy) {
         contratos = contratos.orderBy(sortBy, sortOrder);
@@ -450,14 +459,19 @@ export default class ContratosController {
     const limit = request.input('limit', 5)
     const sortBy = request.input('sortBy', 'data_fim')
     const sortOrder = request.input('sortOrder', 'asc')
+    const statusFaturamento = request.input('statusFaturamento', '');
 
     const contratos = await this.fetchContracts({
       page: page,
       limit: limit,
       sortBy: sortBy,
-      sortOrder: sortOrder
-    })
-    const contratosNoPagination = await this.fetchContracts()
+      sortOrder: sortOrder,
+      statusFaturamento: statusFaturamento
+    });
+
+    const contratosNoPagination = await this.fetchContracts({
+      statusFaturamento: statusFaturamento
+    });
 
     const { stampTotalAguardandoFaturamento, stampTotalAguardandoPagamento, stampTotalPago, totalUtilizado } = await this.getStampData(contratosNoPagination)
 
