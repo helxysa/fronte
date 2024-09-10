@@ -457,17 +457,17 @@ export default class ContratosController {
       sortBy: sortBy,
       sortOrder: sortOrder
     })
+    const contratosNoPagination = await this.fetchContracts()
 
-    const { stampTotalAguardandoFaturamento, stampTotalAguardandoPagamento, stampTotalPago, totalUtilizado } = await this.getStampData(contratos)
+    const { stampTotalAguardandoFaturamento, stampTotalAguardandoPagamento, stampTotalPago, totalUtilizado } = await this.getStampData(contratosNoPagination)
 
-    const stampTotalValorContratado = contratos.reduce((acc, contrato) => {
+    const stampTotalValorContratado = contratosNoPagination.reduce((acc, contrato) => {
       const saldo = Number(contrato.saldo_contrato) || 0
       return acc + saldo
     }, 0)
-    const contratosTop5 = await this.fetchContracts()
-    const top5 = await this.getTop5Contratos(contratosTop5);
-    const contratos_por_vencimento = await this.getContratosPorVencimento(contratos);
-    const map = await this.getCidadeData(contratos);
+    const top5 = await this.getTop5Contratos(contratosNoPagination);
+    const contratos_por_vencimento = await this.getContratosPorVencimento(contratosNoPagination);
+    const map = await this.getCidadeData(contratosNoPagination);
 
     return response.json({
       valores_totais_status: {
