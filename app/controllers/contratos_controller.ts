@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 /* eslint-disable @typescript-eslint/naming-convention */
 import type { HttpContext } from '@adonisjs/core/http'
 import Contrato from '#models/contratos'
@@ -8,7 +9,8 @@ import Lancamento from '#models/lancamentos'
 import LancamentoItens from '#models/lancamento_itens'
 import { DateTime } from 'luxon'
 import Renovacao from '#models/renovacao'
-
+import axios from 'axios'
+import Cidade from '#models/cidade'
 export default class ContratosController {
   async createContract({ request, response }: HttpContext) {
     const {
@@ -22,6 +24,7 @@ export default class ContratosController {
       fiscal: { nome, telefone, email },
       ponto_focal,
       cidade,
+      estado,
       objeto_contrato,
       items,
     } = request.only([
@@ -35,6 +38,7 @@ export default class ContratosController {
       'fiscal',
       'ponto_focal',
       'cidade',
+      'estado',
       'objeto_contrato',
       'items',
     ])
@@ -51,6 +55,7 @@ export default class ContratosController {
         fiscal: { nome, telefone, email },
         ponto_focal,
         cidade,
+        estado,
         objeto_contrato,
       })
 
@@ -86,7 +91,29 @@ export default class ContratosController {
 
   async getContracts({ response }: HttpContext) {
     try {
-      const contratos = await Contrato.query()
+      const contratos = await this.fetchContracts()
+      return response.json(contratos)
+    } catch (err) {
+      console.error(err)
+      response.status(500).send('Server error')
+    }
+  }
+
+  private async fetchContracts({
+    page,
+    limit,
+    sortBy,
+    sortOrder,
+    statusFaturamento,
+  }: {
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+      statusFaturamento?: string;
+  } = {}) {
+    try {
+      let contratos = Contrato.query()
         .whereNull('deleted_at')
         .preload('contratoItens', (query) => {
           query.whereNull('renovacao_id').whereNull('deleted_at')
@@ -132,12 +159,26 @@ export default class ContratosController {
             lancamentoQuery.preload('lancamentoItens')
           })
         })
-        .exec()
 
-      return response.json(contratos)
+      if (statusFaturamento) {
+        contratos = contratos
+          .whereHas('faturamentos', (query) => {
+            query.where('status', statusFaturamento)
+          });
+      }
+
+      if (sortBy) {
+        contratos = contratos.orderBy(sortBy, sortOrder);
+      }
+
+      if (page !== undefined && limit !== undefined) {
+        return await contratos.paginate(page, limit);
+      }
+
+      return await contratos.exec()
     } catch (err) {
       console.error(err)
-      response.status(500).send('Server error')
+      throw new Error('Erro ao buscar contratos')
     }
   }
 
@@ -146,6 +187,7 @@ export default class ContratosController {
       const contrato = await Contrato.query()
         .where('id', params.id)
         .whereNull('deleted_at')
+        .preload('projetos')
         .preload('contratoItens', (query) => {
           query.whereNull('renovacao_id')
           query.whereNull('deleted_at')
@@ -222,6 +264,7 @@ export default class ContratosController {
         fiscal: { nome, telefone, email },
         ponto_focal,
         cidade,
+        estado,
         objeto_contrato,
         items,
       } = request.only([
@@ -235,6 +278,7 @@ export default class ContratosController {
         'fiscal',
         'ponto_focal',
         'cidade',
+        'estado',
         'objeto_contrato',
         'items',
       ])
@@ -255,6 +299,7 @@ export default class ContratosController {
       contrato.fiscal = { nome, telefone, email }
       contrato.ponto_focal = ponto_focal
       contrato.cidade = cidade
+      contrato.estado = estado
       contrato.objeto_contrato = objeto_contrato
       await contrato.save()
 
@@ -408,4 +453,219 @@ export default class ContratosController {
       return response.status(500).send('Erro no servidor')
     }
   }
+
+  async getDashboard({ request, response }: HttpContext) {
+    const page = request.input('page', 1)
+    const limit = request.input('limit', 5)
+    const sortBy = request.input('sortBy', 'data_fim')
+    const sortOrder = request.input('sortOrder', 'asc')
+    const statusFaturamento = request.input('statusFaturamento', '');
+
+    const contratos = await this.fetchContracts({
+      page: page,
+      limit: limit,
+      sortBy: sortBy,
+      sortOrder: sortOrder,
+      statusFaturamento: statusFaturamento
+    });
+
+    const contratosNoPagination = await this.fetchContracts({
+      statusFaturamento: statusFaturamento
+    });
+
+    const { stampTotalAguardandoFaturamento, stampTotalAguardandoPagamento, stampTotalPago, totalUtilizado } = await this.getStampData(contratosNoPagination)
+
+    const stampTotalValorContratado = contratosNoPagination.reduce((acc, contrato) => {
+      const saldo = Number(contrato.saldo_contrato) || 0
+      return acc + saldo
+    }, 0)
+    const top5 = await this.getTop5Contratos(contratosNoPagination);
+    const contratos_por_vencimento = await this.getContratosPorVencimento(contratosNoPagination);
+    const map = await this.getCidadeData(contratosNoPagination);
+
+    return response.json({
+      valores_totais_status: {
+        total_valor_contratado: stampTotalValorContratado,
+        total_saldo_disponível: stampTotalValorContratado - totalUtilizado,
+        total_aguardando_faturamento: stampTotalAguardandoFaturamento,
+        total_aguardando_pagamento: stampTotalAguardandoPagamento,
+        total_pago: stampTotalPago,
+      },
+      contratos_por_vencimento,
+      top5,
+      map,
+      contratos: contratos,
+    })
+  }
+
+  async getContratosPorVencimento(contratos: any[]) {
+    const contratosPorVencimentoMap: any = {};
+
+    contratos.forEach(contrato => {
+      const lembreteVencimento = contrato.lembrete_vencimento;
+      const idContrato = contrato.id;
+
+      if (lembreteVencimento) {
+        if (!contratosPorVencimentoMap[lembreteVencimento]) {
+          contratosPorVencimentoMap[lembreteVencimento] = { qtd_contratos: 0, id_contratos: [] };
+        }
+        const current = contratosPorVencimentoMap[lembreteVencimento];
+        current.qtd_contratos++;
+        current.id_contratos.push(idContrato);
+      }
+    });
+
+    return Object.keys(contratosPorVencimentoMap).map(lembrete_vencimento => {
+      const { qtd_contratos, id_contratos } = contratosPorVencimentoMap[lembrete_vencimento];
+      return {
+        lembrete_vencimento,
+        qtd_contratos,
+        id_contratos: id_contratos.join(',')
+      };
+    });
+  }
+
+  async getTop5Contratos(contratos: any[]) {
+    const calcularTotalUtilizadoTop5 = (contractId: any) => {
+      const total = contratos
+        .filter(contrato => contrato.id === contractId)
+        .flatMap(contrato => contrato.faturamentos)
+        .flatMap(faturamento => faturamento.faturamentoItens)
+        .flatMap(faturamentoItem => faturamentoItem.lancamento.lancamentoItens)
+        .reduce((sum, itemLancamento) => {
+          const quantidadeItens = Number.parseFloat(itemLancamento.quantidade_itens) || 0;
+          const valorUnitario = Number.parseFloat(itemLancamento.valor_unitario) || 0;
+          return sum + quantidadeItens * valorUnitario;
+        }, 0);
+      return total;
+    };
+
+    const top5 = contratos.map(contrato => ({
+      nome_cliente: contrato.nome_cliente,
+      id: contrato.id,
+      saldo_contrato: Number(contrato.saldo_contrato) || 0,
+      totalUtilizado: calcularTotalUtilizadoTop5(contrato.id),
+    }))
+      .sort((a, b) => b.saldo_contrato - a.saldo_contrato)
+      .slice(0, 5);
+    return top5;
+  }
+
+  async getStampData(contratos: any[]) {
+    const STATUS_AGUARDANDO_FATURAMENTO = 'Aguardando Faturamento'
+    const STATUS_AGUARDANDO_PAGAMENTO = 'Aguardando Pagamento'
+    const STATUS_PAGO = 'Pago'
+
+    const calculateTotalByStatus = (status: string) => {
+      return contratos.reduce((total, contrato) => {
+        return (
+          total +
+          contrato.faturamentos
+            .filter((faturamento: any) => faturamento.status === status)
+            .flatMap((faturamento: any) => faturamento.faturamentoItens)
+            .flatMap((faturamentoItem: any) => faturamentoItem.lancamento.lancamentoItens)
+            .reduce((sum: any, itemLancamento: any) => {
+              const quantidadeItens = Number.parseFloat(itemLancamento.quantidade_itens) || 0
+              const valorUnitario = Number.parseFloat(itemLancamento.valor_unitario) || 0
+              return sum + quantidadeItens * valorUnitario
+            }, 0)
+        )
+      }, 0)
+    }
+
+    const stampTotalAguardandoFaturamento = await calculateTotalByStatus(STATUS_AGUARDANDO_FATURAMENTO)
+    const stampTotalAguardandoPagamento = await calculateTotalByStatus(STATUS_AGUARDANDO_PAGAMENTO)
+    const stampTotalPago = await calculateTotalByStatus(STATUS_PAGO)
+    const totalUtilizado = stampTotalAguardandoFaturamento + stampTotalAguardandoPagamento + stampTotalPago
+    return {
+      stampTotalAguardandoFaturamento,
+      stampTotalAguardandoPagamento,
+      stampTotalPago,
+      totalUtilizado,
+    }
+  }
+
+  async getCidadeData(contratos: Array<{ cidade: string; estado: string; saldo_contrato: string }>): Promise<Array<{ cidade: string; estado: string; latitude: string | null; longitude: string | null; valor_total: number }>> {
+    const cidadeDataMap: { [key: string]: { total: number; latitude: string | null; longitude: string | null; quantidade: number } } = {};
+
+    for (const contrato of contratos) {
+      const cidade = contrato.cidade;
+      const estado = contrato.estado;
+      const valorContratado = Number(contrato.saldo_contrato) || 0;
+      const key = `${cidade}, ${estado}`;
+
+      if (!cidadeDataMap[`${cidade}, ${estado}`]) {
+        const locationData = await fetchLocationData(cidade, estado);
+        cidadeDataMap[`${cidade}, ${estado}`] = {
+          total: 0,
+          latitude: locationData.latitude,
+          longitude: locationData.longitude,
+          quantidade: 0,
+        };
+      }
+
+      cidadeDataMap[`${cidade}, ${estado}`].total += valorContratado;
+      cidadeDataMap[key].quantidade += 1;
+    }
+
+    return Object.keys(cidadeDataMap).map(cidadeEstado => {
+      const [cidade, estado] = cidadeEstado.split(', ');
+      const data = cidadeDataMap[cidadeEstado];
+      return {
+        cidade,
+        estado,
+        latitude: data.latitude,
+        longitude: data.longitude,
+        valor_total: data.total,
+        quantidade_contratos: data.quantidade,
+      };
+    });
+  }
+
+}
+
+const sleep = (ms: any) => new Promise(resolve => setTimeout(resolve, ms));
+
+async function fetchLocationData(cidade: string, estado: string): Promise<{ latitude: string | null; longitude: string | null }> {
+  try {
+    const cityData = await Cidade.query()
+      .where('cidade', cidade)
+      .where('estado', estado)
+      .first();
+
+    if (cityData) {
+      return {
+        latitude: cityData.latitude,
+        longitude: cityData.longitude,
+      };
+    }
+
+    await sleep(2000);
+
+    // Se não existir cidade e estado, faz a requisição ao Nominatim
+    const res = await axios.get('https://nominatim.openstreetmap.org/search', {
+      params: {
+        q: `${cidade}, ${estado}`,
+        format: 'json',
+        addressdetails: 1,
+      },
+    });
+    const data = res.data[0];
+    if (data) {
+      const latitude = data.lat;
+      const longitude = data.lon;
+
+      // Armazena a nova coordenada no banco de dados
+      await Cidade.updateOrCreate(
+        { cidade, estado },
+        { latitude, longitude }
+      );
+
+      return { latitude, longitude };
+    }
+  } catch (error) {
+    console.error(`Erro ao tentar buscar localização para ${cidade}`, error);
+  }
+
+  return { latitude: null, longitude: null };
 }

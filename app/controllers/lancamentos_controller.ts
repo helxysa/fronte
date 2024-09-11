@@ -106,11 +106,13 @@ export default class LancamentosController {
     const { id } = params
     const page = request.input('page', 1)
     const limit = request.input('limit', 10)
+    const sortBy = request.input('sortBy', 'created_at')
+    const sortOrder = request.input('sortOrder', 'desc')
     try {
       const lancamento = await Lancamentos.query()
         .where('contrato_id', id)
         .preload('lancamentoItens')
-        .orderBy('created_at', 'desc')
+        .orderBy(sortBy, sortOrder)
         .paginate(page, limit)
 
       if (!lancamento) {

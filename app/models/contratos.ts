@@ -5,9 +5,9 @@ import ContratoItens from './contrato_itens.js'
 import Lancamentos from './lancamentos.js'
 import Renovacao from './renovacao.js'
 import Faturamentos from './faturamentos.js'
+import Projetos from './projetos.js'
 import { SoftDeletes } from 'adonis-lucid-soft-deletes'
 import { compose } from '@adonisjs/core/helpers'
-
 export default class Contratos extends compose(BaseModel, SoftDeletes) {
   @column({ isPrimary: true })
   declare id: number
@@ -43,6 +43,9 @@ export default class Contratos extends compose(BaseModel, SoftDeletes) {
   declare cidade: string
 
   @column()
+  declare estado: string
+
+  @column()
   declare objeto_contrato: string
 
   @column.dateTime({ autoCreate: true })
@@ -59,6 +62,8 @@ export default class Contratos extends compose(BaseModel, SoftDeletes) {
   })
   declare contratoItens: HasMany<typeof ContratoItens>
 
+  @hasMany(() => Projetos, { foreignKey: 'contrato_id' })
+  declare projetos: HasMany<typeof Projetos>
   @hasMany(() => Renovacao, {
     foreignKey: 'contrato_id',
   })

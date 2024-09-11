@@ -113,6 +113,8 @@ export default class FaturamentosController {
     const { id } = params
     const page = request.input('page', 1)
     const limit = request.input('limit', 10)
+    const sortBy = request.input('sortBy', 'created_at')
+    const sortOrder = request.input('sortOrder', 'desc')
     try {
       const faturamentos = await Faturamentos.query()
         .where('contrato_id', id)
@@ -140,7 +142,7 @@ export default class FaturamentosController {
               })
           })
         })
-      .orderBy('created_at', 'desc')
+      .orderBy(sortBy, sortOrder)
       .paginate(page, limit)
 
       if (faturamentos.length === 0) {
