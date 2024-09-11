@@ -498,29 +498,31 @@ export default class ContratosController {
     })
   }
 
-  async getContratosPorVencimento(contratos: any[]) {
-    const contratosPorVencimentoMap: any = {};
-
-    contratos.forEach(contrato => {
-      const lembreteVencimento = contrato.lembrete_vencimento;
+  async getContratosPorVencimento(contratos: any) {
+    return contratos.map((contrato: any) => {
+      const dataFim = contrato.data_fim;
       const idContrato = contrato.id;
+      const lembreteVencimento = contrato.lembrete_vencimento;
 
-      if (lembreteVencimento) {
-        if (!contratosPorVencimentoMap[lembreteVencimento]) {
-          contratosPorVencimentoMap[lembreteVencimento] = { qtd_contratos: 0, id_contratos: [] };
-        }
-        const current = contratosPorVencimentoMap[lembreteVencimento];
-        current.qtd_contratos++;
-        current.id_contratos.push(idContrato);
+    let diasRestantes = null;
+    let dataFimFormatada = null;
+
+    if (dataFim) {
+      const dataFimDate = DateTime.fromISO(dataFim);
+      const hoje = DateTime.now();
+
+      dataFimFormatada = dataFimDate.toFormat('yyyy-MM-dd');
+
+      const diasRestantesCalculado = dataFimDate.diff(hoje, 'days').days;
+
+        diasRestantes = Math.floor(diasRestantesCalculado);
       }
-    });
 
-    return Object.keys(contratosPorVencimentoMap).map(lembrete_vencimento => {
-      const { qtd_contratos, id_contratos } = contratosPorVencimentoMap[lembrete_vencimento];
       return {
-        lembrete_vencimento,
-        qtd_contratos,
-        id_contratos: id_contratos.join(',')
+        id: idContrato,
+        data_fim: dataFimFormatada,
+        lembrete_vencimento: lembreteVencimento,
+        dias_restantes: diasRestantes
       };
     });
   }
