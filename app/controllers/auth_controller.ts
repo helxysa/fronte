@@ -7,7 +7,6 @@ export default class AuthController {
   async register({ request, response }: HttpContext) {
     try {
       const data = await request.validateUsing(registerValidator)
-
       const user = await User.create({
         ...data,
         password: data.password,
@@ -17,17 +16,14 @@ export default class AuthController {
         user,
       })
     } catch (error) {
-      console.error('Erro ao registrar o usuário:', error.message)
       return response.status(400).json({
         errors: [{ message: 'Erro ao registrar o usuário.' }],
       })
     }
   }
-
-  async login({ request, response, auth }: HttpContext) {
+  async login({ request, response }: HttpContext) {
     try {
       const { email, password } = await request.validateUsing(loginValidator)
-
       const user = await User.query().where('email', email).first()
 
       if (!user) {
@@ -40,14 +36,14 @@ export default class AuthController {
         return response.status(400).json({ message: 'Senha inválida.' })
       }
 
-      await auth.use('web').login(user)
+      const token = await User.accessTokens.create(user)
 
       return response.status(200).json({
         message: 'Login realizado com sucesso.',
         user,
+        token,
       })
     } catch (error) {
-      console.error('Erro ao realizar login:', error.message)
       return response.status(500).json({
         errors: [{ message: 'Erro ao realizar login.' }],
       })
@@ -56,7 +52,8 @@ export default class AuthController {
 
   async logout({ auth, response }: HttpContext) {
     try {
-      await auth.use('web').logout()
+      const user = auth.user!
+      await User.accessTokens.delete(user, user.currentAccessToken.identifier)
 
       return response.json({ message: 'Logout realizado com sucesso.' })
     } catch (error) {
@@ -67,7 +64,6 @@ export default class AuthController {
   async me({ auth }: HttpContext) {
     try {
       await auth.check()
-
       return {
         user: auth.user,
       }

@@ -66,8 +66,9 @@ export default class UsersController {
     const { newPassword } = request.only(['newPassword'])
 
     if (await hash.verify(user.password, DEFAULT_PASSWORD)) {
-      user.password = await hash.make(newPassword)
+      user.password = newPassword
       user.passwordChanged = true
+      user.passwordExpiredAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
       await user.save()
 
       try {
@@ -76,7 +77,7 @@ export default class UsersController {
             .to(user.email)
             .from('monitoramento.msb@gmail.com')
             .subject('Senha Alterada com Sucesso')
-            .text('Sua senha foi alterada com sucesso.')
+            .text('Sua senha de primeiro acesso foi alterada com sucesso.')
         })
       } catch (error) {
         return response.status(500).json('Erro ao enviar e-mail de confirmação.')
@@ -84,8 +85,7 @@ export default class UsersController {
 
       return response.json({ message: 'Senha alterada com sucesso.' })
     }
-
-    user.password = await hash.make(newPassword)
+    user.password = newPassword
     user.passwordExpiredAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
     await user.save()
 
@@ -115,7 +115,7 @@ export default class UsersController {
     const { email } = request.only(['email'])
     const user = await User.findBy('email', email)
     if (!user) {
-      return response.status(404).json('Usuário não encontrado.')
+      return response.status(404).json('E-mail não é válido.')
     }
 
     const token = crypto.randomBytes(20).toString('hex')
@@ -128,8 +128,7 @@ export default class UsersController {
         .from('monitoramento.msb@gmail.com')
         .subject('Redefinição de Senha')
         .text(
-          // mexer nesse link
-          `Clique no link para redefinir sua senha: https://boss.msbtec.dev/reset-password?token=${token}`
+          `Clique no link para redefinir sua senha: http://localhost:5173/esqueci-minha-senha?token=${token}`
         )
     })
 
@@ -151,7 +150,7 @@ export default class UsersController {
       return response.status(400).json('Token inválido.')
     }
 
-    user.password = await hash.make(newPassword)
+    user.password = newPassword
     user.passwordResetToken = null
     await user.save()
 
