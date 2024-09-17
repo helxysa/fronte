@@ -113,6 +113,7 @@ export default class UsersController {
 
   async forgotPassword({ request, response }: HttpContext) {
     const { email } = request.only(['email'])
+    let textoUrl = ''
     const user = await User.findBy('email', email)
     if (!user) {
       return response.status(404).json('E-mail não é válido.')
@@ -122,13 +123,19 @@ export default class UsersController {
     user.passwordResetToken = token
     await user.save()
 
+    if (process.env.NODE_ENV === 'development') {
+      textoUrl = 'https://boss.msbtec.dev'
+    } else {
+      textoUrl = 'https://boss.msbtec.app'
+    }
+
     await mail.send((message) => {
       message
         .to(user.email)
         .from('monitoramento.msb@gmail.com')
         .subject('Redefinição de Senha')
         .text(
-          `Clique no link para redefinir sua senha: http://localhost:5173/esqueci-minha-senha?token=${token}`
+          `Clique no link para redefinir sua senha: ${textoUrl}/esqueci-minha-senha?token=${token}`
         )
     })
 
@@ -155,22 +162,5 @@ export default class UsersController {
     await user.save()
 
     return response.json({ message: 'Senha alterada com sucesso.' })
-  }
-
-  async sendHelloWorldEmail({ response }: HttpContext) {
-    try {
-      await mail.send((message) => {
-        message
-          .to('siqueira.pedro1998@gmail.com')
-          .from('monitoramento.msb@gmail.com')
-          .subject('Hello World Email')
-          .text('Hello, World!')
-      })
-
-      return response.status(200).send('E-mail enviado com sucesso!')
-    } catch (error) {
-      console.error(error)
-      return response.status(500).send('Erro ao enviar e-mail')
-    }
   }
 }
