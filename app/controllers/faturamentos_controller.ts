@@ -136,7 +136,7 @@ export default class FaturamentosController {
         .preload('faturamentoItens', (faturamentoItensQuery) => {
           faturamentoItensQuery.preload('lancamento', (lancamentoQuery) => {
             lancamentoQuery
-              .select(['id', 'status', 'projetos', 'data_medicao'])
+              .select(['id', 'status', 'projetos', 'data_medicao', 'competencia'])
               .preload('lancamentoItens', (lancamentoItensQuery) => {
                 lancamentoItensQuery.select([
                   'id',
