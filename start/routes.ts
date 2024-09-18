@@ -61,6 +61,7 @@ router.delete('/lancamentos/:id', [LancamentosController, 'deleteLancamento'])
 router.delete('/lancamentos/restore/:id', [LancamentosController, 'restoreLancamento'])
 router.delete('/lancamentos/:id/items/:itemId', [LancamentosController, 'deleteLancamentoItem'])
 router.post('/lancamentos/:id/items', [LancamentosController, 'addLancamentoItem'])
+router.patch('/lancamentos/:id/competencia', [LancamentosController, 'updateCompetencia'])
 //Faturamento
 router.post('/contratos/:id/faturamentos', [FaturamentosController, 'createFaturamentos'])
 router.put('/faturamentos/:id', [FaturamentosController, 'updateFaturamento'])
