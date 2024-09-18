@@ -7,7 +7,6 @@ export const registerValidator = vine.compile(
     email: vine
       .string()
       .email()
-      .normalizeEmail()
       .unique(async (db, value) => {
         const match = await db.from('users').select('id').where('email', value).first()
         return !match
@@ -18,7 +17,7 @@ export const registerValidator = vine.compile(
 
 export const loginValidator = vine.compile(
   vine.object({
-    email: vine.string().email().normalizeEmail(),
+    email: vine.string().email(),
     password,
   })
 )

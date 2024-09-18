@@ -10,13 +10,15 @@ import FaturamentoItem from '#models/faturamento_item'
 export default class LancamentosController {
   async createLancamento({ request, response, params }: HttpContext) {
     const { id } = params
-    const { status, projetos, data_medicao, itens, tarefa_medicao, tipo_medicao } = request.only([
+    const { status, projetos, data_medicao, itens, tarefa_medicao, tipo_medicao, competencia, descricao } = request.only([
       'status',
       'itens',
       'projetos',
       'data_medicao',
       'tarefa_medicao',
       'tipo_medicao',
+      'competencia',
+      'descricao',
     ])
 
     if (!projetos || !itens || !itens.length) {
@@ -45,6 +47,8 @@ export default class LancamentosController {
         data_medicao: data_medicao,
         tarefa_medicao,
         tipo_medicao,
+        competencia,
+        descricao
       })
 
       // Processamento dos itens
@@ -148,13 +152,15 @@ export default class LancamentosController {
 
   async updateLancamento({ request, response, params }: HttpContext) {
     const { id } = params
-    const { status, itens, projetos, data_medicao, tarefa_medicao, tipo_medicao } = request.only([
+    const { status, itens, projetos, data_medicao, tarefa_medicao, tipo_medicao, competencia, descricao } = request.only([
       'status',
       'itens',
       'projetos',
       'data_medicao',
       'tarefa_medicao',
       'tipo_medicao',
+      'competencia',
+      'descricao'
     ])
 
     try {
@@ -185,6 +191,8 @@ export default class LancamentosController {
       lancamentoAtual.projetos = projetos
       lancamentoAtual.tarefa_medicao = tarefa_medicao
       lancamentoAtual.tipo_medicao = tipo_medicao
+      lancamentoAtual.competencia = competencia
+      lancamentoAtual.descricao = descricao
       lancamentoAtual.data_medicao = dataMedicao;
 
       await lancamentoAtual.save()
