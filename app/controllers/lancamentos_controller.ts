@@ -214,8 +214,6 @@ export default class LancamentosController {
 
       return response.status(200).json(lancamentoAtual)
     } catch (err) {
-      // console.error(err)
-      // return response.status(500).send('Server error')
       console.error('Erro ao atualizar lançamento:', err)
       return response.status(500).json({
         error: 'Erro interno do servidor.',
@@ -224,6 +222,35 @@ export default class LancamentosController {
       })
     }
   }
+
+  async updateCompetencia({ request, response, params }: HttpContext) {
+    const { id } = params;
+    const { competencia } = request.only(['competencia']);
+
+    try {
+      const lancamentoAtual = await Lancamentos.find(id);
+      if (!lancamentoAtual) {
+        return response.status(404).send('Medição não encontrada.');
+      }
+
+      if (!competencia) {
+        return response.status(400).send('O campo "Competência" é obrigatório.');
+      }
+
+      lancamentoAtual.competencia = competencia;
+      await lancamentoAtual.save();
+
+      return response.status(200).json(lancamentoAtual);
+    } catch (err) {
+      console.error('Erro ao atualizar competência da medição:', err);
+      return response.status(500).json({
+        error: 'Erro interno do servidor.',
+        message: err.message,
+        statusCode: 500
+      });
+    }
+  }
+
 
   async deleteLancamento({ params, response }: HttpContext) {
     const { id } = params
