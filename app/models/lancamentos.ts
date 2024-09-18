@@ -34,6 +34,12 @@ export default class Lancamentos extends compose(BaseModel, SoftDeletes) {
   @column()
   declare projetos: string
 
+  @column()
+  declare competencia: string
+
+  @column()
+  declare descricao: string
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

@@ -8,12 +8,13 @@ import { DateTime } from 'luxon'
 
 export default class FaturamentosController {
   async createFaturamentos({ params, request, response }: HttpContext) {
-    const { nota_fiscal, data_faturamento, descricao_nota, status, observacoes } = request.only([
+    const { nota_fiscal, data_faturamento, descricao_nota, status, observacoes, competencia } = request.only([
       'nota_fiscal',
       'data_faturamento',
       'descricao_nota',
       'status',
       'observacoes',
+      'competencia'
     ])
 
     try {
@@ -31,6 +32,7 @@ export default class FaturamentosController {
         data_faturamento,
         status,
         observacoes,
+        competencia
       })
 
       for (const lancamentoId of notaArray) {
@@ -62,12 +64,13 @@ export default class FaturamentosController {
     }
 
     // Obtém os dados para atualização
-    const { nota_fiscal, data_faturamento, descricao_nota, status, observacoes } = request.only([
+    const { nota_fiscal, data_faturamento, descricao_nota, status, observacoes, competencia } = request.only([
       'nota_fiscal',
       'data_faturamento',
       'descricao_nota',
       'status',
       'observacoes',
+      'competencia'
     ])
 
     // Encontra o faturamento
@@ -82,6 +85,7 @@ export default class FaturamentosController {
     faturamento.data_faturamento = data_faturamento ? DateTime.fromISO(data_faturamento) : faturamento.data_faturamento
     faturamento.status = status ?? faturamento.status
     faturamento.observacoes = observacoes ?? faturamento.observacoes
+    faturamento.competencia = competencia ?? faturamento.competencia
     await faturamento.save()
 
     // Atualiza os itens do faturamento se necessário
@@ -125,6 +129,7 @@ export default class FaturamentosController {
           'data_faturamento',
           'status',
           'observacoes',
+          'competencia',
           'created_at',
           'updated_at',
         ])

@@ -29,6 +29,9 @@ export default class Faturamentos extends compose(BaseModel, SoftDeletes) {
   @column()
   declare observacoes: string
 
+  @column()
+  declare competencia: string
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 
