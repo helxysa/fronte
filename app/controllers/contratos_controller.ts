@@ -127,6 +127,7 @@ export default class ContratosController {
               'nota_fiscal',
               'data_faturamento',
               'status',
+              'competencia',
               'observacoes',
               'created_at',
               'updated_at',
