@@ -86,6 +86,7 @@ export default class UsersController {
       return response.json({ message: 'Senha alterada com sucesso.' })
     }
     user.password = newPassword
+    user.passwordChanged = true
     user.passwordExpiredAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
     await user.save()
 
@@ -158,6 +159,7 @@ export default class UsersController {
     }
 
     user.password = newPassword
+    user.passwordChanged = true
     user.passwordResetToken = null
     await user.save()
 
