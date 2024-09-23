@@ -1,7 +1,6 @@
 import { DateTime } from 'luxon'
-import { afterUpdate, BaseModel, beforeDelete, belongsTo, column } from '@adonisjs/lucid/orm'
+import { BaseModel, belongsTo, column } from '@adonisjs/lucid/orm'
 import Contratos from '#models/contratos'
-import LancamentoItens from '#models/lancamento_itens'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 import Renovacao from '#models/renovacao'
 import { SoftDeletes } from 'adonis-lucid-soft-deletes'
