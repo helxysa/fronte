@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import type { HttpContext } from '@adonisjs/core/http'
 import ContratoItens from '#models/contrato_itens'
+import LancamentoItens from '#models/lancamento_itens'
 
 export default class ContratoItemController {
   async createContractItem({ request, response, params }: HttpContext) {
@@ -80,8 +81,36 @@ export default class ContratoItemController {
         return response.status(404).send('Item do contrato não encontrado.')
       }
 
+      // Verificar se o item de contrato está vinculado a alguma medição
+      // const lancamentoItensCount = await LancamentoItens.query()
+      //   .where('contrato_item_id', contratoItem.id)
+      //   .count('* as total')
+
+      // const totalItensVinculados = Number(lancamentoItensCount[0].$extras.total)
+      // if (totalItensVinculados > 0) {
+      //   return response.status(400).json({
+      //     message: 'Este item do contrato está vinculado a uma medição e não pode ser editado.',
+      //   })
+      // }
+
       contratoItem.merge(data)
       await contratoItem.save()
+
+      // Altera também os itens vinculados a lançamentos (medições)
+      const lancamentoItens = await LancamentoItens.query().where(
+        'contrato_item_id',
+        contratoItem.id
+      )
+
+      for (const lancamentoItem of lancamentoItens) {
+        lancamentoItem.merge({
+          titulo: contratoItem.titulo,
+          unidade_medida: contratoItem.unidade_medida,
+          valor_unitario: contratoItem.valor_unitario,
+          saldo_quantidade_contratada: contratoItem.saldo_quantidade_contratada,
+        })
+        await lancamentoItem.save()
+      }
 
       return response.status(200).json(contratoItem)
     } catch (error) {
@@ -98,6 +127,18 @@ export default class ContratoItemController {
       if (!contratoItem) {
         return response.status(404).json({ message: 'Item do contrato não encontrado.' })
       }
+
+      const lancamentoItensCount = await LancamentoItens.query()
+        .where('contrato_item_id', contratoItem.id)
+        .count('* as total')
+
+      const totalItensVinculados = Number(lancamentoItensCount[0].$extras.total)
+      if (totalItensVinculados > 0) {
+        return response.status(400).json({
+          message: 'Este item do contrato está vinculado a uma medição e não pode ser excluído.',
+        })
+      }
+
       await contratoItem.delete()
 
       return response.status(200).json({ message: 'Item do contrato deletado com sucesso.' })
