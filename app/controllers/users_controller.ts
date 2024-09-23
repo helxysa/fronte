@@ -165,4 +165,33 @@ export default class UsersController {
 
     return response.json({ message: 'Senha alterada com sucesso.' })
   }
+
+  async updatePasswordChangedStatus({ params, request, response }: HttpContext) {
+    const { passwordChanged } = request.only(['passwordChanged'])
+
+    if (typeof passwordChanged !== 'boolean') {
+      return response
+        .status(400)
+        .json({ message: 'O campo passwordChanged deve ser um valor booleano.' })
+    }
+
+    try {
+      const user = await User.find(params.id)
+
+      if (!user) {
+        return response.status(404).json({ message: 'Usuário não encontrado.' })
+      }
+
+      user.passwordChanged = passwordChanged
+      await user.save()
+
+      return response.json({
+        message: 'Status atualizado com sucesso.',
+        user,
+      })
+    } catch (error) {
+      console.error('Erro ao atualizar o status:', error)
+      return response.status(500).json({ message: 'Erro ao atualizar o status.' })
+    }
+  }
 }
