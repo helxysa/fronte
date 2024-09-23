@@ -12,6 +12,7 @@ const LancamentosController = () => import('#controllers/lancamentos_controller'
 const FaturamentosController = () => import('#controllers/faturamentos_controller')
 const UnidadeMedidaController = () => import('#controllers/unidade_medida_controller')
 const ProjetosController = () => import('#controllers/projetos_controller')
+
 // Registro, Login e Autenticação
 router.post('/register', [AuthController, 'register']).as('auth.register')
 router.post('/login', [AuthController, 'login']).as('auth.login')
@@ -25,6 +26,7 @@ router.put('users/email/:id', [UsersController, 'updateEmail'])
 router.put('users/alterar-senha/:id', [UsersController, 'updatePassword'])
 router.put('users/esqueci-minha-senha', [UsersController, 'forgotPassword'])
 router.post('users/esqueci-minha-senha', [UsersController, 'resetPassword'])
+router.put('/users/:id/passwordChanged', [UsersController, 'updatePasswordChangedStatus']);
 router.delete('users/:id', [UsersController, 'destroy'])
 router.get('files/:filename', async ({ params, response }) => {
   return response.attachment(Application.tmpPath('uploads', params.filename), params.filename)
