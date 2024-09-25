@@ -58,8 +58,8 @@ export default class ContratoAnexosController {
 
     const anexosComUrl = anexos.map((anexo) => ({
       ...anexo.toJSON(),
-      // file_url: `${prefixUrl}${anexo.file_path}`,
-      file_url: `http://localhost:3333${anexo.file_path}`,
+      file_url: `${prefixUrl}${anexo.file_path}`,
+      // file_url: `http://localhost:3333${anexo.file_path}`,
     }))
 
     return response.ok({ anexos: anexosComUrl })

@@ -48,7 +48,7 @@ router.post('/contratos/:contrato_id/anexos', [ContratoAnexosController, 'store'
 router.get('/contratos/:contrato_id/anexos', [ContratoAnexosController, 'index'])
 router.get('/contratos/:contrato_id/anexos/:id', [ContratoAnexosController, 'show'])
 router.put('/contratos/:contrato_id/anexos/:id', [ContratoAnexosController, 'update'])
-router.delete('/contratos/:contrato_id/anexos/:id', [ContratoAnexosController, 'destroy'])
+router.delete('/contratos/anexos/:id', [ContratoAnexosController, 'destroy'])
 // Medição Anexos
 router.post('/medicao/:lancamento_id/anexos', [MedicaoAnexosController, 'store'])
 router.get('/medicao/:lancamento_id/anexos', [MedicaoAnexosController, 'index'])
