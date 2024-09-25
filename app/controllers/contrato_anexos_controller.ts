@@ -18,7 +18,7 @@ export default class ContratoAnexosController {
 
       const fileName = `${new Date().getTime()}.${file.extname}`
 
-      await file.move(app.tmpPath('uploads/contracts'), {
+      await file.move(app.publicPath('uploads/contracts'), {
         name: fileName,
       })
 
@@ -34,7 +34,7 @@ export default class ContratoAnexosController {
       // Captura o erro "request entity too large"
       if (error.status === 413) {
         return response.status(413).send({
-          message: 'O arquivo enviado é muito grande. O tamanho máximo permitido é 2 MB.',
+          message: 'O arquivo enviado é muito grande. O tamanho máximo permitido é 20 MB.',
         })
       }
 
@@ -48,8 +48,21 @@ export default class ContratoAnexosController {
   async index({ params, response }: HttpContext) {
     const contratoId = params.contrato_id
     const anexos = await ContratoAnexo.query().where('contrato_id', contratoId)
+    let prefixUrl = ''
 
-    return response.ok({ anexos })
+    if (process.env.NODE_ENV === 'development') {
+      prefixUrl = 'https://api-boss.msbtec.dev'
+    } else if (process.env.NODE_ENV === 'production') {
+      prefixUrl = 'https://api-boss.msbtec.app'
+    }
+
+    const anexosComUrl = anexos.map((anexo) => ({
+      ...anexo.toJSON(),
+      file_url: `${prefixUrl}${anexo.file_path}`,
+      // file_url: `http://localhost:3333${anexo.file_path}`, PARA TESTE LOCAL
+    }))
+
+    return response.ok({ anexos: anexosComUrl })
   }
   //Busca anexo específico pelo id
   async show({ params, response }: HttpContext) {
@@ -90,7 +103,7 @@ export default class ContratoAnexosController {
     try {
       const anexo = await ContratoAnexo.findOrFail(params.id)
 
-      const filePath = app.tmpPath(anexo.file_path)
+      const filePath = app.publicPath(anexo.file_path)
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath)
       }

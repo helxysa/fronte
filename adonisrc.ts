@@ -34,7 +34,8 @@ export default defineConfig({
     () => import('@adonisjs/auth/auth_provider'),
     () => import('adonis-lucid-soft-deletes/provider'),
     () => import('@adonisjs/mail/mail_provider'),
-    () => import('@adonisjs/session/session_provider')
+    () => import('@adonisjs/session/session_provider'),
+    () => import('@adonisjs/static/static_provider')
   ],
 
   /*
@@ -75,4 +76,8 @@ export default defineConfig({
     ],
     forceExit: false,
   },
+  metaFiles: [{
+    pattern: 'public/**',
+    reloadServer: false,
+  }]
 })
