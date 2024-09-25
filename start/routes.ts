@@ -12,6 +12,7 @@ const LancamentosController = () => import('#controllers/lancamentos_controller'
 const FaturamentosController = () => import('#controllers/faturamentos_controller')
 const UnidadeMedidaController = () => import('#controllers/unidade_medida_controller')
 const ProjetosController = () => import('#controllers/projetos_controller')
+const ContratoAnexosController = () => import('#controllers/contrato_anexos_controller')
 
 // Registro, Login e Autenticação
 router.post('/register', [AuthController, 'register']).as('auth.register')
@@ -40,6 +41,12 @@ router.get('/contratos/:id', [ContratosController, 'getContractById'])
 router.put('/contratos/:id', [ContratosController, 'updateContract'])
 router.put('/contratos/restore/:id', [ContratosController, 'restoreContract'])
 router.delete('/contratos/:id', [ContratosController, 'deleteContract'])
+// Contrato Anexos
+router.post('/contratos/:contrato_id/anexos', [ContratoAnexosController, 'store'])
+router.get('/contratos/:contrato_id/anexos', [ContratoAnexosController, 'index'])
+router.get('/contratos/:contrato_id/anexos/:id', [ContratoAnexosController, 'show'])
+router.put('/contratos/:contrato_id/anexos/:id', [ContratoAnexosController, 'update'])
+router.delete('/contratos/:contrato_id/anexos/:id', [ContratoAnexosController, 'destroy'])
 // Itens de contratos
 router.post('/contratos/:id/items', [ContratoItemController, 'createContractItem'])
 // router.get('/contratos/:id/items', [ContratoItemController, 'getContractItem'])

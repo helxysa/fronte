@@ -60,6 +60,7 @@
     "@adonisjs/lucid": "^21.1.0",
     "@adonisjs/mail": "^9.2.2",
     "@adonisjs/session": "^7.4.2",
+    "@adonisjs/static": "^1.1.1",
     "@vinejs/vine": "^2.1.0",
     "adonis-lucid-soft-deletes": "^2.1.0",
     "axios": "^1.7.7",
