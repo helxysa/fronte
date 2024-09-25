@@ -1,11 +1,12 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import app from '@adonisjs/core/services/app'
-import ContratoAnexo from '#models/contrato_anexo'
+import FaturamentoAnexo from '#models/faturamento_anexo'
 import fs from 'node:fs'
-export default class ContratoAnexosController {
+
+export default class FaturamentoAnexosController {
   async store({ request, params, response }: HttpContext) {
     try {
-      const contratoId = params.contrato_id
+      const faturamentoId = params.faturamento_id
 
       const file = request.file('file', {
         size: '20mb',
@@ -18,14 +19,14 @@ export default class ContratoAnexosController {
 
       const fileName = `${new Date().getTime()}.${file.extname}`
 
-      await file.move(app.publicPath('uploads/contracts'), {
+      await file.move(app.publicPath('uploads/faturamento'), {
         name: fileName,
       })
 
-      const anexo = await ContratoAnexo.create({
-        contrato_id: contratoId,
+      const anexo = await FaturamentoAnexo.create({
+        faturamento_id: faturamentoId,
         file_name: file.clientName,
-        file_path: `/uploads/contracts/${fileName}`,
+        file_path: `/uploads/faturamento/${fileName}`,
         file_type: file.extname,
       })
 
@@ -46,8 +47,8 @@ export default class ContratoAnexosController {
   }
 
   async index({ params, response }: HttpContext) {
-    const contratoId = params.contrato_id
-    const anexos = await ContratoAnexo.query().where('contrato_id', contratoId)
+    const faturamentoId = params.faturamento_id
+    const anexos = await FaturamentoAnexo.query().where('faturamento_id', faturamentoId)
     let prefixUrl = ''
 
     if (process.env.NODE_ENV === 'development') {
@@ -64,10 +65,11 @@ export default class ContratoAnexosController {
 
     return response.ok({ anexos: anexosComUrl })
   }
+
   //Busca anexo específico pelo id
   async show({ params, response }: HttpContext) {
     try {
-      const anexo = await ContratoAnexo.findOrFail(params.id)
+      const anexo = await FaturamentoAnexo.findOrFail(params.id)
       return response.ok({ anexo })
     } catch (error) {
       return response.status(404).send({
@@ -75,10 +77,11 @@ export default class ContratoAnexosController {
       })
     }
   }
+
   //Renomear arquivo
   async update({ request, params, response }: HttpContext) {
     try {
-      const anexo = await ContratoAnexo.findOrFail(params.id)
+      const anexo = await FaturamentoAnexo.findOrFail(params.id)
 
       const newFileName = request.input('file_name')
 
@@ -98,10 +101,11 @@ export default class ContratoAnexosController {
       })
     }
   }
+
   //Excluir um anexo
   async destroy({ params, response }: HttpContext) {
     try {
-      const anexo = await ContratoAnexo.findOrFail(params.id)
+      const anexo = await FaturamentoAnexo.findOrFail(params.id)
 
       const filePath = app.publicPath(anexo.file_path)
       if (fs.existsSync(filePath)) {
