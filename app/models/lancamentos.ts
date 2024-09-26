@@ -5,6 +5,7 @@ import Contratos from './contratos.js'
 import Faturamentos from './faturamentos.js'
 import LancamentoItens from './lancamento_itens.js'
 import Renovacao from '#models/renovacao'
+import MedicaoAnexo from '#models/medicao_anexo'
 import FaturamentoItem from './faturamento_item.js'
 import { SoftDeletes } from 'adonis-lucid-soft-deletes'
 import { compose } from '@adonisjs/core/helpers'
@@ -63,4 +64,7 @@ export default class Lancamentos extends compose(BaseModel, SoftDeletes) {
 
   @hasMany(() => FaturamentoItem)
   declare faturamentoItens: HasMany<typeof FaturamentoItem>
+
+  @hasMany(() => MedicaoAnexo, { foreignKey: 'contrato_id' })
+  declare medicaoAnexo: HasMany<typeof MedicaoAnexo>
 }

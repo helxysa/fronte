@@ -12,6 +12,9 @@ const LancamentosController = () => import('#controllers/lancamentos_controller'
 const FaturamentosController = () => import('#controllers/faturamentos_controller')
 const UnidadeMedidaController = () => import('#controllers/unidade_medida_controller')
 const ProjetosController = () => import('#controllers/projetos_controller')
+const ContratoAnexosController = () => import('#controllers/contrato_anexos_controller')
+const MedicaoAnexosController = () => import('#controllers/medicao_anexos_controller')
+const FaturamentoAnexosController = () => import('#controllers/faturamento_anexos_controller')
 
 // Registro, Login e Autenticação
 router.post('/register', [AuthController, 'register']).as('auth.register')
@@ -40,6 +43,24 @@ router.get('/contratos/:id', [ContratosController, 'getContractById'])
 router.put('/contratos/:id', [ContratosController, 'updateContract'])
 router.put('/contratos/restore/:id', [ContratosController, 'restoreContract'])
 router.delete('/contratos/:id', [ContratosController, 'deleteContract'])
+// Contrato Anexos
+router.post('/contratos/:contrato_id/anexos', [ContratoAnexosController, 'store'])
+router.get('/contratos/:contrato_id/anexos', [ContratoAnexosController, 'index'])
+router.get('/contratos/:contrato_id/anexos/:id', [ContratoAnexosController, 'show'])
+router.put('/contratos/:contrato_id/anexos/:id', [ContratoAnexosController, 'update'])
+router.delete('/contratos/anexos/:id', [ContratoAnexosController, 'destroy'])
+// Medição Anexos
+router.post('/medicao/:lancamento_id/anexos', [MedicaoAnexosController, 'store'])
+router.get('/medicao/:lancamento_id/anexos', [MedicaoAnexosController, 'index'])
+router.get('/medicao/anexos/:id', [MedicaoAnexosController, 'show'])
+router.put('/medicao/:lancamento_id/anexos/:id', [MedicaoAnexosController, 'update'])
+router.delete('/medicao/anexos/:id', [MedicaoAnexosController, 'destroy'])
+// Faturamento Anexos
+router.post('/faturamento/:faturamento_id/anexos', [FaturamentoAnexosController, 'store'])
+router.get('/faturamento/:faturamento_id/anexos', [FaturamentoAnexosController, 'index'])
+router.get('/faturamento/anexos/:id', [FaturamentoAnexosController, 'show'])
+router.put('/faturamento/:faturamento_id/anexos/:id', [FaturamentoAnexosController, 'update'])
+router.delete('/faturamento/anexos/:id', [FaturamentoAnexosController, 'destroy'])
 // Itens de contratos
 router.post('/contratos/:id/items', [ContratoItemController, 'createContractItem'])
 // router.get('/contratos/:id/items', [ContratoItemController, 'getContractItem'])

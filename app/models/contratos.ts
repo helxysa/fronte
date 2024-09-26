@@ -8,6 +8,7 @@ import Faturamentos from './faturamentos.js'
 import Projetos from './projetos.js'
 import { SoftDeletes } from 'adonis-lucid-soft-deletes'
 import { compose } from '@adonisjs/core/helpers'
+import ContratoAnexo from './contrato_anexo.js'
 export default class Contratos extends compose(BaseModel, SoftDeletes) {
   @column({ isPrimary: true })
   declare id: number
@@ -61,6 +62,9 @@ export default class Contratos extends compose(BaseModel, SoftDeletes) {
     foreignKey: 'contrato_id',
   })
   declare contratoItens: HasMany<typeof ContratoItens>
+
+  @hasMany(() => ContratoAnexo, { foreignKey: 'contrato_id' })
+  declare contratoAnexo: HasMany<typeof ContratoAnexo>
 
   @hasMany(() => Projetos, { foreignKey: 'contrato_id' })
   declare projetos: HasMany<typeof Projetos>
