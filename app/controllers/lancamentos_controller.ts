@@ -26,17 +26,18 @@ export default class LancamentosController {
     }
 
     try {
-      // Verificação se já existe um lançamento com a mesma data e tarefa para o contrato
-      const existeLancamento = await Lancamentos.query()
-        .where('contrato_id', id)
-        .andWhere('data_medicao', data_medicao)
-        .andWhere('tarefa_medicao', tarefa_medicao)
-        .first()
+      // Verificação se já existe um lançamento com a mesma tarefa para o contrato
+      let existeLancamento: any = null;
+
+      if (tarefa_medicao !== '' && tarefa_medicao !== null) {
+        existeLancamento = await Lancamentos.query()
+          .where('contrato_id', id)
+          .andWhere('tarefa_medicao', tarefa_medicao)
+          .first();
+      }
 
       if (existeLancamento) {
-        return response
-          .status(400)
-          .send('Já existe um lançamento com a mesma data e tarefa de medição para este contrato.')
+        return response.status(400).send('Já existe uma medição com a mesma tarefa para este contrato.');
       }
 
       // Criação do novo lançamento
@@ -173,18 +174,19 @@ export default class LancamentosController {
       if (!dataMedicao) {
         return response.status(400).send('Data de medição inválida.');
       }
+      let existeLancamento: any = null;
 
-      const existeLancamento = await Lancamentos.query()
-        .where('contrato_id', lancamentoAtual.contrato_id)
-        .andWhere('data_medicao', data_medicao)
-        .andWhere('tarefa_medicao', tarefa_medicao)
-        .whereNot('id', id)
-        .first()
-
+      if (tarefa_medicao !== '' && tarefa_medicao !== null) {
+        existeLancamento = await Lancamentos.query()
+          .where('contrato_id', lancamentoAtual.contrato_id)
+          .andWhere('tarefa_medicao', tarefa_medicao)
+          .whereNot('id', id)
+          .first()
+      }
       if (existeLancamento) {
         return response
           .status(400)
-          .send('Já existe um lançamento com a mesma data e tarefa de medição para este contrato.')
+          .send('Já existe uma medição com a mesma tarefa para este contrato.')
       }
 
       lancamentoAtual.status = status
