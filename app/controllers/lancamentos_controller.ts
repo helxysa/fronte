@@ -253,6 +253,34 @@ export default class LancamentosController {
     }
   }
 
+  async updateStatus({ request, response, params }: HttpContext) {
+    const { id } = params;
+    const { status } = request.only(['status']);
+
+    try {
+      const lancamentoAtual = await Lancamentos.find(id);
+      if (!lancamentoAtual) {
+        return response.status(404).send('Medição não encontrada.');
+      }
+
+      if (!status) {
+        return response.status(400).send('O campo "Status" é obrigatório.');
+      }
+
+      lancamentoAtual.status = status;
+      await lancamentoAtual.save();
+
+      return response.status(200).json(lancamentoAtual);
+    } catch (err) {
+      console.error('Erro ao atualizar status da medição:', err);
+      return response.status(500).json({
+        error: 'Erro interno do servidor.',
+        message: err.message,
+        statusCode: 500
+      });
+    }
+  }
+
 
   async deleteLancamento({ params, response }: HttpContext) {
     const { id } = params
