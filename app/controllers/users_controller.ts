@@ -3,6 +3,7 @@ import mail from '@adonisjs/mail/services/main'
 import User from '#models/user'
 import crypto from 'node:crypto'
 import hash from '@adonisjs/core/services/hash'
+import Profile from '#models/profile'
 
 const DEFAULT_PASSWORD = 'Boss1234'
 
@@ -193,5 +194,21 @@ export default class UsersController {
       console.error('Erro ao atualizar o status:', error)
       return response.status(500).json({ message: 'Erro ao atualizar o status.' })
     }
+  }
+
+  async setUserProfile({ params, request, response }: HttpContext) {
+    const userId = params.id
+    const profileId = request.input('profile_id')
+
+    const user = await User.findOrFail(userId)
+    const profile = await Profile.findOrFail(profileId)
+
+    user.profileId = profile.id
+    await user.save()
+
+    return response.status(200).json({
+      message: 'Perfil associado ao usuário com sucesso',
+      user,
+    })
   }
 }
