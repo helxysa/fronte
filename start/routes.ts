@@ -5,6 +5,7 @@ import Application from '@adonisjs/core/services/app'
 
 const UsersController = () => import('#controllers/users_controller')
 const AuthController = () => import('#controllers/auth_controller')
+const ProfilesController = () => import('#controllers/profiles_controller')
 const ContratosController = () => import('#controllers/contratos_controller')
 const RenovacaoController = () => import('#controllers/renovacao_controller')
 const ContratoItemController = () => import('#controllers/contrato_item_controller')
@@ -28,12 +29,18 @@ router.post('users', [UsersController, 'store'])
 router.put('users/email/:id', [UsersController, 'updateEmail'])
 router.put('users/alterar-senha/:id', [UsersController, 'updatePassword'])
 router.put('users/esqueci-minha-senha', [UsersController, 'forgotPassword'])
+router.put('users/:id/perfil', [UsersController, 'setUserProfile'])
 router.post('users/esqueci-minha-senha', [UsersController, 'resetPassword'])
 router.put('/users/:id/passwordChanged', [UsersController, 'updatePasswordChangedStatus']);
 router.delete('users/:id', [UsersController, 'destroy'])
 router.get('files/:filename', async ({ params, response }) => {
   return response.attachment(Application.tmpPath('uploads', params.filename), params.filename)
 })
+// Perfis e Permissões
+router.get('perfil', [ProfilesController, 'index'])
+router.post('perfil', [ProfilesController, 'store'])
+router.put('perfil/:id', [ProfilesController, 'update'])
+router.delete('perfil/:id', [ProfilesController, 'destroy'])
 // Dashboard
 router.get('/dashboard', [ContratosController, 'getDashboard'])
 // Contratos
