@@ -25,17 +25,43 @@ export default class UsersController {
   }
 
   async show({ params, response }: HttpContext) {
-    const user = await User.find(params.id)
+    const user = await User.query()
+      .where('id', params.id)
+      .preload('profile', (profileQuery) => {
+        profileQuery.preload('permissions', (permissionQuery) => {
+          permissionQuery.select(['name', 'can_create', 'can_edit', 'can_view', 'can_delete'])
+        })
+      })
+      .first()
+
     if (!user) {
       return response.status(404).json('Não existe usuário.')
     }
 
-    // if (!user.file) {
-    //   user.file = 'default_avatar.png'
-    // }
+    const filteredPermissions = user.profile.permissions.map((permission) => {
+      return {
+        name: permission.name,
+        canCreate: permission.can_create,
+        canEdit: permission.can_edit,
+        canView: permission.can_view,
+        canDelete: permission.can_delete,
+      }
+    })
 
-    // return response.json({ ...user.toJSON(), avatar_url: `${env.get('URL_FILE')}/${user.file}` })
-    return response.json(user)
+    return response.json({
+      id: user.id,
+      email: user.email,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      passwordExpiredAt: user.passwordExpiredAt,
+      passwordResetToken: user.passwordResetToken,
+      passwordChanged: user.passwordChanged,
+      profile: {
+        id: user.profile.id,
+        name: user.profile.name,
+        permissions: filteredPermissions,
+      },
+    })
   }
 
   async updateEmail({ params, request, response }: HttpContext) {
