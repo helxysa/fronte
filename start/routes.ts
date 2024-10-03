@@ -38,6 +38,7 @@ router.get('files/:filename', async ({ params, response }) => {
 })
 // Perfis e Permissões
 router.get('perfil', [ProfilesController, 'index'])
+router.get('perfil/:id', [ProfilesController, 'show'])
 router.post('perfil', [ProfilesController, 'store'])
 router.put('perfil/:id', [ProfilesController, 'update'])
 router.delete('perfil/:id', [ProfilesController, 'destroy'])

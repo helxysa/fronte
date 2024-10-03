@@ -9,6 +9,33 @@ export default class ProfilesController {
     return response.json(profiles)
   }
 
+  async show({ params, response }: HttpContext) {
+    const profileId = params.id
+
+    const profile = await Profile.query()
+      .where('id', profileId)
+      .preload('permissions', (permissionQuery) => {
+        permissionQuery.select(['name', 'can_create', 'can_edit', 'can_view', 'can_delete'])
+      })
+      .first()
+
+    if (!profile) {
+      return response.status(404).json({ message: 'Perfil não encontrado.' })
+    }
+
+    return response.json({
+      id: profile.id,
+      name: profile.name,
+      permissions: profile.permissions.map((permission) => ({
+        name: permission.name,
+        canCreate: permission.can_create,
+        canEdit: permission.can_edit,
+        canView: permission.can_view,
+        canDelete: permission.can_delete,
+      })),
+    })
+  }
+
   async store({ request, response }: HttpContext) {
     const { name, permissions } = request.only(['name', 'permissions'])
 
