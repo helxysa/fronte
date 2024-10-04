@@ -3,7 +3,7 @@ import User from '#models/user'
 import { loginValidator, registerValidator } from '#validators/auth'
 import hash from '@adonisjs/core/services/hash'
 import mail from '@adonisjs/mail/services/main'
-import env from '#start/env'
+// import env from '#start/env'
 // import Database from '@adonisjs/lucid/services/db'
 
 const DEFAULT_PASSWORD = 'Boss1234'
@@ -25,28 +25,27 @@ export default class AuthController {
         user,
       })
 
-      // Envia o e-mail de forma assíncrona usando `setTimeout` com 0ms
-      setTimeout(() => {
-        mail
-          .send((message) => {
-            message
-              .to(user.email)
-              .from(env.get('SMTP_USERNAME'))
-              .subject('Acesso ao Sistema - Credenciais de Acesso').html(`
-              <h1>Olá, ${user.nome}!</h1>
-              <p>Sua conta foi criada com sucesso.</p>
-              <p><strong>Senha Padrão:</strong> ${DEFAULT_PASSWORD}</p>
-              <p><a href="${textoUrl}">Clique aqui</a> para acessar o sistema.</p>
-              <p>Recomendamos alterar sua senha após o primeiro acesso.</p>
-              <br />
-              <p>Atenciosamente,</p>
-              <p>Equipe Boss.</p>
-            `)
-          })
-          .catch((error) => {
-            console.error('Erro ao enviar e-mail:', error)
-          })
-      }, 0)
+      // Enviar e-mail de forma assíncrona (não bloqueando a resposta)
+      await mail
+        .send((message) => {
+          message
+            .to(user.email)
+            // .from(env.get('SMTP_USERNAME'))
+            .from('monitoramento.msb@gmail.com')
+            .subject('Acesso ao Sistema - Credenciais de Acesso').html(`
+            <h1>Olá, ${user.nome}!</h1>
+            <p>Sua conta foi criada com sucesso.</p>
+            <p><strong>Senha Padrão:</strong> ${DEFAULT_PASSWORD}</p>
+            <p><a href="${textoUrl}">Clique aqui</a> para acessar o sistema.</p>
+            <p>Recomendamos alterar sua senha após o primeiro acesso.</p>
+            <br />
+            <p>Atenciosamente,</p>
+            <p>Equipe Boss.</p>
+          `)
+        })
+        .catch((error) => {
+          console.error('Erro ao enviar e-mail:', error)
+        })
     } catch (error) {
       console.log(error)
       return response.status(400).json({
@@ -96,7 +95,8 @@ export default class AuthController {
       mail.send((message) => {
         message
           .to(user.email)
-          .from(env.get('SMTP_USERNAME'))
+          // .from(env.get('SMTP_USERNAME'))
+          .from('monitoramento.msb@gmail.com')
           .subject('Sua senha foi resetada - Acesso ao Sistema').html(`
             <h1>Olá, ${user.nome}!</h1>
             <p>Sua senha foi resetada para a senha padrão.</p>
