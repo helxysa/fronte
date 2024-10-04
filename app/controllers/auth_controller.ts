@@ -9,14 +9,13 @@ import env from '#start/env'
 const DEFAULT_PASSWORD = 'Boss1234'
 export default class AuthController {
   async register({ request, response }: HttpContext) {
-    let textoUrl = ''
-    if (process.env.NODE_ENV === 'development') {
-      textoUrl = 'https://boss.msbtec.dev'
-    } else {
-      textoUrl = 'https://boss.msbtec.app'
-    }
+    // let textoUrl = ''
+    // if (process.env.NODE_ENV === 'development') {
+    //   textoUrl = 'https://boss.msbtec.dev'
+    // } else {
+    //   textoUrl = 'https://boss.msbtec.app'
+    // }
     try {
-      // Após criação, deve enviar um e-mail para o usuário com a senha padrão e um link de acesso do sistema.
       const data = await request.validateUsing(registerValidator)
       const user = await User.create({
         ...data,
