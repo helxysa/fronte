@@ -51,6 +51,9 @@ export default class UsersController {
 
     return response.json({
       id: user.id,
+      nome: user.nome,
+      cargo: user.cargo,
+      setor: user.setor,
       email: user.email,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
