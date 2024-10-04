@@ -88,7 +88,7 @@ export default class AuthController {
           ? 'https://boss.msbtec.dev'
           : 'https://boss.msbtec.app'
 
-      await mail.send((message) => {
+      mail.send((message) => {
         message
           .to(user.email)
           .from(env.get('SMTP_USERNAME'))
