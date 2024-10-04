@@ -22,7 +22,7 @@ export default class AuthController {
         password: DEFAULT_PASSWORD,
       })
 
-      mail.send((message) => {
+      await mail.send((message) => {
         message
           .to(user.email)
           .from(env.get('SMTP_USERNAME'))
