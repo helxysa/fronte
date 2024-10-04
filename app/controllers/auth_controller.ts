@@ -4,7 +4,7 @@ import { loginValidator, registerValidator } from '#validators/auth'
 import hash from '@adonisjs/core/services/hash'
 import mail from '@adonisjs/mail/services/main'
 import env from '#start/env'
-import Database from '@adonisjs/lucid/services/db'
+// import Database from '@adonisjs/lucid/services/db'
 
 const DEFAULT_PASSWORD = 'Boss1234'
 export default class AuthController {
