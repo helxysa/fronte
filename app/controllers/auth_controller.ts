@@ -19,30 +19,34 @@ export default class AuthController {
         password: DEFAULT_PASSWORD,
       })
 
+      // Retorna a resposta imediatamente após a criação do usuário
       response.status(201).json({
         message: 'Usuário registrado com sucesso.',
         user,
       })
 
-      mail
-        .send((message) => {
-          message
-            .to(user.email)
-            .from(env.get('SMTP_USERNAME'))
-            .subject('Acesso ao Sistema - Credenciais de Acesso').html(`
-            <h1>Olá, ${user.nome}!</h1>
-            <p>Sua conta foi criada com sucesso.</p>
-            <p><strong>Senha Padrão:</strong> ${DEFAULT_PASSWORD}</p>
-            <p><a href="${textoUrl}">Clique aqui</a> para acessar o sistema.</p>
-            <p>Recomendamos alterar sua senha após o primeiro acesso.</p>
-            <br />
-            <p>Atenciosamente,</p>
-            <p>Equipe Boss.</p>
-          `)
-        })
-        .catch((error) => {
-          console.error('Erro ao enviar e-mail:', error)
-        })
+      // Envia o e-mail de forma assíncrona usando `setTimeout` com 0ms
+      setTimeout(() => {
+        mail
+          .send((message) => {
+            message
+              .to(user.email)
+              .from(env.get('SMTP_USERNAME'))
+              .subject('Acesso ao Sistema - Credenciais de Acesso').html(`
+              <h1>Olá, ${user.nome}!</h1>
+              <p>Sua conta foi criada com sucesso.</p>
+              <p><strong>Senha Padrão:</strong> ${DEFAULT_PASSWORD}</p>
+              <p><a href="${textoUrl}">Clique aqui</a> para acessar o sistema.</p>
+              <p>Recomendamos alterar sua senha após o primeiro acesso.</p>
+              <br />
+              <p>Atenciosamente,</p>
+              <p>Equipe Boss.</p>
+            `)
+          })
+          .catch((error) => {
+            console.error('Erro ao enviar e-mail:', error)
+          })
+      }, 0)
     } catch (error) {
       console.log(error)
       return response.status(400).json({
