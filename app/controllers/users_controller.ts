@@ -237,4 +237,60 @@ export default class UsersController {
       user,
     })
   }
+
+  async updateUsuario({ params, request, response }: HttpContext) {
+    try {
+      const user = await User.find(params.id)
+
+      if (!user) {
+        return response.status(404).json({ message: 'Usuário não encontrado.' })
+      }
+
+      const { nome, cargo, setor, profileId, email } = request.only([
+        'nome',
+        'cargo',
+        'setor',
+        'profileId',
+        'email',
+      ])
+
+      if (nome) {
+        user.nome = nome
+      }
+
+      if (cargo) {
+        user.cargo = cargo
+      }
+
+      if (setor) {
+        user.setor = setor
+      }
+
+      if (profileId) {
+        const profile = await Profile.find(profileId)
+        if (!profile) {
+          return response.status(404).json({ message: 'Perfil não encontrado.' })
+        }
+        user.profileId = profileId
+      }
+
+      if (email) {
+        if (!email.includes('@')) {
+          return response.status(400).json({ message: 'E-mail inválido.' })
+        }
+        const emailExists = await User.findBy('email', email)
+        if (emailExists && emailExists.id !== user.id) {
+          return response.status(400).json({ message: 'E-mail já está em uso por outro usuário.' })
+        }
+        user.email = email
+      }
+
+      await user.save()
+
+      return response.json({ message: 'Usuário atualizado com sucesso.', user })
+    } catch (error) {
+      console.error('Erro ao atualizar o usuário:', error)
+      return response.status(500).json({ message: 'Erro ao atualizar o usuário.' })
+    }
+  }
 }
