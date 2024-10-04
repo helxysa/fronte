@@ -10,7 +10,8 @@ const DEFAULT_PASSWORD = 'Boss1234'
 
 export default class UsersController {
   async index({ response }: HttpContext) {
-    const users = await User.all()
+    const users = await User.query().preload('profile')
+
     return response.json(users)
   }
 
