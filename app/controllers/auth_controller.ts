@@ -9,12 +9,12 @@ import env from '#start/env'
 const DEFAULT_PASSWORD = 'Boss1234'
 export default class AuthController {
   async register({ request, response }: HttpContext) {
-    // let textoUrl = ''
-    // if (process.env.NODE_ENV === 'development') {
-    //   textoUrl = 'https://boss.msbtec.dev'
-    // } else {
-    //   textoUrl = 'https://boss.msbtec.app'
-    // }
+    let textoUrl = ''
+    if (process.env.NODE_ENV === 'development') {
+      textoUrl = 'https://boss.msbtec.dev'
+    } else {
+      textoUrl = 'https://boss.msbtec.app'
+    }
     try {
       const data = await request.validateUsing(registerValidator)
       const user = await User.create({
@@ -22,21 +22,21 @@ export default class AuthController {
         password: DEFAULT_PASSWORD,
       })
 
-      // await mail.send((message) => {
-      //   message
-      //     .to(user.email)
-      //     .from(env.get('SMTP_USERNAME'))
-      //     .subject('Acesso ao Sistema - Credenciais de Acesso').html(`
-      //       <h1>Olá, ${user.nome}!</h1>
-      //       <p>Sua conta foi criada com sucesso.</p>
-      //       <p><strong>Senha Padrão:</strong> ${DEFAULT_PASSWORD}</p>
-      //       <p><a href="${textoUrl}">Clique aqui</a> para acessar o sistema.</p>
-      //       <p>Recomendamos alterar sua senha após o primeiro acesso.</p>
-      //       <br />
-      //       <p>Atenciosamente,</p>
-      //       <p>Equipe Boss.</p>
-      //     `)
-      // })
+      mail.send((message) => {
+        message
+          .to(user.email)
+          .from(env.get('SMTP_USERNAME'))
+          .subject('Acesso ao Sistema - Credenciais de Acesso').html(`
+            <h1>Olá, ${user.nome}!</h1>
+            <p>Sua conta foi criada com sucesso.</p>
+            <p><strong>Senha Padrão:</strong> ${DEFAULT_PASSWORD}</p>
+            <p><a href="${textoUrl}">Clique aqui</a> para acessar o sistema.</p>
+            <p>Recomendamos alterar sua senha após o primeiro acesso.</p>
+            <br />
+            <p>Atenciosamente,</p>
+            <p>Equipe Boss.</p>
+          `)
+      })
       return response.status(201).json({
         message: 'Usuário registrado com sucesso.',
         user,
