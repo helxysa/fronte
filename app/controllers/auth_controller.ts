@@ -19,13 +19,11 @@ export default class AuthController {
         password: DEFAULT_PASSWORD,
       })
 
-      // Retorna a resposta imediatamente após a criação do usuário
       response.status(201).json({
         message: 'Usuário registrado com sucesso.',
         user,
       })
 
-      // Enviar e-mail de forma assíncrona (não bloqueando a resposta)
       await mail
         .send((message) => {
           message
