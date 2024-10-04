@@ -14,7 +14,7 @@ export const registerValidator = vine.compile(
         const match = await db.from('users').select('id').where('email', value).first()
         return !match
       }),
-    profile_id: vine.number().exists(async (db, value) => {
+    profileId: vine.number().exists(async (db, value) => {
       const match = await db.from('profiles').select('id').where('id', value).first()
       return !!match
     }),
