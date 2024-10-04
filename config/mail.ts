@@ -1,4 +1,4 @@
-// import env from '#start/env'
+import env from '#start/env'
 import { defineConfig, transports } from '@adonisjs/mail'
 
 const mailConfig = defineConfig({
@@ -11,13 +11,13 @@ const mailConfig = defineConfig({
    */
   mailers: {
     smtp: transports.smtp({
-      host: 'smtp-relay.brevo.com',
-      port: '587',
+      host: env.get('SMTP_HOST'),
+      port: env.get('SMTP_PORT'),
       secure: false,
       auth: {
         type: 'login',
-        user: 'monitoramento.msb@gmail.com',
-        pass: 'jg47MHnhcpvQGLIa',
+        user: env.get('SMTP_USERNAME'),
+        pass: env.get('SMTP_PASSWORD'),
       },
       /**
        * Uncomment the auth block if your SMTP

@@ -20,6 +20,7 @@ const FaturamentoAnexosController = () => import('#controllers/faturamento_anexo
 // Registro, Login e Autenticação
 router.post('/register', [AuthController, 'register']).as('auth.register')
 router.post('/login', [AuthController, 'login']).as('auth.login')
+router.put('users/reset-password', [AuthController, 'resetPasswordByAdministrator'])
 router.delete('/logout', [AuthController, 'logout']).as('auth.logout').use(middleware.auth())
 router.get('/me', [AuthController, 'me']).as('auth.me')
 // Usuários
