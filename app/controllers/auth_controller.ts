@@ -23,21 +23,21 @@ export default class AuthController {
         password: DEFAULT_PASSWORD,
       })
 
-      await mail.send((message) => {
-        message
-          .to(user.email)
-          .from(env.get('SMTP_USERNAME'))
-          .subject('Acesso ao Sistema - Credenciais de Acesso').html(`
-            <h1>Olá, ${user.nome}!</h1>
-            <p>Sua conta foi criada com sucesso.</p>
-            <p><strong>Senha Padrão:</strong> ${DEFAULT_PASSWORD}</p>
-            <p><a href="${textoUrl}">Clique aqui</a> para acessar o sistema.</p>
-            <p>Recomendamos alterar sua senha após o primeiro acesso.</p>
-            <br />
-            <p>Atenciosamente,</p>
-            <p>Equipe Boss.</p>
-          `)
-      })
+      // await mail.send((message) => {
+      //   message
+      //     .to(user.email)
+      //     .from(env.get('SMTP_USERNAME'))
+      //     .subject('Acesso ao Sistema - Credenciais de Acesso').html(`
+      //       <h1>Olá, ${user.nome}!</h1>
+      //       <p>Sua conta foi criada com sucesso.</p>
+      //       <p><strong>Senha Padrão:</strong> ${DEFAULT_PASSWORD}</p>
+      //       <p><a href="${textoUrl}">Clique aqui</a> para acessar o sistema.</p>
+      //       <p>Recomendamos alterar sua senha após o primeiro acesso.</p>
+      //       <br />
+      //       <p>Atenciosamente,</p>
+      //       <p>Equipe Boss.</p>
+      //     `)
+      // })
       return response.status(201).json({
         message: 'Usuário registrado com sucesso.',
         user,
