@@ -5,6 +5,7 @@ import Application from '@adonisjs/core/services/app'
 
 const UsersController = () => import('#controllers/users_controller')
 const AuthController = () => import('#controllers/auth_controller')
+const ProfilesController = () => import('#controllers/profiles_controller')
 const ContratosController = () => import('#controllers/contratos_controller')
 const RenovacaoController = () => import('#controllers/renovacao_controller')
 const ContratoItemController = () => import('#controllers/contrato_item_controller')
@@ -19,6 +20,7 @@ const FaturamentoAnexosController = () => import('#controllers/faturamento_anexo
 // Registro, Login e Autenticação
 router.post('/register', [AuthController, 'register']).as('auth.register')
 router.post('/login', [AuthController, 'login']).as('auth.login')
+router.put('users/reset-password', [AuthController, 'resetPasswordByAdministrator'])
 router.delete('/logout', [AuthController, 'logout']).as('auth.logout').use(middleware.auth())
 router.get('/me', [AuthController, 'me']).as('auth.me')
 // Usuários
@@ -26,14 +28,22 @@ router.get('users', [UsersController, 'index'])
 router.get('users/:id', [UsersController, 'show'])
 router.post('users', [UsersController, 'store'])
 router.put('users/email/:id', [UsersController, 'updateEmail'])
+router.put('users/update/:id', [UsersController, 'updateUsuario'])
 router.put('users/alterar-senha/:id', [UsersController, 'updatePassword'])
 router.put('users/esqueci-minha-senha', [UsersController, 'forgotPassword'])
+router.put('users/:id/perfil', [UsersController, 'setUserProfile'])
 router.post('users/esqueci-minha-senha', [UsersController, 'resetPassword'])
 router.put('/users/:id/passwordChanged', [UsersController, 'updatePasswordChangedStatus']);
 router.delete('users/:id', [UsersController, 'destroy'])
 router.get('files/:filename', async ({ params, response }) => {
   return response.attachment(Application.tmpPath('uploads', params.filename), params.filename)
 })
+// Perfis e Permissões
+router.get('perfil', [ProfilesController, 'index'])
+router.get('perfil/:id', [ProfilesController, 'show'])
+router.post('perfil', [ProfilesController, 'store'])
+router.put('perfil/:id', [ProfilesController, 'update'])
+router.delete('perfil/:id', [ProfilesController, 'destroy'])
 // Dashboard
 router.get('/dashboard', [ContratosController, 'getDashboard'])
 // Contratos
@@ -85,6 +95,7 @@ router.delete('/lancamentos/restore/:id', [LancamentosController, 'restoreLancam
 router.delete('/lancamentos/:id/items/:itemId', [LancamentosController, 'deleteLancamentoItem'])
 router.post('/lancamentos/:id/items', [LancamentosController, 'addLancamentoItem'])
 router.patch('/lancamentos/:id/competencia', [LancamentosController, 'updateCompetencia'])
+router.patch('/lancamentos/:id/status', [LancamentosController, 'updateStatus'])
 //Faturamento
 router.post('/contratos/:id/faturamentos', [FaturamentosController, 'createFaturamentos'])
 router.put('/faturamentos/:id', [FaturamentosController, 'updateFaturamento'])

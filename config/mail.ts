@@ -11,6 +11,8 @@ const mailConfig = defineConfig({
    */
   mailers: {
     smtp: transports.smtp({
+      // host: env.get('SMTP_HOST'),
+      // port: env.get('SMTP_PORT'),
       host: 'smtp-relay.brevo.com',
       port: '587',
       secure: false,

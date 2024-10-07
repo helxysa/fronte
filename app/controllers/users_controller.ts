@@ -3,12 +3,15 @@ import mail from '@adonisjs/mail/services/main'
 import User from '#models/user'
 import crypto from 'node:crypto'
 import hash from '@adonisjs/core/services/hash'
+// import env from '#start/env'
+import Profile from '#models/profile'
 
 const DEFAULT_PASSWORD = 'Boss1234'
 
 export default class UsersController {
   async index({ response }: HttpContext) {
-    const users = await User.all()
+    const users = await User.query().preload('profile')
+
     return response.json(users)
   }
 
@@ -24,17 +27,46 @@ export default class UsersController {
   }
 
   async show({ params, response }: HttpContext) {
-    const user = await User.find(params.id)
+    const user = await User.query()
+      .where('id', params.id)
+      .preload('profile', (profileQuery) => {
+        profileQuery.preload('permissions', (permissionQuery) => {
+          permissionQuery.select(['name', 'can_create', 'can_edit', 'can_view', 'can_delete'])
+        })
+      })
+      .first()
+
     if (!user) {
       return response.status(404).json('Não existe usuário.')
     }
 
-    // if (!user.file) {
-    //   user.file = 'default_avatar.png'
-    // }
+    const filteredPermissions = user.profile.permissions.map((permission) => {
+      return {
+        name: permission.name,
+        canCreate: permission.can_create,
+        canEdit: permission.can_edit,
+        canView: permission.can_view,
+        canDelete: permission.can_delete,
+      }
+    })
 
-    // return response.json({ ...user.toJSON(), avatar_url: `${env.get('URL_FILE')}/${user.file}` })
-    return response.json(user)
+    return response.json({
+      id: user.id,
+      nome: user.nome,
+      cargo: user.cargo,
+      setor: user.setor,
+      email: user.email,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      passwordExpiredAt: user.passwordExpiredAt,
+      passwordResetToken: user.passwordResetToken,
+      passwordChanged: user.passwordChanged,
+      profile: {
+        id: user.profile.id,
+        name: user.profile.name,
+        permissions: filteredPermissions,
+      },
+    })
   }
 
   async updateEmail({ params, request, response }: HttpContext) {
@@ -70,11 +102,11 @@ export default class UsersController {
       user.passwordChanged = true
       user.passwordExpiredAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
       await user.save()
-
       try {
         await mail.send((message) => {
           message
             .to(user.email)
+            // .from(env.get('SMTP_USERNAME'))
             .from('monitoramento.msb@gmail.com')
             .subject('Senha Alterada com Sucesso')
             .text('Sua senha de primeiro acesso foi alterada com sucesso.')
@@ -94,6 +126,7 @@ export default class UsersController {
       await mail.send((message) => {
         message
           .to(user.email)
+          // .from(env.get('SMTP_USERNAME'))
           .from('monitoramento.msb@gmail.com')
           .subject('Senha Alterada com Sucesso')
           .text('Sua senha foi alterada com sucesso.')
@@ -133,6 +166,7 @@ export default class UsersController {
     await mail.send((message) => {
       message
         .to(user.email)
+        // .from(env.get('SMTP_USERNAME'))
         .from('monitoramento.msb@gmail.com')
         .subject('Redefinição de Senha')
         .text(
@@ -192,6 +226,78 @@ export default class UsersController {
     } catch (error) {
       console.error('Erro ao atualizar o status:', error)
       return response.status(500).json({ message: 'Erro ao atualizar o status.' })
+    }
+  }
+
+  async setUserProfile({ params, request, response }: HttpContext) {
+    const userId = params.id
+    const profileId = request.input('profile_id')
+
+    const user = await User.findOrFail(userId)
+    const profile = await Profile.findOrFail(profileId)
+
+    user.profileId = profile.id
+    await user.save()
+
+    return response.status(200).json({
+      message: 'Perfil associado ao usuário com sucesso',
+      user,
+    })
+  }
+
+  async updateUsuario({ params, request, response }: HttpContext) {
+    try {
+      const user = await User.find(params.id)
+
+      if (!user) {
+        return response.status(404).json({ message: 'Usuário não encontrado.' })
+      }
+
+      const { nome, cargo, setor, profileId, email } = request.only([
+        'nome',
+        'cargo',
+        'setor',
+        'profileId',
+        'email',
+      ])
+
+      if (nome) {
+        user.nome = nome
+      }
+
+      if (cargo) {
+        user.cargo = cargo
+      }
+
+      if (setor) {
+        user.setor = setor
+      }
+
+      if (profileId) {
+        const profile = await Profile.find(profileId)
+        if (!profile) {
+          return response.status(404).json({ message: 'Perfil não encontrado.' })
+        }
+        user.profileId = profileId
+      }
+
+      if (email) {
+        if (!email.includes('@')) {
+          return response.status(400).json({ message: 'E-mail inválido.' })
+        }
+        const emailExists = await User.findBy('email', email)
+        if (emailExists && emailExists.id !== user.id) {
+          return response.status(400).json({ message: 'E-mail já está em uso por outro usuário.' })
+        }
+        user.email = email
+      }
+
+      await user.save()
+
+      return response.json({ message: 'Usuário atualizado com sucesso.', user })
+    } catch (error) {
+      console.error('Erro ao atualizar o usuário:', error)
+      return response.status(500).json({ message: 'Erro ao atualizar o usuário.' })
     }
   }
 }

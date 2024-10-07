@@ -4,6 +4,9 @@ const password = vine.string().minLength(8)
 
 export const registerValidator = vine.compile(
   vine.object({
+    nome: vine.string(),
+    cargo: vine.string(),
+    setor: vine.string(),
     email: vine
       .string()
       .email()
@@ -11,7 +14,10 @@ export const registerValidator = vine.compile(
         const match = await db.from('users').select('id').where('email', value).first()
         return !match
       }),
-    password,
+    profileId: vine.number().exists(async (db, value) => {
+      const match = await db.from('profiles').select('id').where('id', value).first()
+      return !!match
+    }),
   })
 )
 

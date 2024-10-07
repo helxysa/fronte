@@ -105,12 +105,16 @@ export default class ContratosController {
     sortBy,
     sortOrder,
     statusFaturamento,
+    lembreteVencimento,
+    cidade
   }: {
     page?: number;
     limit?: number;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
       statusFaturamento?: string;
+      lembreteVencimento?: string;
+      cidade?: string;
   } = {}) {
     try {
       let contratos = Contrato.query()
@@ -166,6 +170,14 @@ export default class ContratosController {
           .whereHas('faturamentos', (query) => {
             query.where('status', statusFaturamento)
           });
+      }
+
+      if (lembreteVencimento) {
+        contratos = contratos.where('lembrete_vencimento', lembreteVencimento);
+      }
+
+      if (cidade) {
+        contratos = contratos.where('cidade', cidade);
       }
 
       if (sortBy) {
@@ -461,17 +473,23 @@ export default class ContratosController {
     const sortBy = request.input('sortBy', 'data_fim')
     const sortOrder = request.input('sortOrder', 'asc')
     const statusFaturamento = request.input('statusFaturamento', '');
+    const lembreteVencimento = request.input('lembreteVencimento', '');
+    const cidade = request.input('cidade', '');
 
     const contratos = await this.fetchContracts({
       page: page,
       limit: limit,
       sortBy: sortBy,
       sortOrder: sortOrder,
-      statusFaturamento: statusFaturamento
+      statusFaturamento: statusFaturamento,
+      lembreteVencimento: lembreteVencimento,
+      cidade: cidade,
     });
 
     const contratosNoPagination = await this.fetchContracts({
-      statusFaturamento: statusFaturamento
+      statusFaturamento: statusFaturamento,
+      lembreteVencimento,
+      cidade
     });
 
     const { stampTotalAguardandoFaturamento, stampTotalAguardandoPagamento, stampTotalPago, totalUtilizado } = await this.getStampData(contratosNoPagination)
