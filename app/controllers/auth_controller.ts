@@ -145,30 +145,30 @@ export default class AuthController {
         message: 'Login realizado com sucesso.',
         user,
         token,
-        profile: null,
+        // profile: null,
       }
 
-      let filteredPermissions = null
+      // let filteredPermissions = null
 
-      if (user.profile) {
-        filteredPermissions = user.profile.permissions.map((permission) => {
-          return {
-            name: permission.name,
-            canCreate: permission.can_create,
-            canEdit: permission.can_edit,
-            canView: permission.can_view,
-            canDelete: permission.can_delete,
-          }
-        })
-        res = {
-          ...res,
-          profile: {
-            id: user.profile.id,
-            name: user.profile.name,
-            permissions: filteredPermissions,
-          },
-        }
-      }
+      // if (user.profile) {
+      //   filteredPermissions = user.profile.permissions.map((permission) => {
+      //     return {
+      //       name: permission.name,
+      //       canCreate: permission.can_create,
+      //       canEdit: permission.can_edit,
+      //       canView: permission.can_view,
+      //       canDelete: permission.can_delete,
+      //     }
+      //   })
+      // res = {
+      //   ...res,
+      //   profile: {
+      //     id: user.profile.id,
+      //     name: user.profile.name,
+      //     permissions: filteredPermissions,
+      //   },
+      // }
+      // }
 
       return response.status(200).json(res)
     } catch (error) {
