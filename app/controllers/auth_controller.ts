@@ -163,9 +163,7 @@ export default class AuthController {
         },
       })
     } catch (error) {
-      return response.status(500).json({
-        errors: [{ message: 'Erro ao realizar login.' }],
-      })
+      return response.status(500).json(error)
     }
   }
 
