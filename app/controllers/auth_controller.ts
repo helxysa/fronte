@@ -121,7 +121,14 @@ export default class AuthController {
   async login({ request, response }: HttpContext) {
     try {
       const { email, password } = await request.validateUsing(loginValidator)
-      const user = await User.query().where('email', email).first()
+      const user = await User.query()
+        .where('email', email)
+        .preload('profile', (profileQuery) => {
+          profileQuery.preload('permissions', (permissionQuery) => {
+            permissionQuery.select(['name', 'can_create', 'can_edit', 'can_view', 'can_delete'])
+          })
+        })
+        .first()
 
       if (!user) {
         return response.status(400).json({ message: 'E-mail inválido.' })
@@ -135,10 +142,25 @@ export default class AuthController {
 
       const token = await User.accessTokens.create(user)
 
+      const filteredPermissions = user.profile.permissions.map((permission) => {
+        return {
+          name: permission.name,
+          canCreate: permission.can_create,
+          canEdit: permission.can_edit,
+          canView: permission.can_view,
+          canDelete: permission.can_delete,
+        }
+      })
+
       return response.status(200).json({
         message: 'Login realizado com sucesso.',
         user,
         token,
+        profile: {
+          id: user.profile.id,
+          name: user.profile.name,
+          permissions: filteredPermissions,
+        },
       })
     } catch (error) {
       return response.status(500).json({
