@@ -163,7 +163,7 @@ export default class AuthController {
         },
       })
     } catch (error) {
-      return response.status(500).json(error)
+      return error
     }
   }
 
