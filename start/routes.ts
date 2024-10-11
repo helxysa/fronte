@@ -16,6 +16,8 @@ const ProjetosController = () => import('#controllers/projetos_controller')
 const ContratoAnexosController = () => import('#controllers/contrato_anexos_controller')
 const MedicaoAnexosController = () => import('#controllers/medicao_anexos_controller')
 const FaturamentoAnexosController = () => import('#controllers/faturamento_anexos_controller')
+const TermoAditivosController = () => import('#controllers/termo_aditivos_controller')
+const TermoAditivoItemsController = () => import('#controllers/termo_aditivo_items_controller')
 
 // Registro, Login e Autenticação
 router.post('/register', [AuthController, 'register']).as('auth.register')
@@ -111,23 +113,24 @@ router.delete('/unidade_medida/:id', [UnidadeMedidaController, 'destroy'])
 //Renovacoes
 //Criar renovação
 router.post('/contratos/:id/renovar', [RenovacaoController, 'createRenovacao'])
-//Criar item da renovação
 router.post('/renovacao/:renovacao_id/item', [RenovacaoController, 'createRenovacaoItens'])
-//Listar renovação por contrato
 router.get('/contratos/:contrato_id/renovacoes', [RenovacaoController, 'getRenovacoesByContract'])
-//Listar renovação por id
 router.get('/renovacoes/:renovacao_id', [RenovacaoController, 'getRenovacaoById'])
-//deletar renovação
 router.delete('/renovacao/:renovacao_id', [RenovacaoController, 'deleteRenovacao'])
-//deletar item da renovação
 router.delete('/renovacao/item/:item_id', [RenovacaoController, 'deleteRenovacaoItem'])
-//deletar lancamento da renovação
 router.delete('/renovacao/lancamento/item/:id_item', [RenovacaoController, 'deleteRenovacaoLancamentoItem'])
-//Criar lancamento da renovação
 router.post('/renovacoes/:renovacao_id/lancamentos', [RenovacaoController, 'createLancamentoRenovacao'])
-//adicionar item no lancamento da renovação
 router.post('/renovacoes/lancamentos/:lancamento_id', [RenovacaoController, 'addItemToLancamento'])
-//atualizar renovação
 router.put('/renovacao/:renovacao_id', [RenovacaoController, 'updateRenovacao'])
-//atualizar item da renovação
 router.put('/renovacao/items/:id_item', [RenovacaoController, 'updateRenovacaoItem'])
+// Termo Aditivo
+router.get('/contratos/:contrato_id/termo-aditivo', [TermoAditivosController, 'index'])
+router.post('/termo-aditivo', [TermoAditivosController, 'store'])
+router.get('/termo-aditivo/:id', [TermoAditivosController, 'show'])
+router.put('/termo-aditivo/:id', [TermoAditivosController, 'update'])
+router.delete('/termo-aditivo/:id', [TermoAditivosController, 'delete'])
+// Item Termo Aditivo
+router.post('/termo-aditivo/itens', [TermoAditivoItemsController, 'store'])
+router.get('/termo-aditivo/:id/itens', [TermoAditivoItemsController, 'show'])
+router.put('/termo-aditivo/itens/:id', [TermoAditivoItemsController, 'update'])
+router.delete('/termo-aditivo/itens/:id', [TermoAditivoItemsController, 'delete'])
