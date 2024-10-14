@@ -18,6 +18,7 @@ const MedicaoAnexosController = () => import('#controllers/medicao_anexos_contro
 const FaturamentoAnexosController = () => import('#controllers/faturamento_anexos_controller')
 const TermoAditivosController = () => import('#controllers/termo_aditivos_controller')
 const TermoAditivoItemsController = () => import('#controllers/termo_aditivo_items_controller')
+const TermoAditivoAnexosController = () => import('#controllers/termo_aditivo_anexos_controller')
 
 // Registro, Login e Autenticação
 router.post('/register', [AuthController, 'register']).as('auth.register')
@@ -61,6 +62,15 @@ router.get('/contratos/:contrato_id/anexos', [ContratoAnexosController, 'index']
 router.get('/contratos/:contrato_id/anexos/:id', [ContratoAnexosController, 'show'])
 router.put('/contratos/:contrato_id/anexos/:id', [ContratoAnexosController, 'update'])
 router.delete('/contratos/anexos/:id', [ContratoAnexosController, 'destroy'])
+// Termo Aditivo Anexos
+router.post('/aditivo/:termo_aditivo_id/anexos', [TermoAditivoAnexosController, 'store'])
+router.get('/aditivo/:termo_aditivo_id/anexos', [TermoAditivoAnexosController, 'index'])
+router.get('/aditivo/:termo_aditivo_id/anexos/:id', [TermoAditivoAnexosController, 'show'])
+router.put('/aditivo/:termo_aditivo_id/anexos/:id', [TermoAditivoAnexosController, 'update'])
+router.delete('/aditivo/anexos/:id', [TermoAditivoAnexosController, 'destroy'])
+// Download Anexos do termo aditivo e contrato original
+router.get('termo-aditivos/:termo_aditivo_id/anexos/zip', [TermoAditivoAnexosController, 'downloadZip'])
+
 // Medição Anexos
 router.post('/medicao/:lancamento_id/anexos', [MedicaoAnexosController, 'store'])
 router.get('/medicao/:lancamento_id/anexos', [MedicaoAnexosController, 'index'])
