@@ -9,8 +9,7 @@ import archiver from 'archiver'
 export default class TermoAditivoAnexosController {
   getPrefixUrl() {
     if (process.env.NODE_ENV === 'development') {
-      // return 'https://api-boss.msbtec.dev'
-      return 'http://localhost:3333'
+      return 'https://api-boss.msbtec.dev'
     } else if (process.env.NODE_ENV === 'production') {
       return 'https://api-boss.msbtec.app'
     }
