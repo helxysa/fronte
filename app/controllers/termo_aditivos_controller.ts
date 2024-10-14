@@ -30,8 +30,23 @@ export default class TermoAditivosController {
       'objeto_contrato',
     ])
 
+    const itens = request.input('termo_aditivo_itens', [])
+
     try {
       const termoAditivo = await TermoAditivo.create(termoAditivoData)
+
+      if (itens.length > 0) {
+        await Promise.all(
+          itens.map(async (item: any) => {
+            await TermoAditivoItem.create({
+              ...item,
+              termo_aditivo_id: termoAditivo.id,
+            })
+          })
+        )
+      }
+
+      await termoAditivo.load('termoAditivoItem')
 
       return response.created(termoAditivo)
     } catch (error) {
