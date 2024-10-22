@@ -212,14 +212,14 @@ export default class TermoAditivoAnexosController {
 
       // Adicionar arquivos ao ZIP
       contratoAnexos.forEach((anexo) => {
-        const filePath = path.join(process.cwd(), 'public', anexo.file_path)
+        const filePath = path.join(app.publicPath(), anexo.file_path)
         if (fs.existsSync(filePath)) {
           archive.file(filePath, { name: `contrato/${anexo.file_name}` })
         }
       })
 
       termoAditivoAnexos.forEach((anexo) => {
-        const filePath = path.join(process.cwd(), 'public', anexo.file_path)
+        const filePath = path.join(app.publicPath(), anexo.file_path)
         if (fs.existsSync(filePath)) {
           archive.file(filePath, { name: `termo_aditivo/${anexo.file_name}` })
         }
