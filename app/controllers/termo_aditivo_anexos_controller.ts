@@ -15,6 +15,14 @@ export default class TermoAditivoAnexosController {
     }
     return 'http://localhost:3333'
   }
+  getFrontEndOrigin() {
+    if (process.env.NODE_ENV === 'development') {
+      return 'https://boss.msbtec.dev'
+    } else if (process.env.NODE_ENV === 'production') {
+      return 'https://boss.msbtec.app'
+    }
+    return 'http://localhost:5173'
+  }
 
   async store({ request, params, response }: HttpContext) {
     try {
@@ -157,10 +165,12 @@ export default class TermoAditivoAnexosController {
       })
     }
   }
+
   async downloadZip({ params, response }: HttpContext) {
     try {
       const termoAditivoId = params.termo_aditivo_id
 
+      // Buscar o termo aditivo e os anexos
       const termoAditivo = await TermoAditivo.query()
         .where('id', termoAditivoId)
         .preload('contrato', (contratoQuery) => {
@@ -174,15 +184,33 @@ export default class TermoAditivoAnexosController {
         termoAditivoId
       )
 
-      // const zipPath = path.join(process.cwd(), 'tmp', `${termoAditivoId}_anexos.zip`)
+      // Obter o nome do termo aditivo
+      const nomeTermoAditivo = termoAditivo.nome_termo || 'termo_aditivo'
 
+      // Ajustar o nome do arquivo
+      const nomeArquivo = `${nomeTermoAditivo.trim().replace(/\s+/g, '_')}.zip`
+      const nomeArquivoCodificado = encodeURIComponent(nomeArquivo)
+
+      const frontEndOrigin = this.getFrontEndOrigin()
+
+      const headers = {
+        'Content-Type': 'application/zip',
+        'Content-Disposition': `attachment; filename*=UTF-8''${nomeArquivoCodificado}`,
+        'Access-Control-Allow-Origin': frontEndOrigin, // Importante adicionar esta origem para evitar o erro de CORS
+        'Access-Control-Allow-Credentials': 'false',
+        'Access-Control-Expose-Headers': 'Content-Disposition',
+      }
+
+      // Enviar os cabeçalhos antes de iniciar o streaming
+      response.response.writeHead(200, headers)
+
+      // Criar o arquivo ZIP
       const archive = archiver('zip', { zlib: { level: 9 } })
 
-      response.header('Content-Type', 'application/zip')
-      response.header('Content-Disposition', `attachment; filename="${termoAditivoId}_anexos.zip"`)
-
+      // Conectar o stream de resposta diretamente ao ZIP
       archive.pipe(response.response)
 
+      // Adicionar arquivos ao ZIP
       contratoAnexos.forEach((anexo) => {
         const filePath = path.join(process.cwd(), 'public', anexo.file_path)
         if (fs.existsSync(filePath)) {
