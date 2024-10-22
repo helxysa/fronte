@@ -3,6 +3,7 @@ import { BaseModel, column, hasMany, belongsTo } from '@adonisjs/lucid/orm'
 import type { HasMany, BelongsTo } from '@adonisjs/lucid/types/relations'
 import Contratos from './contratos.js'
 import TermoAditivoItem from './termo_aditivo_item.js'
+import TermoAditivoAnexo from './termo_aditivo_anexo.js'
 
 export default class TermoAditivo extends BaseModel {
   @column({ isPrimary: true })
@@ -40,4 +41,7 @@ export default class TermoAditivo extends BaseModel {
 
   @hasMany(() => TermoAditivoItem, { foreignKey: 'termo_aditivo_id' })
   declare termoAditivoItem: HasMany<typeof TermoAditivoItem>
+
+  @hasMany(() => TermoAditivoAnexo, { foreignKey: 'termo_aditivo_id' })
+  declare termoAditivoAnexo: HasMany<typeof TermoAditivoAnexo>
 }

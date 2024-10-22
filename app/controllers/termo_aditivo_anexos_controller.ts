@@ -27,6 +27,12 @@ export default class TermoAditivoAnexosController {
   async store({ request, params, response }: HttpContext) {
     try {
       const termoAditivoId = params.termo_aditivo_id
+      const termoAditivo = await TermoAditivo.find(termoAditivoId)
+      if (!termoAditivo) {
+        return response.status(404).send({
+          message: 'Termo aditivo não encontrado.',
+        })
+      }
 
       const file = request.file('file', {
         size: '20mb',
