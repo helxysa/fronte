@@ -11,6 +11,8 @@ import { DateTime } from 'luxon'
 import Renovacao from '#models/renovacao'
 import axios from 'axios'
 import Cidade from '#models/cidade'
+import TermoAditivo from '#models/termo_aditivo'
+
 export default class ContratosController {
   async createContract({ request, response }: HttpContext) {
     const {
@@ -261,6 +263,68 @@ export default class ContratosController {
     } catch (err) {
       console.error(err)
       return response.status(500).send('Erro no servidor')
+    }
+  }
+
+  async getContractAndAditiveTerms({ request, response }: HttpContext) {
+    try {
+      const page = request.input('page', 1)
+      const limit = request.input('limit', 10)
+      const search = request.input('search', '')
+      const sortBy = request.input('sortBy', 'created_at')
+      const sortOrder = request.input('sortOrder', 'desc')
+      const tipo = request.input('tipo', 'Todos')
+
+      const contratosQuery = Contrato.query()
+        .if(search, (query) => {
+          query.where('nome_contrato', 'like', `%${search}%`)
+        })
+        .select('*')
+        .orderBy(sortBy, sortOrder)
+        .from('contratos')
+
+      const termoAditivoQuery = TermoAditivo.query()
+        .if(search, (query) => {
+          query.where('nome_termo', 'like', `%${search}%`)
+        })
+        .select('*')
+        .preload('contrato', (contratoQuery) => { contratoQuery.select(['nome_cliente', 'fiscal', 'ponto_focal']) })
+        .orderBy(sortBy, sortOrder)
+        .from('termo_aditivos')
+
+      const [contratos, termoAditivos] = await Promise.all([contratosQuery, termoAditivoQuery])
+
+      const contratosComTag = contratos.map((contrato) => ({
+        ...contrato.toJSON(),
+        tag: 'Contrato',
+      }))
+
+      const termoAditivosComTag = termoAditivos.map((termoAditivo) => ({
+        ...termoAditivo.toJSON(),
+        tag: 'Termo Aditivo',
+      }))
+
+
+      const resultadosUnificados = [...contratosComTag, ...termoAditivosComTag]
+
+      const startIndex = (page - 1) * limit
+      const paginatedResults = resultadosUnificados.slice(startIndex, startIndex + limit)
+
+      return response.json({
+        meta: {
+          total: resultadosUnificados.length,
+          per_page: limit,
+          current_page: page,
+          last_page: Math.ceil(resultadosUnificados.length / limit)
+        },
+        data: paginatedResults
+      })
+    } catch (error) {
+      console.error(error)
+      return response.status(500).json({
+      message: 'Erro ao listar contratos e termos aditivos',
+      error: error.message || error,
+    })
     }
   }
 

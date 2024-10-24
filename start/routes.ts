@@ -51,6 +51,7 @@ router.delete('perfil/:id', [ProfilesController, 'destroy'])
 router.get('/dashboard', [ContratosController, 'getDashboard'])
 // Contratos
 router.post('/contratos', [ContratosController, 'createContract'])
+router.get('/contratos-e-termos', [ContratosController, 'getContractAndAditiveTerms'])
 router.get('/contratos', [ContratosController, 'getContracts'])
 router.get('/contratos/:id', [ContratosController, 'getContractById'])
 router.put('/contratos/:id', [ContratosController, 'updateContract'])
