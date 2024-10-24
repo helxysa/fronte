@@ -283,7 +283,7 @@ export default class ContratosController {
       if (tipo === 'Todos' || tipo === 'Contratos') {
         const contratosQuery = Contrato.query()
           .if(search, (query) => {
-            query.where('nome_contrato', 'like', `%${search}%`)
+            query.where('nome_contrato', 'ilike', `%${search}%`)
           })
           .if(dataInicio && dataFim, (query) => {
             query.where('data_inicio', '>=', dataInicio)
@@ -298,7 +298,7 @@ export default class ContratosController {
       if (tipo === 'Todos' || tipo === 'Termos Aditivos') {
         const termoAditivoQuery = TermoAditivo.query()
           .if(search, (query) => {
-            query.where('nome_termo', 'like', `%${search}%`)
+            query.where('nome_termo', 'ilike', `%${search}%`)
           })
           .if(dataInicio && dataFim, (query) => {
             query.where('data_inicio', '>=', dataInicio)
