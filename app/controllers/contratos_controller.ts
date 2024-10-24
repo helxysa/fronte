@@ -274,25 +274,46 @@ export default class ContratosController {
       const sortBy = request.input('sortBy', 'created_at')
       const sortOrder = request.input('sortOrder', 'desc')
       const tipo = request.input('tipo', 'Todos')
+      const dataInicio = request.input('dataInicio', null)
+      const dataFim = request.input('dataFim', null)
 
-      const contratosQuery = Contrato.query()
-        .if(search, (query) => {
-          query.where('nome_contrato', 'like', `%${search}%`)
-        })
-        .select('*')
-        .orderBy(sortBy, sortOrder)
-        .from('contratos')
+      let contratosArray: any[] = []
+      let termoAditivosArray: any[] = []
 
-      const termoAditivoQuery = TermoAditivo.query()
-        .if(search, (query) => {
-          query.where('nome_termo', 'like', `%${search}%`)
-        })
-        .select('*')
-        .preload('contrato', (contratoQuery) => { contratoQuery.select(['nome_cliente', 'fiscal', 'ponto_focal']) })
-        .orderBy(sortBy, sortOrder)
-        .from('termo_aditivos')
+      if (tipo === 'Todos' || tipo === 'Contratos') {
+        const contratosQuery = Contrato.query()
+          .if(search, (query) => {
+            query.where('nome_contrato', 'like', `%${search}%`)
+          })
+          .if(dataInicio && dataFim, (query) => {
+            query.where('data_inicio', '>=', dataInicio)
+               .andWhere('data_fim', '<=', dataFim)
+          })
+          .select('*')
+          .orderBy(sortBy, sortOrder)
+          .from('contratos')
+          contratosArray = await contratosQuery
+      }
 
-      const [contratos, termoAditivos] = await Promise.all([contratosQuery, termoAditivoQuery])
+      if (tipo === 'Todos' || tipo === 'Termos Aditivos') {
+        const termoAditivoQuery = TermoAditivo.query()
+          .if(search, (query) => {
+            query.where('nome_termo', 'like', `%${search}%`)
+          })
+          .if(dataInicio && dataFim, (query) => {
+            query.where('data_inicio', '>=', dataInicio)
+               .andWhere('data_fim', '<=', dataFim)
+          })
+          .select('*')
+          .preload('contrato', (contratoQuery) => {
+            contratoQuery.select(['nome_cliente', 'fiscal', 'ponto_focal'])
+          })
+          .orderBy(sortBy, sortOrder)
+          .from('termo_aditivos')
+          termoAditivosArray = await termoAditivoQuery
+      }
+
+      const [contratos, termoAditivos] = await Promise.all([contratosArray, termoAditivosArray])
 
       const contratosComTag = contratos.map((contrato) => ({
         ...contrato.toJSON(),
@@ -305,7 +326,14 @@ export default class ContratosController {
       }))
 
 
-      const resultadosUnificados = [...contratosComTag, ...termoAditivosComTag]
+      let resultadosUnificados = []
+      if (tipo === 'Todos') {
+        resultadosUnificados = [...contratosComTag, ...termoAditivosComTag]
+      } else if (tipo === 'Contratos') {
+        resultadosUnificados = contratosComTag
+      } else if (tipo === 'Termos Aditivos') {
+        resultadosUnificados = termoAditivosComTag
+      }
 
       const startIndex = (page - 1) * limit
       const paginatedResults = resultadosUnificados.slice(startIndex, startIndex + limit)
