@@ -272,7 +272,7 @@ export default class ContratosController {
       const limit = request.input('limit', 10)
       const search = request.input('search', '')
       const sortBy = request.input('sortBy', 'created_at')
-      const sortOrder = request.input('sortOrder', 'desc')
+      const sortOrder = request.input('sortOrder', 'asc')
       const tipo = request.input('tipo', 'Todos')
       const dataInicio = request.input('dataInicio', null)
       const dataFim = request.input('dataFim', null)
@@ -334,6 +334,12 @@ export default class ContratosController {
       } else if (tipo === 'Termos Aditivos') {
         resultadosUnificados = termoAditivosComTag
       }
+
+      resultadosUnificados.sort((a, b) => {
+        const dateA = new Date(a.createdAt).getTime()
+        const dateB = new Date(b.createdAt).getTime()
+        return sortOrder === 'asc' ? dateA - dateB : dateB - dateA
+      })
 
       const startIndex = (page - 1) * limit
       const paginatedResults = resultadosUnificados.slice(startIndex, startIndex + limit)
