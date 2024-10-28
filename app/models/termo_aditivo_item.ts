@@ -17,7 +17,7 @@ export default class TermoAditivoItem extends BaseModel {
   declare unidade_medida: string
 
   @column()
-  declare valor_unitario: number
+  declare valor_unitario: string
 
   @column()
   declare quantidade_contratada: string
