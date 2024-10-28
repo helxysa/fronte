@@ -11,7 +11,9 @@ export default class TermoAditivosController {
         .where('contrato_id', contratoId)
         .preload('termoAditivoItem')
         .preload('contrato', (contratoQuery) => {
-          contratoQuery.select(['nome_cliente', 'fiscal', 'ponto_focal']).preload('projetos')
+          contratoQuery
+            .select(['nome_cliente', 'fiscal', 'ponto_focal', 'cidade', 'estado'])
+            .preload('projetos')
         })
 
       return response.json(termoAditivos)
@@ -60,7 +62,9 @@ export default class TermoAditivosController {
         .where('id', params.id)
         .preload('termoAditivoItem')
         .preload('contrato', (contratoQuery) => {
-          contratoQuery.select(['nome_cliente', 'fiscal', 'ponto_focal']).preload('projetos')
+          contratoQuery
+            .select(['nome_cliente', 'fiscal', 'ponto_focal', 'cidade', 'estado'])
+            .preload('projetos')
         })
         .firstOrFail()
 
