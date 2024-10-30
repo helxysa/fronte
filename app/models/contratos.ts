@@ -1,6 +1,6 @@
 import { DateTime } from 'luxon'
-import type { HasMany } from '@adonisjs/lucid/types/relations'
-import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
+import type { HasMany, BelongsTo } from '@adonisjs/lucid/types/relations'
+import { BaseModel, column, hasMany, belongsTo } from '@adonisjs/lucid/orm'
 import ContratoItens from './contrato_itens.js'
 import Lancamentos from './lancamentos.js'
 import Renovacao from './renovacao.js'
@@ -12,6 +12,9 @@ import ContratoAnexo from './contrato_anexo.js'
 export default class Contratos extends compose(BaseModel, SoftDeletes) {
   @column({ isPrimary: true })
   declare id: number
+
+  @column()
+  declare termo_aditivo_id: number | null
 
   @column()
   declare nome_contrato: string
@@ -78,4 +81,12 @@ export default class Contratos extends compose(BaseModel, SoftDeletes) {
 
   @hasMany(() => Faturamentos, { foreignKey: 'contrato_id' })
   declare faturamentos: HasMany<typeof Faturamentos>
+
+  // Relação para o contrato original (caso seja um termo aditivo)
+  @belongsTo(() => Contratos, { foreignKey: 'termo_aditivo_id' })
+  declare contrato: BelongsTo<typeof Contratos>
+
+  // Relação para os termos aditivos deste contrato
+  @hasMany(() => Contratos, { foreignKey: 'termo_aditivo_id' })
+  declare termosAditivos: HasMany<typeof Contratos>
 }

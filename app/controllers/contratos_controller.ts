@@ -11,7 +11,6 @@ import { DateTime } from 'luxon'
 import Renovacao from '#models/renovacao'
 import axios from 'axios'
 import Cidade from '#models/cidade'
-import TermoAditivo from '#models/termo_aditivo'
 
 export default class ContratosController {
   async createContract({ request, response }: HttpContext) {
@@ -88,6 +87,48 @@ export default class ContratosController {
     } catch (err) {
       console.error(err)
       response.status(500).send('Server error')
+    }
+  }
+
+  async createTermoAditivo({ request, response }: HttpContext) {
+    const {
+      nome_contrato,
+      data_inicio,
+      data_fim,
+      saldo_contrato,
+      objeto_contrato,
+      observacoes,
+      contrato_original_id,
+    } = request.only([
+      'nome_contrato',
+      'data_inicio',
+      'data_fim',
+      'saldo_contrato',
+      'objeto_contrato',
+      'observacoes',
+      'contrato_original_id',
+    ]);
+
+    try {
+      const contratoOriginal = await Contrato.find(contrato_original_id);
+      if (!contratoOriginal) {
+        return response.status(404).json({ message: 'Contrato original não encontrado' });
+      }
+
+      const termoAditivo = await Contrato.create({
+        nome_contrato,
+        data_inicio,
+        data_fim,
+        saldo_contrato,
+        objeto_contrato,
+        observacoes,
+        termo_aditivo_id: contrato_original_id,
+      });
+
+      return response.status(201).json(termoAditivo);
+    } catch (err) {
+      console.error(err);
+      return response.status(500).json({ message: 'Erro ao criar termo aditivo' });
     }
   }
 
@@ -241,17 +282,8 @@ export default class ContratosController {
             lancamentoItensQuery.whereNull('deleted_at')
           })
         })
-        .preload('renovacao', (query) => {
-          query.whereNull('deleted_at')
-          query.preload('contratoItens', (contratoItensQuery) => {
-            contratoItensQuery.whereNull('deleted_at')
-          })
-          query.preload('lancamentos', (lancamentoQuery) => {
-            lancamentoQuery.whereNull('deleted_at')
-            lancamentoQuery.preload('lancamentoItens', (lancamentoItensQuery) => {
-              lancamentoItensQuery.whereNull('deleted_at')
-            })
-          })
+        .preload('contrato', (contratoQuery) => {
+          contratoQuery.select(['id', 'nome_cliente', 'fiscal', 'ponto_focal', 'cidade', 'estado']).preload('projetos')
         })
         .first()
 
@@ -277,108 +309,243 @@ export default class ContratosController {
       const dataInicio = request.input('dataInicio', null)
       const dataFim = request.input('dataFim', null)
 
-      let contratosArray: any[] = []
-      let termoAditivosArray: any[] = []
+      const contratosQuery = Contrato.query()
+        .select('*')
+        .if(tipo === 'Contratos', (query) => {
+          query.whereNull('termo_aditivo_id')
+        })
+        .if(tipo === 'Termos Aditivos', (query) => {
+          query.whereNotNull('termo_aditivo_id')
+        })
+        .if(search, (query) => {
+          query.where('nome_contrato', 'ilike', `%${search}%`)
+        })
+        .if(dataInicio && dataFim, (query) => {
+          query.where('data_inicio', '>=', dataInicio)
+            .andWhere('data_fim', '<=', dataFim)
+          })
+        .preload('contrato', (contratoQuery) => {
+          contratoQuery.select(['id', 'nome_cliente', 'fiscal', 'ponto_focal', 'cidade', 'estado'])
+        })
+        .preload('faturamentos', (faturamentosQuery) => {
+          faturamentosQuery
+            .whereNull('deleted_at')
+            .select([
+              'id',
+              'contrato_id',
+              'nota_fiscal',
+              'data_faturamento',
+              'status',
+              'observacoes',
+              'created_at',
+              'updated_at',
+            ])
+            .preload('faturamentoItens', (faturamentoItensQuery) => {
+              faturamentoItensQuery
+                .whereNull('deleted_at')
+                .preload('lancamento', (lancamentoQuery) => {
+                  lancamentoQuery
+                    .whereNull('deleted_at')
+                    .select(['id', 'status', 'projetos', 'data_medicao'])
+                    .preload('lancamentoItens', (lancamentoItensQuery) => {
+                      lancamentoItensQuery
+                        .whereNull('deleted_at')
+                        .select(['id', 'unidade_medida', 'valor_unitario', 'quantidade_itens'])
+                    })
+                })
+            })
+        })
+        .preload('lancamentos', (query) => {
+          query.whereNull('deleted_at')
+          query.preload('lancamentoItens', (lancamentoItensQuery) => {
+            lancamentoItensQuery.whereNull('deleted_at')
+          })
+        })
+        .orderBy(sortBy, sortOrder)
 
-      if (tipo === 'Todos' || tipo === 'Contratos') {
-        const contratosQuery = Contrato.query()
-          .if(search, (query) => {
-            query.where('nome_contrato', 'ilike', `%${search}%`)
-          })
-          .if(dataInicio && dataFim, (query) => {
-            query.where('data_inicio', '>=', dataInicio)
-               .andWhere('data_fim', '<=', dataFim)
-          })
-          .select('*')
-          .orderBy(sortBy, sortOrder)
-          .from('contratos')
-          contratosArray = await contratosQuery
-      }
+      const contratosPaginados = await contratosQuery.paginate(page, limit)
 
-      if (tipo === 'Todos' || tipo === 'Termos Aditivos') {
-        const termoAditivoQuery = TermoAditivo.query()
-          .if(search, (query) => {
-            query.where('nome_termo', 'ilike', `%${search}%`)
-          })
-          .if(dataInicio && dataFim, (query) => {
-            query.where('data_inicio', '>=', dataInicio)
-               .andWhere('data_fim', '<=', dataFim)
-          })
-          .select('*')
-          .preload('contrato', (contratoQuery) => {
-            contratoQuery.select(['nome_cliente', 'fiscal', 'ponto_focal'])
-          })
-          .orderBy(sortBy, sortOrder)
-          .from('termo_aditivos')
-          termoAditivosArray = await termoAditivoQuery
-      }
-
-      const [contratos, termoAditivos] = await Promise.all([contratosArray, termoAditivosArray])
-
-      const contratosComTag = contratos.map((contrato) => ({
-        ...contrato.toJSON(),
-        tag: 'Contrato',
+      const contratosComTag = contratosPaginados.serialize().data.map((contrato) => ({
+        ...contrato,
+        tag: contrato.termoAditivoId ? 'Termo Aditivo' : 'Contrato'
       }))
-
-      const termoAditivosComTag = termoAditivos.map((termoAditivo) => ({
-        ...termoAditivo.toJSON(),
-        tag: 'Termo Aditivo',
-      }))
-
-
-      let resultadosUnificados = []
-      if (tipo === 'Todos') {
-        resultadosUnificados = [...contratosComTag, ...termoAditivosComTag]
-      } else if (tipo === 'Contratos') {
-        resultadosUnificados = contratosComTag
-      } else if (tipo === 'Termos Aditivos') {
-        resultadosUnificados = termoAditivosComTag
-      }
-
-      resultadosUnificados.sort((a, b) => {
-        const dateA = new Date(a.createdAt).getTime()
-        const dateB = new Date(b.createdAt).getTime()
-        return sortOrder === 'asc' ? dateA - dateB : dateB - dateA
-      })
-
-      const startIndex = (page - 1) * limit
-      const paginatedResults = resultadosUnificados.slice(startIndex, startIndex + limit)
 
       return response.json({
         meta: {
-          total: resultadosUnificados.length,
+          total: contratosPaginados.total,
           per_page: limit,
           current_page: page,
-          last_page: Math.ceil(resultadosUnificados.length / limit)
+          last_page: contratosPaginados.lastPage,
         },
-        data: paginatedResults
+        data: contratosComTag,
       })
     } catch (error) {
       console.error(error)
       return response.status(500).json({
-      message: 'Erro ao listar contratos e termos aditivos',
-      error: error.message || error,
-    })
+        message: 'Erro ao listar contratos e termos aditivos',
+        error: error.message || error,
+      })
     }
   }
 
+  async getTermosAditivos({ params, response }: HttpContext) {
+    try {
+      const contratoId = params.contrato_id;
+
+      const termosAditivos = await Contrato.query()
+        .where('termo_aditivo_id', contratoId)
+        .whereNull('deleted_at')
+        .select([
+          'id',
+          'termo_aditivo_id as contratoId',
+          'nome_contrato',
+          'saldo_contrato',
+          'objeto_contrato',
+          'data_inicio',
+          'data_fim',
+          'observacoes',
+          'created_at',
+          'updated_at',
+        ])
+        .orderBy('created_at', 'asc');
+
+      if (termosAditivos.length === 0) {
+        return response.status(404).json({ message: 'Nenhum termo aditivo encontrado para este contrato' });
+      }
+
+      const contratoOriginal = await Contrato.query()
+        .where('id', contratoId)
+        .select([
+          'id',
+          'nome_cliente',
+          'fiscal',
+          'ponto_focal',
+          'cidade',
+          'estado'
+        ])
+        .preload('projetos')
+        .first();
+
+      if (!contratoOriginal) {
+        return response.status(404).json({ message: 'Contrato original não encontrado' });
+      }
+
+      const termosAditivosComContrato = termosAditivos.map((termoAditivo) => {
+        const termoAditivoData = termoAditivo.toJSON();
+        termoAditivoData.contrato = contratoOriginal.toJSON();
+        return termoAditivoData;
+      });
+
+      return response.json(termosAditivosComContrato);
+    } catch (err) {
+      console.error(err);
+      return response.status(500).json({
+        message: 'Erro ao listar termos aditivos',
+        error: err.message || err,
+      });
+    }
+  }
+
+  // async updateContract({ params, request, response }: HttpContext) {
+  //   try {
+  //     const {
+  //       nome_contrato,
+  //       nome_cliente,
+  //       data_inicio,
+  //       data_fim,
+  //       lembrete_vencimento,
+  //       observacoes,
+  //       saldo_contrato,
+  //       fiscal: { nome, telefone, email },
+  //       ponto_focal,
+  //       cidade,
+  //       estado,
+  //       objeto_contrato,
+  //       items,
+  //     } = request.only([
+  //       'nome_contrato',
+  //       'nome_cliente',
+  //       'data_inicio',
+  //       'data_fim',
+  //       'lembrete_vencimento',
+  //       'observacoes',
+  //       'saldo_contrato',
+  //       'fiscal',
+  //       'ponto_focal',
+  //       'cidade',
+  //       'estado',
+  //       'objeto_contrato',
+  //       'items',
+  //     ])
+
+  //     const contrato = await Contrato.find(params.id)
+
+  //     if (!contrato) {
+  //       return response.status(404).json({ message: 'Contrato não encontrado' })
+  //     }
+
+  //     contrato.nome_contrato = nome_contrato
+  //     contrato.nome_cliente = nome_cliente
+  //     contrato.data_inicio = data_inicio
+  //     contrato.data_fim = data_fim
+  //     contrato.lembrete_vencimento = lembrete_vencimento
+  //     contrato.observacoes = observacoes
+  //     contrato.saldo_contrato = saldo_contrato
+  //     contrato.fiscal = { nome, telefone, email }
+  //     contrato.ponto_focal = ponto_focal
+  //     contrato.cidade = cidade
+  //     contrato.estado = estado
+  //     contrato.objeto_contrato = objeto_contrato
+  //     await contrato.save()
+
+  //     // Atualiza os itens do contrato, se necessário
+  //     if (items && items.length > 0) {
+  //       await Promise.all(
+  //         items.map(
+  //           async (item: {
+  //             id?: number
+  //             titulo: string
+  //             unidade_medida: string
+  //             valor_unitario: string
+  //             saldo_quantidade_contratada: string
+  //           }) => {
+  //             if (item.id) {
+  //               // Atualiza item existente
+  //               const contratoItem = await ContratoItem.find(item.id)
+  //               if (contratoItem) {
+  //                 contratoItem.titulo = item.titulo
+  //                 contratoItem.unidade_medida = item.unidade_medida
+  //                 contratoItem.valor_unitario = item.valor_unitario
+  //                 contratoItem.saldo_quantidade_contratada = item.saldo_quantidade_contratada
+  //                 await contratoItem.save()
+  //               }
+  //             } else {
+  //               // Cria novo item
+  //               await ContratoItem.create({
+  //                 contrato_id: contrato.id,
+  //                 titulo: item.titulo,
+  //                 unidade_medida: item.unidade_medida,
+  //                 valor_unitario: item.valor_unitario,
+  //                 saldo_quantidade_contratada: item.saldo_quantidade_contratada,
+  //               })
+  //             }
+  //           }
+  //         )
+  //       )
+  //     }
+
+  //     // Recarrega o contrato com os itens atualizados
+  //     await contrato.load('contratoItens')
+
+  //     return response.json(contrato)
+  //   } catch (err) {
+  //     console.error(err)
+  //     return response.status(500).send('Erro no servidor')
+  //   }
+  // }
   async updateContract({ params, request, response }: HttpContext) {
     try {
-      const {
-        nome_contrato,
-        nome_cliente,
-        data_inicio,
-        data_fim,
-        lembrete_vencimento,
-        observacoes,
-        saldo_contrato,
-        fiscal: { nome, telefone, email },
-        ponto_focal,
-        cidade,
-        estado,
-        objeto_contrato,
-        items,
-      } = request.only([
+      const data = request.only([
         'nome_contrato',
         'nome_cliente',
         'data_inicio',
@@ -392,48 +559,58 @@ export default class ContratosController {
         'estado',
         'objeto_contrato',
         'items',
-      ])
+      ]);
 
-      const contrato = await Contrato.find(params.id)
+      const contrato = await Contrato.find(params.id);
 
       if (!contrato) {
-        return response.status(404).json({ message: 'Contrato não encontrado' })
+        return response.status(404).json({ message: 'Contrato não encontrado' });
       }
 
-      contrato.nome_contrato = nome_contrato
-      contrato.nome_cliente = nome_cliente
-      contrato.data_inicio = data_inicio
-      contrato.data_fim = data_fim
-      contrato.lembrete_vencimento = lembrete_vencimento
-      contrato.observacoes = observacoes
-      contrato.saldo_contrato = saldo_contrato
-      contrato.fiscal = { nome, telefone, email }
-      contrato.ponto_focal = ponto_focal
-      contrato.cidade = cidade
-      contrato.estado = estado
-      contrato.objeto_contrato = objeto_contrato
-      await contrato.save()
+      // Atualiza apenas os campos presentes na requisição
+      if (data.nome_contrato !== undefined) contrato.nome_contrato = data.nome_contrato;
+      if (data.nome_cliente !== undefined) contrato.nome_cliente = data.nome_cliente;
+      if (data.data_inicio !== undefined) contrato.data_inicio = data.data_inicio;
+      if (data.data_fim !== undefined) contrato.data_fim = data.data_fim;
+      if (data.lembrete_vencimento !== undefined) contrato.lembrete_vencimento = data.lembrete_vencimento;
+      if (data.observacoes !== undefined) contrato.observacoes = data.observacoes;
+      if (data.saldo_contrato !== undefined) contrato.saldo_contrato = data.saldo_contrato;
+      if (data.ponto_focal !== undefined) contrato.ponto_focal = data.ponto_focal;
+      if (data.cidade !== undefined) contrato.cidade = data.cidade;
+      if (data.estado !== undefined) contrato.estado = data.estado;
+      if (data.objeto_contrato !== undefined) contrato.objeto_contrato = data.objeto_contrato;
 
-      // Atualiza os itens do contrato, se necessário
-      if (items && items.length > 0) {
+      // Atualiza o campo fiscal se ele estiver presente
+      if (data.fiscal) {
+        contrato.fiscal = {
+          nome: data.fiscal.nome || contrato.fiscal?.nome,
+          telefone: data.fiscal.telefone || contrato.fiscal?.telefone,
+          email: data.fiscal.email || contrato.fiscal?.email,
+        };
+      }
+
+      await contrato.save();
+
+      // Atualiza os itens do contrato, se necessários, quando `items` está presente
+      if (data.items && data.items.length > 0) {
         await Promise.all(
-          items.map(
+          data.items.map(
             async (item: {
-              id?: number
-              titulo: string
-              unidade_medida: string
-              valor_unitario: string
-              saldo_quantidade_contratada: string
+              id?: number;
+              titulo: string;
+              unidade_medida: string;
+              valor_unitario: string;
+              saldo_quantidade_contratada: string;
             }) => {
               if (item.id) {
                 // Atualiza item existente
-                const contratoItem = await ContratoItem.find(item.id)
+                const contratoItem = await ContratoItem.find(item.id);
                 if (contratoItem) {
-                  contratoItem.titulo = item.titulo
-                  contratoItem.unidade_medida = item.unidade_medida
-                  contratoItem.valor_unitario = item.valor_unitario
-                  contratoItem.saldo_quantidade_contratada = item.saldo_quantidade_contratada
-                  await contratoItem.save()
+                  contratoItem.titulo = item.titulo;
+                  contratoItem.unidade_medida = item.unidade_medida;
+                  contratoItem.valor_unitario = item.valor_unitario;
+                  contratoItem.saldo_quantidade_contratada = item.saldo_quantidade_contratada;
+                  await contratoItem.save();
                 }
               } else {
                 // Cria novo item
@@ -443,20 +620,20 @@ export default class ContratosController {
                   unidade_medida: item.unidade_medida,
                   valor_unitario: item.valor_unitario,
                   saldo_quantidade_contratada: item.saldo_quantidade_contratada,
-                })
+                });
               }
             }
           )
-        )
+        );
       }
 
       // Recarrega o contrato com os itens atualizados
-      await contrato.load('contratoItens')
+      await contrato.load('contratoItens');
 
-      return response.json(contrato)
+      return response.json(contrato);
     } catch (err) {
-      console.error(err)
-      return response.status(500).send('Erro no servidor')
+      console.error(err);
+      return response.status(500).send('Erro no servidor');
     }
   }
 
