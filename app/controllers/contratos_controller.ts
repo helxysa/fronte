@@ -11,6 +11,9 @@ import { DateTime } from 'luxon'
 import Renovacao from '#models/renovacao'
 import axios from 'axios'
 import Cidade from '#models/cidade'
+import app from '@adonisjs/core/services/app'
+// import fs from 'node:fs'
+// import path from 'node:path'
 
 export default class ContratosController {
   async createContract({ request, response }: HttpContext) {
@@ -45,6 +48,20 @@ export default class ContratosController {
     ])
 
     try {
+      const foto = request.file('foto', {
+        size: '2mb',
+        extnames: ['jpg', 'png', 'jpeg'],
+      });
+
+      let fotoFilePath = null;
+      if (foto && foto.isValid) {
+        const fotoFileName = `${new Date().getTime()}.${foto.extname}`;
+        await foto.move(app.publicPath('uploads/contratos'), {
+          name: fotoFileName,
+        });
+        fotoFilePath = `/uploads/contratos/${fotoFileName}`;
+      }
+
       const novoContrato = await Contrato.create({
         nome_contrato,
         nome_cliente,
@@ -58,6 +75,7 @@ export default class ContratosController {
         cidade,
         estado,
         objeto_contrato,
+        foto: fotoFilePath,
       })
 
       const contratoComItens = await Promise.all(
@@ -130,6 +148,34 @@ export default class ContratosController {
       console.error(err);
       return response.status(500).json({ message: 'Erro ao criar termo aditivo' });
     }
+  }
+
+  async uploadFoto({ params, request, response }: HttpContext) {
+    const contratoId = params.id
+    const contrato = await Contrato.find(contratoId)
+
+    if (!contrato) {
+      return response.status(404).json({ message: 'Contrato não encontrado' })
+    }
+
+    const foto = request.file('foto', {
+      size: '5mb',
+      extnames: ['jpg', 'png', 'jpeg'],
+    })
+
+    if (!foto || !foto.isValid) {
+      return response.badRequest('Arquivo inválido ou não enviado.')
+    }
+
+    const fotoFileName = `${new Date().getTime()}.${foto.extname}`
+    await foto.move(app.publicPath('uploads/contratos'), {
+      name: fotoFileName,
+    })
+
+    contrato.foto = `/uploads/contratos/${fotoFileName}`
+    await contrato.save()
+
+    return response.ok({ message: 'Foto do contrato adicionada com sucesso!', foto: contrato.foto })
   }
 
   async getContracts({ response }: HttpContext) {
@@ -567,7 +613,6 @@ export default class ContratosController {
         return response.status(404).json({ message: 'Contrato não encontrado' });
       }
 
-      // Atualiza apenas os campos presentes na requisição
       if (data.nome_contrato !== undefined) contrato.nome_contrato = data.nome_contrato;
       if (data.nome_cliente !== undefined) contrato.nome_cliente = data.nome_cliente;
       if (data.data_inicio !== undefined) contrato.data_inicio = data.data_inicio;
@@ -580,7 +625,6 @@ export default class ContratosController {
       if (data.estado !== undefined) contrato.estado = data.estado;
       if (data.objeto_contrato !== undefined) contrato.objeto_contrato = data.objeto_contrato;
 
-      // Atualiza o campo fiscal se ele estiver presente
       if (data.fiscal) {
         contrato.fiscal = {
           nome: data.fiscal.nome || contrato.fiscal?.nome,
@@ -589,9 +633,25 @@ export default class ContratosController {
         };
       }
 
+      const foto = request.file('foto', {
+        size: '5mb',
+        extnames: ['jpg', 'png', 'jpeg'],
+      });
+
+      if (foto && foto.isValid) {
+        const fotoFileName = `${new Date().getTime()}.${foto.extname}`;
+        await foto.move(app.publicPath('uploads/contratos'), {
+          name: fotoFileName,
+          overwrite: true,
+        });
+
+        contrato.foto = `/uploads/contratos/${fotoFileName}`;
+      } else if (foto === null) {
+        contrato.foto = null;
+      }
+
       await contrato.save();
 
-      // Atualiza os itens do contrato, se necessários, quando `items` está presente
       if (data.items && data.items.length > 0) {
         await Promise.all(
           data.items.map(
@@ -603,7 +663,6 @@ export default class ContratosController {
               saldo_quantidade_contratada: string;
             }) => {
               if (item.id) {
-                // Atualiza item existente
                 const contratoItem = await ContratoItem.find(item.id);
                 if (contratoItem) {
                   contratoItem.titulo = item.titulo;
@@ -613,7 +672,6 @@ export default class ContratosController {
                   await contratoItem.save();
                 }
               } else {
-                // Cria novo item
                 await ContratoItem.create({
                   contrato_id: contrato.id,
                   titulo: item.titulo,
@@ -627,7 +685,6 @@ export default class ContratosController {
         );
       }
 
-      // Recarrega o contrato com os itens atualizados
       await contrato.load('contratoItens');
 
       return response.json(contrato);

@@ -52,6 +52,9 @@ export default class Contratos extends compose(BaseModel, SoftDeletes) {
   @column()
   declare objeto_contrato: string
 
+  @column()
+  declare foto: string | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

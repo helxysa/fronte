@@ -57,6 +57,9 @@ router.get('/contratos/:id', [ContratosController, 'getContractById'])
 router.put('/contratos/:id', [ContratosController, 'updateContract'])
 router.put('/contratos/restore/:id', [ContratosController, 'restoreContract'])
 router.delete('/contratos/:id', [ContratosController, 'deleteContract'])
+// Contrato foto
+router.post('/contratos/:id/foto', [ContratosController, 'uploadFoto'])
+
 // Contrato Anexos
 router.post('/contratos/:contrato_id/anexos', [ContratoAnexosController, 'store'])
 router.get('/contratos/:contrato_id/anexos', [ContratoAnexosController, 'index'])
