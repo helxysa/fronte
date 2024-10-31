@@ -55,6 +55,9 @@ export default class Contratos extends compose(BaseModel, SoftDeletes) {
   @column()
   declare foto: string | null
 
+  @column()
+  declare porcentagem_ajuste: string | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

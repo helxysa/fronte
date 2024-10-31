@@ -116,6 +116,7 @@ export default class ContratosController {
       saldo_contrato,
       objeto_contrato,
       observacoes,
+      porcentagem_ajuste,
       contrato_original_id,
     } = request.only([
       'nome_contrato',
@@ -124,6 +125,7 @@ export default class ContratosController {
       'saldo_contrato',
       'objeto_contrato',
       'observacoes',
+      'porcentagem_ajuste',
       'contrato_original_id',
     ]);
 
@@ -140,6 +142,7 @@ export default class ContratosController {
         saldo_contrato,
         objeto_contrato,
         observacoes,
+        porcentagem_ajuste,
         termo_aditivo_id: contrato_original_id,
       });
 
@@ -329,7 +332,7 @@ export default class ContratosController {
           })
         })
         .preload('contrato', (contratoQuery) => {
-          contratoQuery.select(['id', 'nome_cliente', 'fiscal', 'ponto_focal', 'cidade', 'estado']).preload('projetos')
+          contratoQuery.select(['id', 'nome_cliente', 'saldo_contrato', 'fiscal', 'ponto_focal', 'cidade', 'estado']).preload('projetos')
         })
         .first()
 
@@ -464,6 +467,7 @@ export default class ContratosController {
         .select([
           'id',
           'nome_cliente',
+          'saldo_contrato',
           'fiscal',
           'ponto_focal',
           'cidade',
@@ -598,6 +602,7 @@ export default class ContratosController {
         'data_fim',
         'lembrete_vencimento',
         'observacoes',
+        'porcentagem_ajuste',
         'saldo_contrato',
         'fiscal',
         'ponto_focal',
@@ -619,6 +624,7 @@ export default class ContratosController {
       if (data.data_fim !== undefined) contrato.data_fim = data.data_fim;
       if (data.lembrete_vencimento !== undefined) contrato.lembrete_vencimento = data.lembrete_vencimento;
       if (data.observacoes !== undefined) contrato.observacoes = data.observacoes;
+      if (data.porcentagem_ajuste !== undefined) contrato.porcentagem_ajuste = data.porcentagem_ajuste;
       if (data.saldo_contrato !== undefined) contrato.saldo_contrato = data.saldo_contrato;
       if (data.ponto_focal !== undefined) contrato.ponto_focal = data.ponto_focal;
       if (data.cidade !== undefined) contrato.cidade = data.cidade;
