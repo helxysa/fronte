@@ -3,7 +3,7 @@ import mail from '@adonisjs/mail/services/main'
 import User from '#models/user'
 import crypto from 'node:crypto'
 import hash from '@adonisjs/core/services/hash'
-// import env from '#start/env'
+import env from '#start/env'
 import Profile from '#models/profile'
 
 const DEFAULT_PASSWORD = 'Boss1234'
@@ -106,8 +106,8 @@ export default class UsersController {
         await mail.send((message) => {
           message
             .to(user.email)
-            // .from(env.get('SMTP_USERNAME'))
-            .from('monitoramento.msb@gmail.com')
+            .from(env.get('SMTP_USERNAME'))
+            // .from('monitoramento.msb@gmail.com')
             .subject('Senha Alterada com Sucesso')
             .text('Sua senha de primeiro acesso foi alterada com sucesso.')
         })
@@ -126,8 +126,8 @@ export default class UsersController {
       await mail.send((message) => {
         message
           .to(user.email)
-          // .from(env.get('SMTP_USERNAME'))
-          .from('monitoramento.msb@gmail.com')
+          .from(env.get('SMTP_USERNAME'))
+          // .from('monitoramento.msb@gmail.com')
           .subject('Senha Alterada com Sucesso')
           .text('Sua senha foi alterada com sucesso.')
       })
@@ -166,8 +166,8 @@ export default class UsersController {
     await mail.send((message) => {
       message
         .to(user.email)
-        // .from(env.get('SMTP_USERNAME'))
-        .from('monitoramento.msb@gmail.com')
+        .from(env.get('SMTP_USERNAME'))
+        // .from('monitoramento.msb@gmail.com')
         .subject('Redefinição de Senha')
         .text(
           `Clique no link para redefinir sua senha: ${textoUrl}/esqueci-minha-senha?token=${token}`
