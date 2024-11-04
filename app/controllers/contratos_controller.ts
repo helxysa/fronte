@@ -364,6 +364,7 @@ export default class ContratosController {
           contratoData.cidade = contratoData.cidade ?? contratoOriginalData.cidade;
           contratoData.estado = contratoData.estado ?? contratoOriginalData.estado;
           contratoData.projetos = contratoData.projetos.length > 0 ? contratoData.projetos : contratoOriginalData.projetos;
+          contratoData.saldoContratoOriginal = contratoOriginal.saldo_contrato;
         }
       }
 
