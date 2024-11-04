@@ -294,8 +294,8 @@ export default class ContratosController {
         .whereNull('deleted_at')
         .preload('projetos')
         .preload('contratoItens', (query) => {
-          query.whereNull('renovacao_id')
-          query.whereNull('deleted_at')
+          query.whereNull('renovacao_id');
+          query.whereNull('deleted_at');
         })
         .preload('faturamentos', (faturamentosQuery) => {
           faturamentosQuery
@@ -320,32 +320,60 @@ export default class ContratosController {
                     .preload('lancamentoItens', (lancamentoItensQuery) => {
                       lancamentoItensQuery
                         .whereNull('deleted_at')
-                        .select(['id', 'unidade_medida', 'valor_unitario', 'quantidade_itens'])
-                    })
-                })
-            })
+                        .select(['id', 'unidade_medida', 'valor_unitario', 'quantidade_itens']);
+                    });
+                });
+            });
         })
         .preload('lancamentos', (query) => {
-          query.whereNull('deleted_at')
+          query.whereNull('deleted_at');
           query.preload('lancamentoItens', (lancamentoItensQuery) => {
-            lancamentoItensQuery.whereNull('deleted_at')
-          })
+            lancamentoItensQuery.whereNull('deleted_at');
+          });
         })
-        .preload('contrato', (contratoQuery) => {
-          contratoQuery.select(['id', 'nome_cliente', 'saldo_contrato', 'fiscal', 'ponto_focal', 'cidade', 'estado']).preload('projetos')
-        })
-        .first()
+        .first();
 
       if (!contrato) {
-        return response.status(404).json({ message: 'Contrato não encontrado' })
+        return response.status(404).json({ message: 'Contrato não encontrado' });
       }
 
-      return response.json(contrato)
+      const contratoData = contrato.toJSON();
+
+      // Verifique se o contrato atual é um termo aditivo e, se for, preencha os campos `null`
+      if (contratoData.termoAditivoId) {
+        const contratoOriginal = await Contrato.query()
+          .where('id', contratoData.termoAditivoId)
+          .select([
+            'id',
+            'nome_cliente',
+            'saldo_contrato',
+            'fiscal',
+            'ponto_focal',
+            'cidade',
+            'estado'
+          ])
+          .preload('projetos')
+          .first();
+
+        if (contratoOriginal) {
+          const contratoOriginalData = contratoOriginal.toJSON();
+          contratoData.idContratoOriginal = contratoOriginal.id;
+          contratoData.nomeCliente = contratoData.nomeCliente ?? contratoOriginalData.nomeCliente;
+          contratoData.fiscal = contratoData.fiscal ?? contratoOriginalData.fiscal;
+          contratoData.pontoFocal = contratoData.pontoFocal ?? contratoOriginalData.pontoFocal;
+          contratoData.cidade = contratoData.cidade ?? contratoOriginalData.cidade;
+          contratoData.estado = contratoData.estado ?? contratoOriginalData.estado;
+          contratoData.projetos = contratoData.projetos.length > 0 ? contratoData.projetos : contratoOriginalData.projetos;
+        }
+      }
+
+      return response.json(contratoData);
     } catch (err) {
-      console.error(err)
-      return response.status(500).send('Erro no servidor')
+      console.error(err);
+      return response.status(500).send('Erro no servidor');
     }
   }
+
 
   async getContractAndAditiveTerms({ request, response }: HttpContext) {
     try {
@@ -480,9 +508,19 @@ export default class ContratosController {
         return response.status(404).json({ message: 'Contrato original não encontrado' });
       }
 
+      const contratoOriginalData = contratoOriginal.toJSON();
+
       const termosAditivosComContrato = termosAditivos.map((termoAditivo) => {
         const termoAditivoData = termoAditivo.toJSON();
-        termoAditivoData.contrato = contratoOriginal.toJSON();
+
+        termoAditivoData.idContratoOriginal = contratoOriginal.id;
+        termoAditivoData.nomeCliente = termoAditivoData.nomeCliente ?? contratoOriginalData.nomeCliente;
+        termoAditivoData.fiscal = termoAditivoData.fiscal ?? contratoOriginalData.fiscal;
+        termoAditivoData.pontoFocal = termoAditivoData.pontoFocal ?? contratoOriginalData.pontoFocal;
+        termoAditivoData.cidade = termoAditivoData.cidade ?? contratoOriginalData.cidade;
+        termoAditivoData.estado = termoAditivoData.estado ?? contratoOriginalData.estado;
+        termoAditivoData.projetos = termoAditivoData.projetos ?? contratoOriginalData.projetos;
+
         return termoAditivoData;
       });
 
