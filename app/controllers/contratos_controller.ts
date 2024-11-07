@@ -383,18 +383,13 @@ export default class ContratosController {
       const search = request.input('search', '')
       const sortBy = request.input('sortBy', 'created_at')
       const sortOrder = request.input('sortOrder', 'asc')
-      const tipo = request.input('tipo', 'Todos')
+      // const tipo = request.input('tipo', 'Todos')
       const dataInicio = request.input('dataInicio', null)
       const dataFim = request.input('dataFim', null)
 
       const contratosQuery = Contrato.query()
         .select('*')
-        .if(tipo === 'Contratos', (query) => {
-          query.whereNull('termo_aditivo_id')
-        })
-        .if(tipo === 'Termos Aditivos', (query) => {
-          query.whereNotNull('termo_aditivo_id')
-        })
+        .whereNull('termo_aditivo_id')
         .if(search, (query) => {
           query.where('nome_contrato', 'ilike', `%${search}%`)
         })
@@ -402,9 +397,6 @@ export default class ContratosController {
           query.where('data_inicio', '>=', dataInicio)
             .andWhere('data_fim', '<=', dataFim)
           })
-        .preload('contrato', (contratoQuery) => {
-          contratoQuery.select(['id', 'nome_cliente', 'fiscal', 'ponto_focal', 'cidade', 'estado'])
-        })
         .preload('faturamentos', (faturamentosQuery) => {
           faturamentosQuery
             .whereNull('deleted_at')
@@ -438,6 +430,46 @@ export default class ContratosController {
           query.preload('lancamentoItens', (lancamentoItensQuery) => {
             lancamentoItensQuery.whereNull('deleted_at')
           })
+        })
+        .preload('termosAditivos', (termoAditivoQuery) => {
+          termoAditivoQuery
+            .orderBy('created_at', 'desc')
+            .select('*')
+            .preload('faturamentos', (faturamentosQuery) => {
+              faturamentosQuery
+                .whereNull('deleted_at')
+                .select([
+                  'id',
+                  'contrato_id',
+                  'nota_fiscal',
+                  'data_faturamento',
+                  'status',
+                  'observacoes',
+                  'created_at',
+                  'updated_at',
+                ])
+                .preload('faturamentoItens', (faturamentoItensQuery) => {
+                  faturamentoItensQuery
+                    .whereNull('deleted_at')
+                    .preload('lancamento', (lancamentoQuery) => {
+                      lancamentoQuery
+                        .whereNull('deleted_at')
+                        .select(['id', 'status', 'projetos', 'data_medicao'])
+                        .preload('lancamentoItens', (lancamentoItensQuery) => {
+                          lancamentoItensQuery
+                            .whereNull('deleted_at')
+                            .select(['id', 'unidade_medida', 'valor_unitario', 'quantidade_itens'])
+                        })
+                    })
+                })
+            })
+            .preload('lancamentos', (query) => {
+              query.whereNull('deleted_at')
+              query.preload('lancamentoItens', (lancamentoItensQuery) => {
+                lancamentoItensQuery.whereNull('deleted_at')
+              })
+            })
+            .first()
         })
         .orderBy(sortBy, sortOrder)
 
