@@ -6,7 +6,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "start": "node bin/server.js",
-    "build": "cd dist && cp -R public ./ && cd .. && node ace build && cd dist && cp ./public dist/public && npm ci --omit='dev' && cd .. && cp .env dist/.env",
+    "build": "mkdir tmpPublic && cd dist && cp -R public ./tmpPublic && cd .. && node ace build && cp -R tmpPublic/* dist/public && cd dist && npm ci --omit='dev' && cd .. && cp .env dist/.env && rm -rf tmpPublic",
     "migrations": "node ace migration:run --force",
     "seed": "node ace db:seed",
     "dev": "node ace serve --hmr",
