@@ -6,7 +6,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "start": "node bin/server.js",
-    "build": "mkdir -p tmpPublic && cp -R dist/public/* tmpPublic/ && node ace build && mkdir -p dist/public && cp -R tmpPublic/* dist/public/ && cd dist && npm ci --omit='dev' && cd .. && cp .env dist/.env && rm -rf tmpPublic",
+    "build": "mkdir -p tmpPublic && [ -d dist/public ] && cp -R dist/public/* tmpPublic/ || echo 'Pasta dist/public não encontrada, pulando cópia' && node ace build && mkdir -p dist/public && cp -R tmpPublic/* dist/public/ && cd dist && npm ci --omit='dev' && cd .. && cp .env dist/.env && rm -rf tmpPublic",
     "migrations": "node ace migration:run --force",
     "seed": "node ace db:seed",
     "dev": "node ace serve --hmr",
