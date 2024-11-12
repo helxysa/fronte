@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import type { HttpContext } from '@adonisjs/core/http'
 import Contrato from '#models/contratos'
+import ContratoAnexo from '#models/contrato_anexo'
 import ContratoItem from '#models/contrato_itens'
 import Faturamento from '#models/faturamentos'
 import FaturamentoItem from '#models/faturamento_item'
@@ -12,8 +13,8 @@ import Renovacao from '#models/renovacao'
 import axios from 'axios'
 import Cidade from '#models/cidade'
 import app from '@adonisjs/core/services/app'
-// import fs from 'node:fs'
-// import path from 'node:path'
+import fs from 'node:fs'
+import path from 'node:path'
 
 export default class ContratosController {
   async createContract({ request, response }: HttpContext) {
@@ -25,12 +26,11 @@ export default class ContratosController {
       lembrete_vencimento,
       observacoes,
       saldo_contrato,
-      fiscal: { nome, telefone, email },
+      fiscal,
       ponto_focal,
       cidade,
       estado,
       objeto_contrato,
-      items,
     } = request.only([
       'nome_contrato',
       'nome_cliente',
@@ -44,8 +44,9 @@ export default class ContratosController {
       'cidade',
       'estado',
       'objeto_contrato',
-      'items',
     ])
+
+    const items = request.input('items');
 
     try {
       const foto = request.file('foto', {
@@ -62,6 +63,12 @@ export default class ContratosController {
         fotoFilePath = `/uploads/contratos/${fotoFileName}`;
       }
 
+      const fiscalData = {
+        nome: fiscal?.nome || null,
+        telefone: fiscal?.telefone || null,
+        email: fiscal?.email || null,
+      };
+
       const novoContrato = await Contrato.create({
         nome_contrato,
         nome_cliente,
@@ -70,7 +77,7 @@ export default class ContratosController {
         lembrete_vencimento,
         observacoes,
         saldo_contrato,
-        fiscal: { nome, telefone, email },
+        fiscal: fiscalData,
         ponto_focal,
         cidade,
         estado,
@@ -78,25 +85,38 @@ export default class ContratosController {
         foto: fotoFilePath,
       })
 
-      const contratoComItens = await Promise.all(
-        items.map(
-          async (item: {
-            titulo: string
-            unidade_medida: string
-            valor_unitario: string
-            saldo_quantidade_contratada: string
-          }) => {
+      let itemsArray = Array.isArray(items) ? items : [];
+
+      if (items) {
+        if (typeof items === 'string') {
+          try {
+            itemsArray = JSON.parse(items);
+          } catch (error) {
+            console.error('Erro ao fazer parse do campo items:', error);
+            itemsArray = [];
+          }
+        } else if (Array.isArray(items)) {
+          itemsArray = items;
+        } else {
+          itemsArray = [];
+        }
+      }
+
+      let contratoComItens: ContratoItem[] = [];
+      if (itemsArray.length > 0) {
+        contratoComItens = await Promise.all(
+          itemsArray.map(async (item) => {
             const novoItem = await ContratoItem.create({
               contrato_id: novoContrato.id,
               titulo: item.titulo,
               unidade_medida: item.unidade_medida,
               valor_unitario: item.valor_unitario,
               saldo_quantidade_contratada: item.saldo_quantidade_contratada,
-            })
-            return novoItem
-          }
-        )
-      )
+            });
+            return novoItem;
+          })
+        );
+      }
 
       response.status(201).json({
         ...novoContrato.toJSON(),
@@ -807,6 +827,22 @@ export default class ContratosController {
       await Renovacao.query()
         .where('contrato_id', contratoId)
         .update({ deletedAt: DateTime.local() })
+
+      const anexos = await ContratoAnexo.query().where('contrato_id', contratoId);
+      for (const anexo of anexos) {
+        const filePath = path.join(app.publicPath(), anexo.file_path);
+
+        // Remove cada anexo fisico
+        if (fs.existsSync(filePath)) {
+          try {
+            fs.unlinkSync(filePath);
+          } catch (err) {
+            console.error(`Erro ao deletar o arquivo ${filePath}:`, err);
+          }
+        }
+      }
+      // Hard delete dos anexos no banco
+      await ContratoAnexo.query().where('contrato_id', contratoId).delete();
 
       // Soft delete no contrato
       await contrato.merge({ deletedAt: DateTime.local() }).save()

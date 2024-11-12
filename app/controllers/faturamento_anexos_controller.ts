@@ -8,29 +8,38 @@ export default class FaturamentoAnexosController {
     try {
       const faturamentoId = params.faturamento_id
 
-      const file = request.file('file', {
+      const files = request.files('file', {
         size: '20mb',
         extnames: ['pdf', 'docx', 'doc', 'xlsx', 'csv', 'jpg', 'png', 'rar', 'zip'],
       })
 
-      if (!file || !file.isValid) {
+      if (!files || files.length === 0) {
         return response.badRequest('Arquivo inválido ou não enviado.')
       }
+      const anexos = []
 
-      const fileName = `${new Date().getTime()}.${file.extname}`
+      for (const file of files) {
+        if (!file.isValid) {
+          return response.badRequest(`Arquivo inválido: ${file.clientName}`)
+        }
 
-      await file.move(app.publicPath('uploads/faturamento'), {
-        name: fileName,
-      })
+        const fileName = `${new Date().getTime()}-${file.clientName}`
 
-      const anexo = await FaturamentoAnexo.create({
-        faturamento_id: faturamentoId,
-        file_name: file.clientName,
-        file_path: `/uploads/faturamento/${fileName}`,
-        file_type: file.extname,
-      })
+        await file.move(app.publicPath('uploads/medicao'), {
+          name: fileName,
+        })
 
-      return response.ok({ message: 'Anexo adicionado com sucesso!', anexo })
+        const anexo = await FaturamentoAnexo.create({
+          faturamento_id: faturamentoId,
+          file_name: file.clientName,
+          file_path: `/uploads/medicao/${fileName}`,
+          file_type: file.extname,
+        })
+
+        anexos.push(anexo)
+      }
+
+      return response.ok({ message: 'Anexo(s) adicionado(s) com sucesso!', anexos })
     } catch (error) {
       // Captura o erro "request entity too large"
       if (error.status === 413) {
