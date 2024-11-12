@@ -6,6 +6,10 @@ import LancamentoItens from '#models/lancamento_itens'
 import ContratoItens from '#models/contrato_itens'
 import { DateTime } from 'luxon'
 import FaturamentoItem from '#models/faturamento_item'
+import MedicaoAnexo from '#models/medicao_anexo'
+import app from '@adonisjs/core/services/app'
+import fs from 'node:fs'
+import path from 'node:path'
 
 export default class LancamentosController {
   async createLancamento({ request, response, params }: HttpContext) {
@@ -308,6 +312,21 @@ export default class LancamentosController {
       await LancamentoItens.query()
         .where('lancamento_id', params.id)
         .update({ deletedAt: DateTime.local() })
+
+      const anexos = await MedicaoAnexo.query().where('lancamento_id', id);
+      for (const anexo of anexos) {
+        const filePath = path.join(app.publicPath(), anexo.file_path);
+
+        if (fs.existsSync(filePath)) {
+          try {
+            fs.unlinkSync(filePath);
+          } catch (err) {
+            console.error(`Erro ao deletar o arquivo ${filePath}:`, err);
+          }
+        }
+      }
+      await MedicaoAnexo.query().where('lancamento_id', id).delete()
+      
       await lancamento.delete()
 
       return response.status(200).send('Lançamento deletado com sucesso.')

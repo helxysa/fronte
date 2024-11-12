@@ -5,6 +5,10 @@ import Faturamentos from '#models/faturamentos'
 import FaturamentoItem from '#models/faturamento_item'
 import Contrato from '#models/contratos'
 import { DateTime } from 'luxon'
+import FaturamentoAnexo from '#models/faturamento_anexo'
+import app from '@adonisjs/core/services/app'
+import fs from 'node:fs'
+import path from 'node:path'
 
 export default class FaturamentosController {
   async createFaturamentos({ params, request, response }: HttpContext) {
@@ -181,6 +185,21 @@ export default class FaturamentosController {
     await FaturamentoItem.query()
       .where('faturamento_id', faturamentoId)
       .update({ deletedAt: DateTime.local() })
+
+    const anexos = await FaturamentoAnexo.query().where('faturamento_id', faturamentoId);
+    for (const anexo of anexos) {
+      const filePath = path.join(app.publicPath(), anexo.file_path);
+
+      if (fs.existsSync(filePath)) {
+        try {
+          fs.unlinkSync(filePath);
+        } catch (err) {
+          console.error(`Erro ao deletar o arquivo ${filePath}:`, err);
+        }
+      }
+    }
+    await FaturamentoAnexo.query().where('faturamento_id', faturamentoId).delete()
+
     // Soft delete no faturamento
     await faturamento.delete()
 

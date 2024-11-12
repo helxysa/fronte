@@ -25,12 +25,10 @@ export default class ContratoAnexosController {
 
         const fileName = `${new Date().getTime()}-${file.clientName}`
 
-        // Move o arquivo para o diretório de uploads
         await file.move(app.publicPath('uploads/contracts'), {
           name: fileName,
         })
 
-        // Cria o registro do anexo no banco de dados
         const anexo = await ContratoAnexo.create({
           contrato_id: contratoId,
           file_name: file.clientName,
@@ -43,7 +41,7 @@ export default class ContratoAnexosController {
 
       return response.ok({ message: 'Anexo(s) adicionado(s) com sucesso!', anexos })
     } catch (error) {
-      // Captura o erro "request entity too large"
+      // trata o erro "request entity too large"
       if (error.status === 413) {
         return response.status(413).send({
           message: 'O arquivo enviado é muito grande. O tamanho máximo permitido é 20 MB.',
