@@ -116,15 +116,32 @@ export default class LancamentosController {
     const limit = request.input('limit', 10)
     const sortBy = request.input('sortBy', 'created_at')
     const sortOrder = request.input('sortOrder', 'desc')
+    let statuses = request.input('statuses', null);
     try {
-      const lancamento = await Lancamentos.query()
-        .where('contrato_id', id)
-        .preload('lancamentoItens')
-        .orderBy(sortBy, sortOrder)
-        .paginate(page, limit)
+      const query = Lancamentos.query()
+      .where('contrato_id', id)
+      .preload('lancamentoItens')
+      .orderBy(sortBy, sortOrder);
+
+      if (statuses) {
+        if (typeof statuses === 'string') {
+          statuses = [statuses];
+        }
+        else if (!Array.isArray(statuses)) {
+          statuses = [statuses];
+        }
+
+        if (statuses.length === 1) {
+          query.where('status', statuses[0]);
+        } else {
+          query.whereIn('status', statuses);
+        }
+      }
+
+    const lancamento = await query.paginate(page, limit);
 
       if (!lancamento) {
-        return response.status(404).send('Lançamento não encontrado.')
+      return response.status(404).send('Lançamento não encontrado.');
       }
 
       return response.json(lancamento)
@@ -326,7 +343,7 @@ export default class LancamentosController {
         }
       }
       await MedicaoAnexo.query().where('lancamento_id', id).delete()
-      
+
       await lancamento.delete()
 
       return response.status(200).send('Lançamento deletado com sucesso.')
