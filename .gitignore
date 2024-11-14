@@ -16,7 +16,7 @@ public
 # Build tools specific
 npm-debug.log
 yarn-error.log
-
+tmpPublic
 # Editors specific
 .fleet
 .idea
