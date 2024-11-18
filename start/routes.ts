@@ -1,5 +1,7 @@
 /* eslint-disable prettier/prettier */
 import router from '@adonisjs/core/services/router'
+import { Route } from '@adonisjs/core/http'
+import { RouteGroup } from '@adonisjs/core/http'
 import { middleware } from './kernel.js'
 import Application from '@adonisjs/core/services/app'
 
@@ -42,23 +44,29 @@ router.get('files/:filename', async ({ params, response }) => {
   return response.attachment(Application.tmpPath('uploads', params.filename), params.filename)
 })
 // Perfis e Permissões
-router.get('perfil', [ProfilesController, 'index'])
-router.get('perfil/:id', [ProfilesController, 'show'])
-router.post('perfil', [ProfilesController, 'store'])
-router.put('perfil/:id', [ProfilesController, 'update'])
-router.delete('perfil/:id', [ProfilesController, 'destroy'])
+router.group(() => {
+  router.get('perfil', [ProfilesController, 'index'])
+  router.get('perfil/:id', [ProfilesController, 'show'])
+  router.post('perfil', [ProfilesController, 'store'])
+  router.put('perfil/:id', [ProfilesController, 'update'])
+  router.delete('perfil/:id', [ProfilesController, 'destroy'])
+}).use(middleware.auth())
 // Dashboard
-router.get('/dashboard', [ContratosController, 'getDashboard'])
+router.group(() => {
+  router.get('/dashboard', [ContratosController, 'getDashboard'])
+}).use(middleware.auth())
 // Contratos
-router.post('/contratos', [ContratosController, 'createContract'])
-router.get('/contratos-e-termos', [ContratosController, 'getContractAndAditiveTerms'])
-router.get('/contratos', [ContratosController, 'getContracts'])
-router.get('/contratos/:id', [ContratosController, 'getContractById'])
-router.put('/contratos/:id', [ContratosController, 'updateContract'])
-router.put('/contratos/restore/:id', [ContratosController, 'restoreContract'])
-router.delete('/contratos/:id', [ContratosController, 'deleteContract'])
-// Contrato foto
-router.post('/contratos/:id/foto', [ContratosController, 'uploadFoto'])
+router.group(() => {
+  router.post('/contratos', [ContratosController, 'createContract'])
+  router.get('/contratos-e-termos', [ContratosController, 'getContractAndAditiveTerms'])
+  router.get('/contratos', [ContratosController, 'getContracts'])
+  router.get('/contratos/:id', [ContratosController, 'getContractById'])
+  router.put('/contratos/:id', [ContratosController, 'updateContract'])
+  router.put('/contratos/restore/:id', [ContratosController, 'restoreContract'])
+  router.delete('/contratos/:id', [ContratosController, 'deleteContract'])
+  // Contrato foto
+  router.post('/contratos/:id/foto', [ContratosController, 'uploadFoto'])
+}).use(middleware.auth())
 
 // Contrato Anexos
 router.post('/contratos/:contrato_id/anexos', [ContratoAnexosController, 'store'])
@@ -88,42 +96,52 @@ router.get('/faturamento/anexos/:id', [FaturamentoAnexosController, 'show'])
 router.put('/faturamento/:faturamento_id/anexos/:id', [FaturamentoAnexosController, 'update'])
 router.delete('/faturamento/anexos/:id', [FaturamentoAnexosController, 'destroy'])
 // Itens de contratos
-router.post('/contratos/:id/items', [ContratoItemController, 'createContractItem'])
-// router.get('/contratos/:id/items', [ContratoItemController, 'getContractItem'])
-router.get('/contratos/:id/items', [ContratoItemController, 'getContractItemByContract'])
-router.put('/contratos/items/:itemId', [ContratoItemController, 'updateContractItem'])
-router.delete('/contratos/items/:itemId', [ContratoItemController, 'deleteContractItem'])
+router.group(() => {
+  router.post('/contratos/:id/items', [ContratoItemController, 'createContractItem'])
+  // router.get('/contratos/:id/items', [ContratoItemController, 'getContractItem'])
+  router.get('/contratos/:id/items', [ContratoItemController, 'getContractItemByContract'])
+  router.put('/contratos/items/:itemId', [ContratoItemController, 'updateContractItem'])
+  router.delete('/contratos/items/:itemId', [ContratoItemController, 'deleteContractItem'])
+}).use(middleware.auth())
 //Projetos
-router.post('/contratos/:contrato_id/projetos', [ProjetosController, 'store'])
-router.post('/contratos/:contrato_id/projetos/multiplos', [ProjetosController, 'storeMultiple'])
-router.get('/contratos/:contrato_id/projetos', [ProjetosController, 'index'])
-router.get('/projetos/:id', [ProjetosController, 'show'])
-router.put('/projetos/:id', [ProjetosController, 'update'])
-router.delete('/projetos/:id', [ProjetosController, 'destroy'])
-//Lancamentos
-router.post('/contratos/:id/lancamentos', [LancamentosController, 'createLancamento'])
-router.get('/lancamentos', [LancamentosController, 'getLancamentos'])
-router.get('/lancamentos/:id', [LancamentosController, 'getLancamentoById'])
-router.get('/contratos/:id/lancamentos', [LancamentosController, 'getLancamentoByContract'])
-router.put('/lancamentos/:id', [LancamentosController, 'updateLancamento'])
-router.delete('/lancamentos/:id', [LancamentosController, 'deleteLancamento'])
-router.delete('/lancamentos/restore/:id', [LancamentosController, 'restoreLancamento'])
-router.delete('/lancamentos/:id/items/:itemId', [LancamentosController, 'deleteLancamentoItem'])
-router.post('/lancamentos/:id/items', [LancamentosController, 'addLancamentoItem'])
-router.patch('/lancamentos/:id/competencia', [LancamentosController, 'updateCompetencia'])
-router.patch('/lancamentos/:id/status', [LancamentosController, 'updateStatus'])
+router.group(() => {
+  router.post('/contratos/:contrato_id/projetos', [ProjetosController, 'store'])
+  router.post('/contratos/:contrato_id/projetos/multiplos', [ProjetosController, 'storeMultiple'])
+  router.get('/contratos/:contrato_id/projetos', [ProjetosController, 'index'])
+  router.get('/projetos/:id', [ProjetosController, 'show'])
+  router.put('/projetos/:id', [ProjetosController, 'update'])
+  router.delete('/projetos/:id', [ProjetosController, 'destroy'])
+}).use(middleware.auth())
+  //Lancamentos
+router.group(() => {
+  router.post('/contratos/:id/lancamentos', [LancamentosController, 'createLancamento'])
+  router.get('/lancamentos', [LancamentosController, 'getLancamentos'])
+  router.get('/lancamentos/:id', [LancamentosController, 'getLancamentoById'])
+  router.get('/contratos/:id/lancamentos', [LancamentosController, 'getLancamentoByContract'])
+  router.put('/lancamentos/:id', [LancamentosController, 'updateLancamento'])
+  router.delete('/lancamentos/:id', [LancamentosController, 'deleteLancamento'])
+  router.delete('/lancamentos/restore/:id', [LancamentosController, 'restoreLancamento'])
+  router.delete('/lancamentos/:id/items/:itemId', [LancamentosController, 'deleteLancamentoItem'])
+  router.post('/lancamentos/:id/items', [LancamentosController, 'addLancamentoItem'])
+  router.patch('/lancamentos/:id/competencia', [LancamentosController, 'updateCompetencia'])
+  router.patch('/lancamentos/:id/status', [LancamentosController, 'updateStatus'])
+}).use(middleware.auth())
 //Faturamento
-router.post('/contratos/:id/faturamentos', [FaturamentosController, 'createFaturamentos'])
-router.put('/faturamentos/:id', [FaturamentosController, 'updateFaturamento'])
-router.get('/contratos/:id/faturamentos', [FaturamentosController, 'getFaturamentosByContratoId'])
-router.delete('/faturamentos/:id', [FaturamentosController, 'deleteFaturamento'])
-router.put('/faturamentos/restore/:id', [FaturamentosController, 'restoreFaturamento'])
+router.group(() => {
+  router.post('/contratos/:id/faturamentos', [FaturamentosController, 'createFaturamentos'])
+  router.put('/faturamentos/:id', [FaturamentosController, 'updateFaturamento'])
+  router.get('/contratos/:id/faturamentos', [FaturamentosController, 'getFaturamentosByContratoId'])
+  router.delete('/faturamentos/:id', [FaturamentosController, 'deleteFaturamento'])
+  router.put('/faturamentos/restore/:id', [FaturamentosController, 'restoreFaturamento'])
+}).use(middleware.auth())
 //Unidade de medida
-router.post('/unidade_medida', [UnidadeMedidaController, 'store'])
-router.get('/unidade_medida', [UnidadeMedidaController, 'index'])
-router.get('/unidade_medida/:id', [UnidadeMedidaController, 'show'])
-router.put('/unidade_medida/:id', [UnidadeMedidaController, 'update'])
-router.delete('/unidade_medida/:id', [UnidadeMedidaController, 'destroy'])
+router.group(() => {
+  router.post('/unidade_medida', [UnidadeMedidaController, 'store'])
+  router.get('/unidade_medida', [UnidadeMedidaController, 'index'])
+  router.get('/unidade_medida/:id', [UnidadeMedidaController, 'show'])
+  router.put('/unidade_medida/:id', [UnidadeMedidaController, 'update'])
+  router.delete('/unidade_medida/:id', [UnidadeMedidaController, 'destroy'])
+}).use(middleware.auth())
 //Renovacoes
 //Criar renovação
 // router.post('/contratos/:id/renovar', [RenovacaoController, 'createRenovacao'])
@@ -137,9 +155,11 @@ router.delete('/unidade_medida/:id', [UnidadeMedidaController, 'destroy'])
 // router.post('/renovacoes/lancamentos/:lancamento_id', [RenovacaoController, 'addItemToLancamento'])
 // router.put('/renovacao/:renovacao_id', [RenovacaoController, 'updateRenovacao'])
 // router.put('/renovacao/items/:id_item', [RenovacaoController, 'updateRenovacaoItem'])
-// Termo Aditivo
-router.get('/contratos/:contrato_id/termo-aditivo', [ContratosController, 'getTermosAditivos'])
-router.post('/termo-aditivo', [ContratosController, 'createTermoAditivo'])
+router.group(() => {
+  // Termo Aditivo
+  router.get('/contratos/:contrato_id/termo-aditivo', [ContratosController, 'getTermosAditivos'])
+  router.post('/termo-aditivo', [ContratosController, 'createTermoAditivo'])
+}).use(middleware.auth())
 // router.get('/termo-aditivo/:id', [TermoAditivosController, 'show'])
 // router.put('/termo-aditivo/:id', [TermoAditivosController, 'update'])
 // router.delete('/termo-aditivo/:id', [TermoAditivosController, 'delete'])
