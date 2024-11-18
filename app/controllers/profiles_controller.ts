@@ -12,12 +12,7 @@ export default class ProfilesController {
   async show({ params, response }: HttpContext) {
     const profileId = params.id
 
-    const profile = await Profile.query()
-      .where('id', profileId)
-      .preload('permissions', (permissionQuery) => {
-        permissionQuery.select(['name', 'can_create', 'can_edit', 'can_view', 'can_delete'])
-      })
-      .first()
+    const profile = await Profile.query().where('id', profileId).preload('permissions').first()
 
     if (!profile) {
       return response.status(404).json({ message: 'Perfil não encontrado.' })
@@ -28,10 +23,7 @@ export default class ProfilesController {
       name: profile.name,
       permissions: profile.permissions.map((permission) => ({
         name: permission.name,
-        canCreate: permission.can_create,
-        canEdit: permission.can_edit,
-        canView: permission.can_view,
-        canDelete: permission.can_delete,
+        actions: permission.actions,
       })),
     })
   }
@@ -45,10 +37,7 @@ export default class ProfilesController {
       await Permission.create({
         profileId: profile.id,
         name: perm.name,
-        can_create: perm.can_create || false,
-        can_edit: perm.can_edit || false,
-        can_view: perm.can_view || false,
-        can_delete: perm.can_delete || false,
+        actions: perm.actions || {},
       })
     }
 
@@ -72,10 +61,7 @@ export default class ProfilesController {
       await Permission.create({
         profileId: profile.id,
         name: perm.name,
-        can_create: perm.can_create || false,
-        can_edit: perm.can_edit || false,
-        can_view: perm.can_view || false,
-        can_delete: perm.can_delete || false,
+        actions: perm.actions || {},
       })
     }
 

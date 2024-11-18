@@ -125,7 +125,7 @@ export default class AuthController {
         .where('email', email)
         .preload('profile', (profileQuery) => {
           profileQuery.preload('permissions', (permissionQuery) => {
-            permissionQuery.select(['name', 'can_create', 'can_edit', 'can_view', 'can_delete'])
+            permissionQuery.select(['name', 'actions'])
           })
         })
         .first()

@@ -31,7 +31,7 @@ export default class UsersController {
       .where('id', params.id)
       .preload('profile', (profileQuery) => {
         profileQuery.preload('permissions', (permissionQuery) => {
-          permissionQuery.select(['name', 'can_create', 'can_edit', 'can_view', 'can_delete'])
+          permissionQuery.select(['name', 'actions'])
         })
       })
       .first()
@@ -43,10 +43,7 @@ export default class UsersController {
     const filteredPermissions = user.profile.permissions.map((permission) => {
       return {
         name: permission.name,
-        canCreate: permission.can_create,
-        canEdit: permission.can_edit,
-        canView: permission.can_view,
-        canDelete: permission.can_delete,
+        actions: permission.actions,
       }
     })
 
