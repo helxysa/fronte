@@ -4,4 +4,9 @@
     "rootDir": "./",
     "outDir": "./dist"
   },
+"include": [
+  "./types",
+  "./app",
+  "./start"
+]
 }

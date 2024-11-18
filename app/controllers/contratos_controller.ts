@@ -15,6 +15,8 @@ import Cidade from '#models/cidade'
 import app from '@adonisjs/core/services/app'
 import fs from 'node:fs'
 import path from 'node:path'
+import CurrentUserService from '#services/current_user_service'
+import Logs from '#models/log'
 
 export default class ContratosController {
   async createContract({ request, response }: HttpContext) {
@@ -795,6 +797,7 @@ export default class ContratosController {
     try {
       const contratoId = params.id
       const contrato = await Contrato.find(contratoId)
+      Contrato.skipHooks = true
 
       if (!contrato) {
         return response.status(404).json({ message: 'Contrato não encontrado' })
@@ -847,10 +850,27 @@ export default class ContratosController {
       // Soft delete no contrato
       await contrato.merge({ deletedAt: DateTime.local() }).save()
 
+      try {
+        const userId = CurrentUserService.getCurrentUserId()
+        const username = CurrentUserService.getCurrentUsername()
+        await Logs.create({
+          userId: userId || 0,
+          action: 'Deletar',
+          model: 'Contrato',
+          modelId: contrato.id,
+          description: `Usuário ${username} excluiu o contrato "${contrato.nome_contrato}" com id ${contrato.id}.`,
+        })
+      } catch (error) {
+        console.error('Erro ao criar o log de exclusão:', error)
+      }
+
       return response.status(202).json({ message: 'Contrato deletado com sucesso.' })
     } catch (err) {
       console.error(err)
       return response.status(500).send('Erro no servidor')
+    } finally {
+      // Garantir que a flag seja desativada em qualquer caso
+      Contrato.skipHooks = false
     }
   }
 
