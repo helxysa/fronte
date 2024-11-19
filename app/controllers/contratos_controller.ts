@@ -877,7 +877,7 @@ export default class ContratosController {
   async restoreContract({ params, response }: HttpContext) {
     try {
       const contratoId = params.id
-
+      //
       const contrato: any = await Contrato.withTrashed().where('id', contratoId).firstOrFail()
 
       if (!contrato) {
