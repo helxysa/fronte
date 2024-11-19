@@ -4,6 +4,7 @@ import { Route } from '@adonisjs/core/http'
 import { RouteGroup } from '@adonisjs/core/http'
 import { middleware } from './kernel.js'
 import Application from '@adonisjs/core/services/app'
+const LogsController = () => import('#controllers/logs_controller')
 
 const UsersController = () => import('#controllers/users_controller')
 const AuthController = () => import('#controllers/auth_controller')
@@ -168,3 +169,6 @@ router.group(() => {
 // router.get('/termo-aditivo/:id/itens', [TermoAditivoItemsController, 'show'])
 // router.put('/termo-aditivo/itens/:id', [TermoAditivoItemsController, 'update'])
 // router.delete('/termo-aditivo/itens/:id', [TermoAditivoItemsController, 'delete'])
+router.group(() => {
+  router.get('/logs', [LogsController, 'index'])
+}).use(middleware.auth())

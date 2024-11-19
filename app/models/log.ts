@@ -9,6 +9,9 @@ export default class Logs extends BaseModel {
   declare userId: number
 
   @column()
+  declare name: string
+
+  @column()
   declare action: string
 
   @column()

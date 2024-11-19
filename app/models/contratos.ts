@@ -115,6 +115,7 @@ export default class Contratos extends compose(BaseModel, SoftDeletes) {
       const username = CurrentUserService.getCurrentUsername()
       await Logs.create({
         userId: userId || 0,
+        name: username || 'Usuário',
         action: 'Criar',
         model: 'Contrato',
         modelId: contrato.id,
