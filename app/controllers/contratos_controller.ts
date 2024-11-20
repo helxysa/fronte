@@ -733,11 +733,11 @@ export default class ContratosController {
       }
 
       const foto = request.file('foto', {
-        size: '5mb',
+        size: '2mb',
         extnames: ['jpg', 'png', 'jpeg'],
       });
 
-      if (foto && foto.isValid) {
+      if (foto) {
         const fotoFileName = `${new Date().getTime()}.${foto.extname}`;
         await foto.move(app.publicPath('uploads/contratos'), {
           name: fotoFileName,
@@ -745,8 +745,6 @@ export default class ContratosController {
         });
 
         contrato.foto = `/uploads/contratos/${fotoFileName}`;
-      } else if (foto === null) {
-        contrato.foto = null;
       }
 
       await contrato.save();

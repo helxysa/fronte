@@ -1,5 +1,12 @@
 import { DateTime } from 'luxon'
-import { BaseModel, belongsTo, column, hasMany } from '@adonisjs/lucid/orm'
+import {
+  afterCreate,
+  afterUpdate,
+  BaseModel,
+  belongsTo,
+  column,
+  hasMany,
+} from '@adonisjs/lucid/orm'
 import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import Contratos from './contratos.js'
 import Faturamentos from './faturamentos.js'
@@ -9,6 +16,8 @@ import MedicaoAnexo from '#models/medicao_anexo'
 import FaturamentoItem from './faturamento_item.js'
 import { SoftDeletes } from 'adonis-lucid-soft-deletes'
 import { compose } from '@adonisjs/core/helpers'
+import CurrentUserService from '#services/current_user_service'
+import Logs from './log.js'
 
 export default class Lancamentos extends compose(BaseModel, SoftDeletes) {
   @column({ isPrimary: true })
@@ -67,4 +76,42 @@ export default class Lancamentos extends compose(BaseModel, SoftDeletes) {
 
   @hasMany(() => MedicaoAnexo, { foreignKey: 'contrato_id' })
   declare medicaoAnexo: HasMany<typeof MedicaoAnexo>
+
+  static skipHooks = false
+  @afterCreate()
+  static async logCreate(medicao: Lancamentos) {
+    try {
+      const userId = CurrentUserService.getCurrentUserId()
+      const username = CurrentUserService.getCurrentUsername()
+      await Logs.create({
+        userId: userId || 0,
+        name: username || 'Usuário',
+        action: 'Criar',
+        model: 'Medição',
+        modelId: medicao.id,
+        description: `Usuário ${username} criou a medição com id ${medicao.id}.`,
+      })
+    } catch (error) {
+      console.error('Não foi possível criar log: ', error)
+    }
+  }
+
+  @afterUpdate()
+  static async logUpdate(medicao: Lancamentos) {
+    if (this.skipHooks) return
+    try {
+      const userId = CurrentUserService.getCurrentUserId()
+      const username = CurrentUserService.getCurrentUsername()
+      await Logs.create({
+        userId: userId || 0,
+        name: username || 'Usuário',
+        action: 'Atualizar',
+        model: 'Medição',
+        modelId: medicao.id,
+        description: `Usuário ${username} atualizou a medição com id ${medicao.id}.`,
+      })
+    } catch (error) {
+      console.error('Não foi possível criar log: ', error)
+    }
+  }
 }

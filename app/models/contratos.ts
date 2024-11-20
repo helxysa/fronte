@@ -20,8 +20,6 @@ import Logs from './log.js'
 import CurrentUserService from '#services/current_user_service'
 
 export default class Contratos extends compose(BaseModel, SoftDeletes) {
-  static skipHooks = false
-
   @column({ isPrimary: true })
   declare id: number
 
@@ -108,6 +106,7 @@ export default class Contratos extends compose(BaseModel, SoftDeletes) {
   @hasMany(() => Contratos, { foreignKey: 'termo_aditivo_id' })
   declare termosAditivos: HasMany<typeof Contratos>
 
+  static skipHooks = false
   @afterCreate()
   static async logCreate(contrato: Contratos) {
     try {
@@ -134,6 +133,7 @@ export default class Contratos extends compose(BaseModel, SoftDeletes) {
       const username = CurrentUserService.getCurrentUsername()
       await Logs.create({
         userId: userId || 0,
+        name: username || 'Usuário',
         action: 'Atualizar',
         model: 'Contrato',
         modelId: contrato.id,

@@ -1,11 +1,20 @@
 import { DateTime } from 'luxon'
-import { BaseModel, belongsTo, column, hasMany } from '@adonisjs/lucid/orm'
+import {
+  afterCreate,
+  afterUpdate,
+  BaseModel,
+  belongsTo,
+  column,
+  hasMany,
+} from '@adonisjs/lucid/orm'
 import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import Contratos from './contratos.js'
 import Lancamentos from './lancamentos.js'
 import FaturamentoItem from './faturamento_item.js'
 import { SoftDeletes } from 'adonis-lucid-soft-deletes'
 import { compose } from '@adonisjs/core/helpers'
+import CurrentUserService from '#services/current_user_service'
+import Logs from './log.js'
 
 export default class Faturamentos extends compose(BaseModel, SoftDeletes) {
   @column({ isPrimary: true })
@@ -49,4 +58,42 @@ export default class Faturamentos extends compose(BaseModel, SoftDeletes) {
 
   @hasMany(() => FaturamentoItem, { foreignKey: 'faturamento_id' })
   declare faturamentoItens: HasMany<typeof FaturamentoItem>
+
+  static skipHooks = false
+  @afterCreate()
+  static async logCreate(fat: Faturamentos) {
+    try {
+      const userId = CurrentUserService.getCurrentUserId()
+      const username = CurrentUserService.getCurrentUsername()
+      await Logs.create({
+        userId: userId || 0,
+        name: username || 'Usuário',
+        action: 'Criar',
+        model: 'Faturamento',
+        modelId: fat.id,
+        description: `Usuário ${username} criou o faturamento com id ${fat.id}.`,
+      })
+    } catch (error) {
+      console.error('Não foi possível criar log: ', error)
+    }
+  }
+
+  @afterUpdate()
+  static async logUpdate(fat: Faturamentos) {
+    if (this.skipHooks) return
+    try {
+      const userId = CurrentUserService.getCurrentUserId()
+      const username = CurrentUserService.getCurrentUsername()
+      await Logs.create({
+        userId: userId || 0,
+        name: username || 'Usuário',
+        action: 'Atualizar',
+        model: 'Faturamento',
+        modelId: fat.id,
+        description: `Usuário ${username} atualizou o faturamento com id ${fat.id}.`,
+      })
+    } catch (error) {
+      console.error('Não foi possível criar log: ', error)
+    }
+  }
 }

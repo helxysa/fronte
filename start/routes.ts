@@ -1,7 +1,5 @@
 /* eslint-disable prettier/prettier */
 import router from '@adonisjs/core/services/router'
-import { Route } from '@adonisjs/core/http'
-import { RouteGroup } from '@adonisjs/core/http'
 import { middleware } from './kernel.js'
 import Application from '@adonisjs/core/services/app'
 const LogsController = () => import('#controllers/logs_controller')
