@@ -20,12 +20,36 @@ export default class AuthMiddleware {
       guards?: (keyof Authenticators)[]
     } = {}
   ) {
-    await ctx.auth.authenticateUsing(options.guards, { loginRoute: this.redirectTo })
+    try {
+      await ctx.auth.authenticateUsing(options.guards, { loginRoute: this.redirectTo })
+      const user = ctx.auth.user as User
+      const currentToken = ctx.auth.user?.currentAccessToken
+      const tokenExpiryTime = currentToken?.expiresAt?.getTime()
+      const currentTime = new Date().getTime()
 
-    const user = ctx.auth.user as User
-    CurrentUserService.setCurrentUserId(user.id)
-    CurrentUserService.setCurrentUsername(user.nome)
+      if (!tokenExpiryTime) {
+        return ctx.response.unauthorized({
+          message: 'Token inválido ou não possui data de expiração.',
+        })
+      }
 
-    return next()
+      if (currentTime > tokenExpiryTime) {
+        return ctx.response.unauthorized({
+          message: 'Sua sessão expirou. Faça login novamente.',
+        })
+      }
+
+      // Armazena as info do usuário no serviço para o registro de logs
+      CurrentUserService.setCurrentUserId(user.id)
+      CurrentUserService.setCurrentUsername(user.nome)
+
+      return next()
+    } catch (error) {
+      console.error('Erro no AuthMiddleware:', error)
+
+      return ctx.response.unauthorized({
+        message: 'Você não está autenticado. Faça login para continuar.',
+      })
+    }
   }
 }
