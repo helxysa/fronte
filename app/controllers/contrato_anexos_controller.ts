@@ -7,31 +7,41 @@ export default class ContratoAnexosController {
     try {
       const contratoId = params.contrato_id
 
-      const file = request.file('file', {
+      const files = request.files('file', {
         size: '20mb',
         extnames: ['pdf', 'docx', 'doc', 'xlsx', 'csv', 'jpg', 'png', 'rar', 'zip'],
       })
 
-      if (!file || !file.isValid) {
+      if (!files || files.length === 0) {
         return response.badRequest('Arquivo inválido ou não enviado.')
       }
 
-      const fileName = `${new Date().getTime()}.${file.extname}`
+      const anexos = []
 
-      await file.move(app.publicPath('uploads/contracts'), {
-        name: fileName,
-      })
+      for (const file of files) {
+        if (!file.isValid) {
+          return response.badRequest(`Arquivo inválido: ${file.clientName}`)
+        }
 
-      const anexo = await ContratoAnexo.create({
-        contrato_id: contratoId,
-        file_name: file.clientName,
-        file_path: `/uploads/contracts/${fileName}`,
-        file_type: file.extname,
-      })
+        const fileName = `${new Date().getTime()}-${file.clientName}`
 
-      return response.ok({ message: 'Anexo adicionado com sucesso!', anexo })
+        await file.move(app.publicPath('uploads/contracts'), {
+          name: fileName,
+        })
+
+        const anexo = await ContratoAnexo.create({
+          contrato_id: contratoId,
+          file_name: file.clientName,
+          file_path: `/uploads/contracts/${fileName}`,
+          file_type: file.extname,
+        })
+
+        anexos.push(anexo)
+      }
+
+      return response.ok({ message: 'Anexo(s) adicionado(s) com sucesso!', anexos })
     } catch (error) {
-      // Captura o erro "request entity too large"
+      // trata o erro "request entity too large"
       if (error.status === 413) {
         return response.status(413).send({
           message: 'O arquivo enviado é muito grande. O tamanho máximo permitido é 20 MB.',

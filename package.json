@@ -6,7 +6,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "start": "node bin/server.js",
-    "build": "node ace build && cd dist && npm ci --omit='dev' && cd .. && cp .env dist/.env",
+    "build": "mkdir -p tmpPublic && [ -d dist/public ] && cp -R dist/public/* tmpPublic/ || echo 'Pasta dist/public não encontrada, pulando cópia' && node ace build --ignore-ts-errors && mkdir -p dist/public && cp -R tmpPublic/* dist/public/ && cd dist && npm ci --omit='dev' && cd .. && cp .env dist/.env && rm -rf tmpPublic",
     "migrations": "node ace migration:run --force",
     "seed": "node ace db:seed",
     "dev": "node ace serve --hmr",
@@ -21,6 +21,7 @@
     "#models/*": "./app/models/*.js",
     "#mails/*": "./app/mails/*.js",
     "#services/*": "./app/services/*.js",
+    "#resources/*": "./app/resources/*.js",
     "#listeners/*": "./app/listeners/*.js",
     "#events/*": "./app/events/*.js",
     "#middleware/*": "./app/middleware/*.js",
@@ -43,8 +44,9 @@
     "@japa/plugin-adonisjs": "^3.0.1",
     "@japa/runner": "^3.1.4",
     "@swc/core": "^1.6.3",
+    "@types/archiver": "^6.0.2",
     "@types/luxon": "^3.4.2",
-    "@types/node": "^20.14.5",
+    "@types/node": "^20.17.6",
     "eslint": "^8.57.0",
     "hot-hook": "^0.2.6",
     "pino-pretty": "^11.2.1",
@@ -63,10 +65,12 @@
     "@adonisjs/static": "^1.1.1",
     "@vinejs/vine": "^2.1.0",
     "adonis-lucid-soft-deletes": "^2.1.0",
+    "archiver": "^7.0.1",
     "axios": "^1.7.7",
     "luxon": "^3.4.4",
     "pg": "^8.12.0",
-    "reflect-metadata": "^0.2.2"
+    "reflect-metadata": "^0.2.2",
+    "socket.io": "^4.8.1"
   },
   "hotHook": {
     "boundaries": [

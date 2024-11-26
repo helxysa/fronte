@@ -3,7 +3,7 @@ import mail from '@adonisjs/mail/services/main'
 import User from '#models/user'
 import crypto from 'node:crypto'
 import hash from '@adonisjs/core/services/hash'
-// import env from '#start/env'
+import env from '#start/env'
 import Profile from '#models/profile'
 
 const DEFAULT_PASSWORD = 'Boss1234'
@@ -31,7 +31,7 @@ export default class UsersController {
       .where('id', params.id)
       .preload('profile', (profileQuery) => {
         profileQuery.preload('permissions', (permissionQuery) => {
-          permissionQuery.select(['name', 'can_create', 'can_edit', 'can_view', 'can_delete'])
+          permissionQuery.select(['name', 'actions'])
         })
       })
       .first()
@@ -43,10 +43,7 @@ export default class UsersController {
     const filteredPermissions = user.profile.permissions.map((permission) => {
       return {
         name: permission.name,
-        canCreate: permission.can_create,
-        canEdit: permission.can_edit,
-        canView: permission.can_view,
-        canDelete: permission.can_delete,
+        actions: permission.actions,
       }
     })
 
@@ -106,8 +103,8 @@ export default class UsersController {
         await mail.send((message) => {
           message
             .to(user.email)
-            // .from(env.get('SMTP_USERNAME'))
-            .from('monitoramento.msb@gmail.com')
+            .from(env.get('SMTP_USERNAME'))
+            // .from('monitoramento.msb@gmail.com')
             .subject('Senha Alterada com Sucesso')
             .text('Sua senha de primeiro acesso foi alterada com sucesso.')
         })
@@ -126,8 +123,8 @@ export default class UsersController {
       await mail.send((message) => {
         message
           .to(user.email)
-          // .from(env.get('SMTP_USERNAME'))
-          .from('monitoramento.msb@gmail.com')
+          .from(env.get('SMTP_USERNAME'))
+          // .from('monitoramento.msb@gmail.com')
           .subject('Senha Alterada com Sucesso')
           .text('Sua senha foi alterada com sucesso.')
       })
@@ -166,8 +163,8 @@ export default class UsersController {
     await mail.send((message) => {
       message
         .to(user.email)
-        // .from(env.get('SMTP_USERNAME'))
-        .from('monitoramento.msb@gmail.com')
+        .from(env.get('SMTP_USERNAME'))
+        // .from('monitoramento.msb@gmail.com')
         .subject('Redefinição de Senha')
         .text(
           `Clique no link para redefinir sua senha: ${textoUrl}/esqueci-minha-senha?token=${token}`

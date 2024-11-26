@@ -6,6 +6,10 @@ import LancamentoItens from '#models/lancamento_itens'
 import ContratoItens from '#models/contrato_itens'
 import { DateTime } from 'luxon'
 import FaturamentoItem from '#models/faturamento_item'
+import MedicaoAnexo from '#models/medicao_anexo'
+import app from '@adonisjs/core/services/app'
+import fs from 'node:fs'
+import path from 'node:path'
 
 export default class LancamentosController {
   async createLancamento({ request, response, params }: HttpContext) {
@@ -55,8 +59,7 @@ export default class LancamentosController {
       // Processamento dos itens
       const lancamentoComItens = await Promise.all(
         itens.map(async (item: { id_item: number; quantidade_itens: string; }) => {
-          // Verificação se o item contém os campos necessários
-          if (!item.id_item || !item.quantidade_itens) {
+          if (!item.id_item) {
             throw new Error('Cada item deve conter id do item e a quantidade de itens.')
           }
 
@@ -74,7 +77,7 @@ export default class LancamentosController {
             unidade_medida: contratoItem.unidade_medida,
             valor_unitario: contratoItem.valor_unitario,
             saldo_quantidade_contratada: contratoItem.saldo_quantidade_contratada,
-            quantidade_itens: item.quantidade_itens,
+            quantidade_itens: item.quantidade_itens || '0',
           })
           return novoItem
         })
@@ -113,15 +116,32 @@ export default class LancamentosController {
     const limit = request.input('limit', 10)
     const sortBy = request.input('sortBy', 'created_at')
     const sortOrder = request.input('sortOrder', 'desc')
+    let statuses = request.input('statuses', null);
     try {
-      const lancamento = await Lancamentos.query()
-        .where('contrato_id', id)
-        .preload('lancamentoItens')
-        .orderBy(sortBy, sortOrder)
-        .paginate(page, limit)
+      const query = Lancamentos.query()
+      .where('contrato_id', id)
+      .preload('lancamentoItens')
+      .orderBy(sortBy, sortOrder);
+
+      if (statuses) {
+        if (typeof statuses === 'string') {
+          statuses = [statuses];
+        }
+        else if (!Array.isArray(statuses)) {
+          statuses = [statuses];
+        }
+
+        if (statuses.length === 1) {
+          query.where('status', statuses[0]);
+        } else {
+          query.whereIn('status', statuses);
+        }
+      }
+
+    const lancamento = await query.paginate(page, limit);
 
       if (!lancamento) {
-        return response.status(404).send('Lançamento não encontrado.')
+      return response.status(404).send('Lançamento não encontrado.');
       }
 
       return response.json(lancamento)
@@ -309,6 +329,21 @@ export default class LancamentosController {
       await LancamentoItens.query()
         .where('lancamento_id', params.id)
         .update({ deletedAt: DateTime.local() })
+
+      const anexos = await MedicaoAnexo.query().where('lancamento_id', id);
+      for (const anexo of anexos) {
+        const filePath = path.join(app.publicPath(), anexo.file_path);
+
+        if (fs.existsSync(filePath)) {
+          try {
+            fs.unlinkSync(filePath);
+          } catch (err) {
+            console.error(`Erro ao deletar o arquivo ${filePath}:`, err);
+          }
+        }
+      }
+      await MedicaoAnexo.query().where('lancamento_id', id).delete()
+
       await lancamento.delete()
 
       return response.status(200).send('Lançamento deletado com sucesso.')

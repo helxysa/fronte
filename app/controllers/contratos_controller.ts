@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import type { HttpContext } from '@adonisjs/core/http'
 import Contrato from '#models/contratos'
+import ContratoAnexo from '#models/contrato_anexo'
 import ContratoItem from '#models/contrato_itens'
 import Faturamento from '#models/faturamentos'
 import FaturamentoItem from '#models/faturamento_item'
@@ -11,6 +12,12 @@ import { DateTime } from 'luxon'
 import Renovacao from '#models/renovacao'
 import axios from 'axios'
 import Cidade from '#models/cidade'
+import app from '@adonisjs/core/services/app'
+import fs from 'node:fs'
+import path from 'node:path'
+import CurrentUserService from '#services/current_user_service'
+import Logs from '#models/log'
+
 export default class ContratosController {
   async createContract({ request, response }: HttpContext) {
     const {
@@ -21,12 +28,11 @@ export default class ContratosController {
       lembrete_vencimento,
       observacoes,
       saldo_contrato,
-      fiscal: { nome, telefone, email },
+      fiscal,
       ponto_focal,
       cidade,
       estado,
       objeto_contrato,
-      items,
     } = request.only([
       'nome_contrato',
       'nome_cliente',
@@ -40,10 +46,31 @@ export default class ContratosController {
       'cidade',
       'estado',
       'objeto_contrato',
-      'items',
     ])
 
+    const items = request.input('items');
+
     try {
+      const foto = request.file('foto', {
+        size: '2mb',
+        extnames: ['jpg', 'png', 'jpeg'],
+      });
+
+      let fotoFilePath = null;
+      if (foto && foto.isValid) {
+        const fotoFileName = `${new Date().getTime()}.${foto.extname}`;
+        await foto.move(app.publicPath('uploads/contratos'), {
+          name: fotoFileName,
+        });
+        fotoFilePath = `/uploads/contratos/${fotoFileName}`;
+      }
+
+      const fiscalData = {
+        nome: fiscal?.nome || null,
+        telefone: fiscal?.telefone || null,
+        email: fiscal?.email || null,
+      };
+
       const novoContrato = await Contrato.create({
         nome_contrato,
         nome_cliente,
@@ -52,32 +79,46 @@ export default class ContratosController {
         lembrete_vencimento,
         observacoes,
         saldo_contrato,
-        fiscal: { nome, telefone, email },
+        fiscal: fiscalData,
         ponto_focal,
         cidade,
         estado,
         objeto_contrato,
+        foto: fotoFilePath,
       })
 
-      const contratoComItens = await Promise.all(
-        items.map(
-          async (item: {
-            titulo: string
-            unidade_medida: string
-            valor_unitario: string
-            saldo_quantidade_contratada: string
-          }) => {
+      let itemsArray = Array.isArray(items) ? items : [];
+
+      if (items) {
+        if (typeof items === 'string') {
+          try {
+            itemsArray = JSON.parse(items);
+          } catch (error) {
+            console.error('Erro ao fazer parse do campo items:', error);
+            itemsArray = [];
+          }
+        } else if (Array.isArray(items)) {
+          itemsArray = items;
+        } else {
+          itemsArray = [];
+        }
+      }
+
+      let contratoComItens: ContratoItem[] = [];
+      if (itemsArray.length > 0) {
+        contratoComItens = await Promise.all(
+          itemsArray.map(async (item) => {
             const novoItem = await ContratoItem.create({
               contrato_id: novoContrato.id,
               titulo: item.titulo,
               unidade_medida: item.unidade_medida,
               valor_unitario: item.valor_unitario,
               saldo_quantidade_contratada: item.saldo_quantidade_contratada,
-            })
-            return novoItem
-          }
-        )
-      )
+            });
+            return novoItem;
+          })
+        );
+      }
 
       response.status(201).json({
         ...novoContrato.toJSON(),
@@ -87,6 +128,79 @@ export default class ContratosController {
       console.error(err)
       response.status(500).send('Server error')
     }
+  }
+
+  async createTermoAditivo({ request, response }: HttpContext) {
+    const {
+      nome_contrato,
+      data_inicio,
+      data_fim,
+      saldo_contrato,
+      objeto_contrato,
+      observacoes,
+      porcentagem_ajuste,
+      contrato_original_id,
+    } = request.only([
+      'nome_contrato',
+      'data_inicio',
+      'data_fim',
+      'saldo_contrato',
+      'objeto_contrato',
+      'observacoes',
+      'porcentagem_ajuste',
+      'contrato_original_id',
+    ]);
+
+    try {
+      const contratoOriginal = await Contrato.find(contrato_original_id);
+      if (!contratoOriginal) {
+        return response.status(404).json({ message: 'Contrato original não encontrado' });
+      }
+
+      const termoAditivo = await Contrato.create({
+        nome_contrato,
+        data_inicio,
+        data_fim,
+        saldo_contrato,
+        objeto_contrato,
+        observacoes,
+        porcentagem_ajuste,
+        termo_aditivo_id: contrato_original_id,
+      });
+
+      return response.status(201).json(termoAditivo);
+    } catch (err) {
+      console.error(err);
+      return response.status(500).json({ message: 'Erro ao criar termo aditivo' });
+    }
+  }
+
+  async uploadFoto({ params, request, response }: HttpContext) {
+    const contratoId = params.id
+    const contrato = await Contrato.find(contratoId)
+
+    if (!contrato) {
+      return response.status(404).json({ message: 'Contrato não encontrado' })
+    }
+
+    const foto = request.file('foto', {
+      size: '5mb',
+      extnames: ['jpg', 'png', 'jpeg'],
+    })
+
+    if (!foto || !foto.isValid) {
+      return response.badRequest('Arquivo inválido ou não enviado.')
+    }
+
+    const fotoFileName = `${new Date().getTime()}.${foto.extname}`
+    await foto.move(app.publicPath('uploads/contratos'), {
+      name: fotoFileName,
+    })
+
+    contrato.foto = `/uploads/contratos/${fotoFileName}`
+    await contrato.save()
+
+    return response.ok({ message: 'Foto do contrato adicionada com sucesso!', foto: contrato.foto })
   }
 
   async getContracts({ response }: HttpContext) {
@@ -202,9 +316,109 @@ export default class ContratosController {
         .whereNull('deleted_at')
         .preload('projetos')
         .preload('contratoItens', (query) => {
-          query.whereNull('renovacao_id')
-          query.whereNull('deleted_at')
+          query.whereNull('renovacao_id');
+          query.whereNull('deleted_at');
         })
+        .preload('faturamentos', (faturamentosQuery) => {
+          faturamentosQuery
+            .whereNull('deleted_at')
+            .select([
+              'id',
+              'contrato_id',
+              'nota_fiscal',
+              'data_faturamento',
+              'status',
+              'observacoes',
+              'created_at',
+              'updated_at',
+            ])
+            .preload('faturamentoItens', (faturamentoItensQuery) => {
+              faturamentoItensQuery
+                .whereNull('deleted_at')
+                .preload('lancamento', (lancamentoQuery) => {
+                  lancamentoQuery
+                    .whereNull('deleted_at')
+                    .select(['id', 'status', 'projetos', 'data_medicao'])
+                    .preload('lancamentoItens', (lancamentoItensQuery) => {
+                      lancamentoItensQuery
+                        .whereNull('deleted_at')
+                        .select(['id', 'unidade_medida', 'valor_unitario', 'quantidade_itens']);
+                    });
+                });
+            });
+        })
+        .preload('lancamentos', (query) => {
+          query.whereNull('deleted_at');
+          query.preload('lancamentoItens', (lancamentoItensQuery) => {
+            lancamentoItensQuery.whereNull('deleted_at');
+          });
+        })
+        .first();
+
+      if (!contrato) {
+        return response.status(404).json({ message: 'Contrato não encontrado' });
+      }
+
+      const contratoData = contrato.toJSON();
+
+      // Verifique se o contrato atual é um termo aditivo e, se for, preencha os campos `null`
+      if (contratoData.termoAditivoId) {
+        const contratoOriginal = await Contrato.query()
+          .where('id', contratoData.termoAditivoId)
+          .select([
+            'id',
+            'nome_cliente',
+            'saldo_contrato',
+            'fiscal',
+            'ponto_focal',
+            'cidade',
+            'estado'
+          ])
+          .preload('projetos')
+          .first();
+
+        if (contratoOriginal) {
+          const contratoOriginalData = contratoOriginal.toJSON();
+          contratoData.idContratoOriginal = contratoOriginal.id;
+          contratoData.nomeCliente = contratoData.nomeCliente ?? contratoOriginalData.nomeCliente;
+          contratoData.fiscal = contratoData.fiscal ?? contratoOriginalData.fiscal;
+          contratoData.pontoFocal = contratoData.pontoFocal ?? contratoOriginalData.pontoFocal;
+          contratoData.cidade = contratoData.cidade ?? contratoOriginalData.cidade;
+          contratoData.estado = contratoData.estado ?? contratoOriginalData.estado;
+          contratoData.projetos = contratoData.projetos.length > 0 ? contratoData.projetos : contratoOriginalData.projetos;
+          contratoData.saldoContratoOriginal = contratoOriginal.saldo_contrato;
+        }
+      }
+
+      return response.json(contratoData);
+    } catch (err) {
+      console.error(err);
+      return response.status(500).send('Erro no servidor');
+    }
+  }
+
+
+  async getContractAndAditiveTerms({ request, response }: HttpContext) {
+    try {
+      const page = request.input('page', 1)
+      const limit = request.input('limit', 10)
+      const search = request.input('search', '')
+      const sortBy = request.input('sortBy', 'created_at')
+      const sortOrder = request.input('sortOrder', 'asc')
+      // const tipo = request.input('tipo', 'Todos')
+      const dataInicio = request.input('dataInicio', null)
+      const dataFim = request.input('dataFim', null)
+
+      const contratosQuery = Contrato.query()
+        .select('*')
+        .whereNull('termo_aditivo_id')
+        .if(search, (query) => {
+          query.where('nome_contrato', 'ilike', `%${search}%`)
+        })
+        .if(dataInicio && dataFim, (query) => {
+          query.where('data_inicio', '>=', dataInicio)
+            .andWhere('data_fim', '<=', dataFim)
+          })
         .preload('faturamentos', (faturamentosQuery) => {
           faturamentosQuery
             .whereNull('deleted_at')
@@ -239,54 +453,249 @@ export default class ContratosController {
             lancamentoItensQuery.whereNull('deleted_at')
           })
         })
-        .preload('renovacao', (query) => {
-          query.whereNull('deleted_at')
-          query.preload('contratoItens', (contratoItensQuery) => {
-            contratoItensQuery.whereNull('deleted_at')
-          })
-          query.preload('lancamentos', (lancamentoQuery) => {
-            lancamentoQuery.whereNull('deleted_at')
-            lancamentoQuery.preload('lancamentoItens', (lancamentoItensQuery) => {
-              lancamentoItensQuery.whereNull('deleted_at')
+        .preload('termosAditivos', (termoAditivoQuery) => {
+          termoAditivoQuery
+            .orderBy('created_at', 'desc')
+            .select('*')
+            .preload('faturamentos', (faturamentosQuery) => {
+              faturamentosQuery
+                .whereNull('deleted_at')
+                .select([
+                  'id',
+                  'contrato_id',
+                  'nota_fiscal',
+                  'data_faturamento',
+                  'status',
+                  'observacoes',
+                  'created_at',
+                  'updated_at',
+                ])
+                .preload('faturamentoItens', (faturamentoItensQuery) => {
+                  faturamentoItensQuery
+                    .whereNull('deleted_at')
+                    .preload('lancamento', (lancamentoQuery) => {
+                      lancamentoQuery
+                        .whereNull('deleted_at')
+                        .select(['id', 'status', 'projetos', 'data_medicao'])
+                        .preload('lancamentoItens', (lancamentoItensQuery) => {
+                          lancamentoItensQuery
+                            .whereNull('deleted_at')
+                            .select(['id', 'unidade_medida', 'valor_unitario', 'quantidade_itens'])
+                        })
+                    })
+                })
             })
-          })
+            .preload('lancamentos', (query) => {
+              query.whereNull('deleted_at')
+              query.preload('lancamentoItens', (lancamentoItensQuery) => {
+                lancamentoItensQuery.whereNull('deleted_at')
+              })
+            })
+            .first()
         })
-        .first()
+        .orderBy(sortBy, sortOrder)
 
-      if (!contrato) {
-        return response.status(404).json({ message: 'Contrato não encontrado' })
-      }
+      const contratosPaginados = await contratosQuery.paginate(page, limit)
 
-      return response.json(contrato)
-    } catch (err) {
-      console.error(err)
-      return response.status(500).send('Erro no servidor')
+      const contratosComTag = contratosPaginados.serialize().data.map((contrato) => ({
+        ...contrato,
+        tag: contrato.termoAditivoId ? 'Termo Aditivo' : 'Contrato'
+      }))
+
+      return response.json({
+        meta: {
+          total: contratosPaginados.total,
+          per_page: limit,
+          current_page: page,
+          last_page: contratosPaginados.lastPage,
+        },
+        data: contratosComTag,
+      })
+    } catch (error) {
+      console.error(error)
+      return response.status(500).json({
+        message: 'Erro ao listar contratos e termos aditivos',
+        error: error.message || error,
+      })
     }
   }
 
+  async getTermosAditivos({ params, response }: HttpContext) {
+    try {
+      const contratoId = params.contrato_id;
+
+      const termosAditivos = await Contrato.query()
+        .where('termo_aditivo_id', contratoId)
+        .whereNull('deleted_at')
+        .select([
+          'id',
+          'termo_aditivo_id as contratoId',
+          'nome_contrato',
+          'saldo_contrato',
+          'objeto_contrato',
+          'data_inicio',
+          'data_fim',
+          'observacoes',
+          'created_at',
+          'updated_at',
+        ])
+        .orderBy('created_at', 'asc');
+
+      if (termosAditivos.length === 0) {
+        return response.status(404).json({ message: 'Nenhum termo aditivo encontrado para este contrato' });
+      }
+
+      const contratoOriginal = await Contrato.query()
+        .where('id', contratoId)
+        .select([
+          'id',
+          'nome_cliente',
+          'saldo_contrato',
+          'fiscal',
+          'ponto_focal',
+          'cidade',
+          'estado'
+        ])
+        .preload('projetos')
+        .first();
+
+      if (!contratoOriginal) {
+        return response.status(404).json({ message: 'Contrato original não encontrado' });
+      }
+
+      const contratoOriginalData = contratoOriginal.toJSON();
+
+      const termosAditivosComContrato = termosAditivos.map((termoAditivo) => {
+        const termoAditivoData = termoAditivo.toJSON();
+
+        termoAditivoData.idContratoOriginal = contratoOriginal.id;
+        termoAditivoData.nomeCliente = termoAditivoData.nomeCliente ?? contratoOriginalData.nomeCliente;
+        termoAditivoData.fiscal = termoAditivoData.fiscal ?? contratoOriginalData.fiscal;
+        termoAditivoData.pontoFocal = termoAditivoData.pontoFocal ?? contratoOriginalData.pontoFocal;
+        termoAditivoData.cidade = termoAditivoData.cidade ?? contratoOriginalData.cidade;
+        termoAditivoData.estado = termoAditivoData.estado ?? contratoOriginalData.estado;
+        termoAditivoData.projetos = termoAditivoData.projetos ?? contratoOriginalData.projetos;
+
+        return termoAditivoData;
+      });
+
+      return response.json(termosAditivosComContrato);
+    } catch (err) {
+      console.error(err);
+      return response.status(500).json({
+        message: 'Erro ao listar termos aditivos',
+        error: err.message || err,
+      });
+    }
+  }
+
+  // async updateContract({ params, request, response }: HttpContext) {
+  //   try {
+  //     const {
+  //       nome_contrato,
+  //       nome_cliente,
+  //       data_inicio,
+  //       data_fim,
+  //       lembrete_vencimento,
+  //       observacoes,
+  //       saldo_contrato,
+  //       fiscal: { nome, telefone, email },
+  //       ponto_focal,
+  //       cidade,
+  //       estado,
+  //       objeto_contrato,
+  //       items,
+  //     } = request.only([
+  //       'nome_contrato',
+  //       'nome_cliente',
+  //       'data_inicio',
+  //       'data_fim',
+  //       'lembrete_vencimento',
+  //       'observacoes',
+  //       'saldo_contrato',
+  //       'fiscal',
+  //       'ponto_focal',
+  //       'cidade',
+  //       'estado',
+  //       'objeto_contrato',
+  //       'items',
+  //     ])
+
+  //     const contrato = await Contrato.find(params.id)
+
+  //     if (!contrato) {
+  //       return response.status(404).json({ message: 'Contrato não encontrado' })
+  //     }
+
+  //     contrato.nome_contrato = nome_contrato
+  //     contrato.nome_cliente = nome_cliente
+  //     contrato.data_inicio = data_inicio
+  //     contrato.data_fim = data_fim
+  //     contrato.lembrete_vencimento = lembrete_vencimento
+  //     contrato.observacoes = observacoes
+  //     contrato.saldo_contrato = saldo_contrato
+  //     contrato.fiscal = { nome, telefone, email }
+  //     contrato.ponto_focal = ponto_focal
+  //     contrato.cidade = cidade
+  //     contrato.estado = estado
+  //     contrato.objeto_contrato = objeto_contrato
+  //     await contrato.save()
+
+  //     // Atualiza os itens do contrato, se necessário
+  //     if (items && items.length > 0) {
+  //       await Promise.all(
+  //         items.map(
+  //           async (item: {
+  //             id?: number
+  //             titulo: string
+  //             unidade_medida: string
+  //             valor_unitario: string
+  //             saldo_quantidade_contratada: string
+  //           }) => {
+  //             if (item.id) {
+  //               // Atualiza item existente
+  //               const contratoItem = await ContratoItem.find(item.id)
+  //               if (contratoItem) {
+  //                 contratoItem.titulo = item.titulo
+  //                 contratoItem.unidade_medida = item.unidade_medida
+  //                 contratoItem.valor_unitario = item.valor_unitario
+  //                 contratoItem.saldo_quantidade_contratada = item.saldo_quantidade_contratada
+  //                 await contratoItem.save()
+  //               }
+  //             } else {
+  //               // Cria novo item
+  //               await ContratoItem.create({
+  //                 contrato_id: contrato.id,
+  //                 titulo: item.titulo,
+  //                 unidade_medida: item.unidade_medida,
+  //                 valor_unitario: item.valor_unitario,
+  //                 saldo_quantidade_contratada: item.saldo_quantidade_contratada,
+  //               })
+  //             }
+  //           }
+  //         )
+  //       )
+  //     }
+
+  //     // Recarrega o contrato com os itens atualizados
+  //     await contrato.load('contratoItens')
+
+  //     return response.json(contrato)
+  //   } catch (err) {
+  //     console.error(err)
+  //     return response.status(500).send('Erro no servidor')
+  //   }
+  // }
   async updateContract({ params, request, response }: HttpContext) {
     try {
-      const {
-        nome_contrato,
-        nome_cliente,
-        data_inicio,
-        data_fim,
-        lembrete_vencimento,
-        observacoes,
-        saldo_contrato,
-        fiscal: { nome, telefone, email },
-        ponto_focal,
-        cidade,
-        estado,
-        objeto_contrato,
-        items,
-      } = request.only([
+      const data = request.only([
         'nome_contrato',
         'nome_cliente',
         'data_inicio',
         'data_fim',
         'lembrete_vencimento',
         'observacoes',
+        'porcentagem_ajuste',
         'saldo_contrato',
         'fiscal',
         'ponto_focal',
@@ -294,71 +703,91 @@ export default class ContratosController {
         'estado',
         'objeto_contrato',
         'items',
-      ])
+      ]);
 
-      const contrato = await Contrato.find(params.id)
+      const contrato = await Contrato.find(params.id);
 
       if (!contrato) {
-        return response.status(404).json({ message: 'Contrato não encontrado' })
+        return response.status(404).json({ message: 'Contrato não encontrado' });
       }
 
-      contrato.nome_contrato = nome_contrato
-      contrato.nome_cliente = nome_cliente
-      contrato.data_inicio = data_inicio
-      contrato.data_fim = data_fim
-      contrato.lembrete_vencimento = lembrete_vencimento
-      contrato.observacoes = observacoes
-      contrato.saldo_contrato = saldo_contrato
-      contrato.fiscal = { nome, telefone, email }
-      contrato.ponto_focal = ponto_focal
-      contrato.cidade = cidade
-      contrato.estado = estado
-      contrato.objeto_contrato = objeto_contrato
-      await contrato.save()
+      if (data.nome_contrato !== undefined) contrato.nome_contrato = data.nome_contrato;
+      if (data.nome_cliente !== undefined) contrato.nome_cliente = data.nome_cliente;
+      if (data.data_inicio !== undefined) contrato.data_inicio = data.data_inicio;
+      if (data.data_fim !== undefined) contrato.data_fim = data.data_fim;
+      if (data.lembrete_vencimento !== undefined) contrato.lembrete_vencimento = data.lembrete_vencimento;
+      if (data.observacoes !== undefined) contrato.observacoes = data.observacoes;
+      if (data.porcentagem_ajuste !== undefined) contrato.porcentagem_ajuste = data.porcentagem_ajuste;
+      if (data.saldo_contrato !== undefined) contrato.saldo_contrato = data.saldo_contrato;
+      if (data.ponto_focal !== undefined) contrato.ponto_focal = data.ponto_focal;
+      if (data.cidade !== undefined) contrato.cidade = data.cidade;
+      if (data.estado !== undefined) contrato.estado = data.estado;
+      if (data.objeto_contrato !== undefined) contrato.objeto_contrato = data.objeto_contrato;
 
-      // Atualiza os itens do contrato, se necessário
-      if (items && items.length > 0) {
+      if (data.fiscal) {
+        contrato.fiscal = {
+          nome: data.fiscal.nome || contrato.fiscal?.nome,
+          telefone: data.fiscal.telefone || contrato.fiscal?.telefone,
+          email: data.fiscal.email || contrato.fiscal?.email,
+        };
+      }
+
+      const foto = request.file('foto', {
+        size: '2mb',
+        extnames: ['jpg', 'png', 'jpeg'],
+      });
+
+      if (foto) {
+        const fotoFileName = `${new Date().getTime()}.${foto.extname}`;
+        await foto.move(app.publicPath('uploads/contratos'), {
+          name: fotoFileName,
+          overwrite: true,
+        });
+
+        contrato.foto = `/uploads/contratos/${fotoFileName}`;
+      }
+
+      await contrato.save();
+
+      if (data.items && data.items.length > 0) {
         await Promise.all(
-          items.map(
+          data.items.map(
             async (item: {
-              id?: number
-              titulo: string
-              unidade_medida: string
-              valor_unitario: string
-              saldo_quantidade_contratada: string
+              id?: number;
+              titulo: string;
+              unidade_medida: string;
+              valor_unitario: string;
+              saldo_quantidade_contratada: string;
             }) => {
               if (item.id) {
-                // Atualiza item existente
-                const contratoItem = await ContratoItem.find(item.id)
+                const contratoItem = await ContratoItem.find(item.id);
                 if (contratoItem) {
-                  contratoItem.titulo = item.titulo
-                  contratoItem.unidade_medida = item.unidade_medida
-                  contratoItem.valor_unitario = item.valor_unitario
-                  contratoItem.saldo_quantidade_contratada = item.saldo_quantidade_contratada
-                  await contratoItem.save()
+                  contratoItem.titulo = item.titulo;
+                  contratoItem.unidade_medida = item.unidade_medida;
+                  contratoItem.valor_unitario = item.valor_unitario;
+                  contratoItem.saldo_quantidade_contratada = item.saldo_quantidade_contratada;
+                  await contratoItem.save();
                 }
               } else {
-                // Cria novo item
                 await ContratoItem.create({
                   contrato_id: contrato.id,
                   titulo: item.titulo,
                   unidade_medida: item.unidade_medida,
                   valor_unitario: item.valor_unitario,
                   saldo_quantidade_contratada: item.saldo_quantidade_contratada,
-                })
+                });
               }
             }
           )
-        )
+        );
       }
 
-      // Recarrega o contrato com os itens atualizados
-      await contrato.load('contratoItens')
+      await contrato.load('contratoItens');
 
-      return response.json(contrato)
+      return response.json(contrato);
     } catch (err) {
-      console.error(err)
-      return response.status(500).send('Erro no servidor')
+      console.error(err);
+      return response.status(500).send('Erro no servidor');
     }
   }
 
@@ -366,6 +795,7 @@ export default class ContratosController {
     try {
       const contratoId = params.id
       const contrato = await Contrato.find(contratoId)
+      Contrato.skipHooks = true
 
       if (!contrato) {
         return response.status(404).json({ message: 'Contrato não encontrado' })
@@ -399,20 +829,53 @@ export default class ContratosController {
         .where('contrato_id', contratoId)
         .update({ deletedAt: DateTime.local() })
 
+      const anexos = await ContratoAnexo.query().where('contrato_id', contratoId);
+      for (const anexo of anexos) {
+        const filePath = path.join(app.publicPath(), anexo.file_path);
+
+        // Remove cada anexo fisico
+        if (fs.existsSync(filePath)) {
+          try {
+            fs.unlinkSync(filePath);
+          } catch (err) {
+            console.error(`Erro ao deletar o arquivo ${filePath}:`, err);
+          }
+        }
+      }
+      // Hard delete dos anexos no banco
+      await ContratoAnexo.query().where('contrato_id', contratoId).delete();
+
       // Soft delete no contrato
       await contrato.merge({ deletedAt: DateTime.local() }).save()
+
+      try {
+        const userId = CurrentUserService.getCurrentUserId()
+        const username = CurrentUserService.getCurrentUsername()
+        await Logs.create({
+          userId: userId || 0,
+          action: 'Deletar',
+          model: 'Contrato',
+          modelId: contrato.id,
+          description: `Usuário ${username} excluiu o contrato "${contrato.nome_contrato}" com id ${contrato.id}.`,
+        })
+      } catch (error) {
+        console.error('Erro ao criar o log de exclusão:', error)
+      }
 
       return response.status(202).json({ message: 'Contrato deletado com sucesso.' })
     } catch (err) {
       console.error(err)
       return response.status(500).send('Erro no servidor')
+    } finally {
+      // Garantir que a flag seja desativada em qualquer caso
+      Contrato.skipHooks = false
     }
   }
 
   async restoreContract({ params, response }: HttpContext) {
     try {
       const contratoId = params.id
-
+      //
       const contrato: any = await Contrato.withTrashed().where('id', contratoId).firstOrFail()
 
       if (!contrato) {

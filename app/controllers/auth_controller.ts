@@ -3,7 +3,7 @@ import User from '#models/user'
 import { loginValidator, registerValidator } from '#validators/auth'
 import hash from '@adonisjs/core/services/hash'
 import mail from '@adonisjs/mail/services/main'
-// import env from '#start/env'
+import env from '#start/env'
 // import Database from '@adonisjs/lucid/services/db'
 
 const DEFAULT_PASSWORD = 'Boss1234'
@@ -28,8 +28,8 @@ export default class AuthController {
         .send((message) => {
           message
             .to(user.email)
-            // .from(env.get('SMTP_USERNAME'))
-            .from('monitoramento.msb@gmail.com')
+            .from(env.get('SMTP_USERNAME'))
+            // .from('monitoramento.msb@gmail.com')
             .subject('Acesso ao Sistema - Credenciais de Acesso').html(`
             <h1>Olá, ${user.nome}!</h1>
             <p>Sua conta foi criada com sucesso.</p>
@@ -93,8 +93,8 @@ export default class AuthController {
       mail.send((message) => {
         message
           .to(user.email)
-          // .from(env.get('SMTP_USERNAME'))
-          .from('monitoramento.msb@gmail.com')
+          .from(env.get('SMTP_USERNAME'))
+          // .from('monitoramento.msb@gmail.com')
           .subject('Sua senha foi resetada - Acesso ao Sistema').html(`
             <h1>Olá, ${user.nome}!</h1>
             <p>Sua senha foi resetada para a senha padrão.</p>
@@ -125,7 +125,7 @@ export default class AuthController {
         .where('email', email)
         .preload('profile', (profileQuery) => {
           profileQuery.preload('permissions', (permissionQuery) => {
-            permissionQuery.select(['name', 'can_create', 'can_edit', 'can_view', 'can_delete'])
+            permissionQuery.select(['name', 'actions'])
           })
         })
         .first()

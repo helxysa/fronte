@@ -14,16 +14,7 @@ export default class Permission extends BaseModel {
   declare name: string
 
   @column()
-  declare can_create: boolean
-
-  @column()
-  declare can_edit: boolean
-
-  @column()
-  declare can_view: boolean
-
-  @column()
-  declare can_delete: boolean
+  declare actions: JSON
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
