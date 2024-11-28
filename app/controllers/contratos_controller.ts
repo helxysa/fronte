@@ -853,10 +853,11 @@ export default class ContratosController {
         const username = CurrentUserService.getCurrentUsername()
         await Logs.create({
           userId: userId || 0,
+          name: username || 'Usuário',
           action: 'Deletar',
           model: 'Contrato',
           modelId: contrato.id,
-          description: `Usuário ${username} excluiu o contrato "${contrato.nome_contrato}" com id ${contrato.id}.`,
+          description: `Usuário ${username} excluiu o contrato "${contrato.nome_contrato}" com ID ${contrato.id}.`,
         })
       } catch (error) {
         console.error('Erro ao criar o log de exclusão:', error)

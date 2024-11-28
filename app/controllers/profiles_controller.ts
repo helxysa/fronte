@@ -2,6 +2,8 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import Profile from '#models/profile'
 import Permission from '#models/permission'
+import CurrentUserService from '#services/current_user_service'
+import Logs from '#models/log'
 
 export default class ProfilesController {
   async index({ response }: HttpContext) {
@@ -76,6 +78,18 @@ export default class ProfilesController {
 
     const profile = await Profile.findOrFail(profileId)
     await profile.delete()
+
+    const userId = CurrentUserService.getCurrentUserId()
+    const username = CurrentUserService.getCurrentUsername()
+
+    await Logs.create({
+      userId: userId || 0,
+      name: username || 'Usuário',
+      action: 'Deletar',
+      model: 'Profile',
+      modelId: profile.id,
+      description: `${username} excluiu o perfil "${profile.name}" com ID ${profile.id}.`,
+    })
 
     return response.status(200).json({
       message: 'Perfil excluído com sucesso',

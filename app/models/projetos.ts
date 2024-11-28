@@ -31,13 +31,14 @@ export default class Projeto extends BaseModel {
     try {
       const userId = CurrentUserService.getCurrentUserId()
       const username = CurrentUserService.getCurrentUsername()
+      const contrato = await projeto.related('contratos').query().first()
       await Logs.create({
         userId: userId || 0,
         name: username || 'Usuário',
         action: 'Criar',
         model: 'Projeto',
         modelId: projeto.id,
-        description: `Usuário ${username} criou o projeto "${projeto.projeto}" com id ${projeto.id}.`,
+        description: `${username} criou o projeto "${projeto.projeto}" com id ${projeto.id} no contrato ${contrato?.nome_contrato || 'desconhecido'}.`,
       })
     } catch (error) {
       console.error('Não foi possível criar log: ', error)
@@ -50,13 +51,14 @@ export default class Projeto extends BaseModel {
     try {
       const userId = CurrentUserService.getCurrentUserId()
       const username = CurrentUserService.getCurrentUsername()
+      const contrato = await projeto.related('contratos').query().first()
       await Logs.create({
         userId: userId || 0,
         name: username || 'Usuário',
         action: 'Atualizar',
         model: 'Projeto',
         modelId: projeto.id,
-        description: `Usuário ${username} atualizou o projeto "${projeto.projeto}" com id ${projeto.id}.`,
+        description: `${username} atualizou o projeto "${projeto.projeto}" com id ${projeto.id} no contrato ${contrato?.nome_contrato || 'desconhecido'}.`,
       })
     } catch (error) {
       console.error('Não foi possível criar log: ', error)

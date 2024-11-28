@@ -9,6 +9,8 @@ import FaturamentoAnexo from '#models/faturamento_anexo'
 import app from '@adonisjs/core/services/app'
 import fs from 'node:fs'
 import path from 'node:path'
+import CurrentUserService from '#services/current_user_service'
+import Logs from '#models/log'
 
 export default class FaturamentosController {
   async createFaturamentos({ params, request, response }: HttpContext) {
@@ -202,6 +204,26 @@ export default class FaturamentosController {
 
     // Soft delete no faturamento
     await faturamento.delete()
+
+
+    try {
+      const userId = CurrentUserService.getCurrentUserId();
+      const username = CurrentUserService.getCurrentUsername();
+      const contrato = await faturamento.related('contrato').query().first();
+      if (!contrato) {
+        return response.status(404).json({ message: 'Contrato relacionado ao faturamento não encontrado.' });
+      }
+      await Logs.create({
+        userId: userId || 0,
+        name: username || 'Usuário',
+        action: 'Deletar',
+        model: 'Faturamentos',
+        modelId: faturamentoId,
+        description: `${username} excluiu o faturamento com ID ${faturamentoId} do contrato "${contrato.nome_contrato}".`,
+      });
+    } catch (error) {
+      console.error('Erro ao criar o log de exclusão:', error);
+    }
 
     return response.status(200).json({ message: 'Faturamento deletado com sucesso.' })
   }

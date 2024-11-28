@@ -10,6 +10,8 @@ import MedicaoAnexo from '#models/medicao_anexo'
 import app from '@adonisjs/core/services/app'
 import fs from 'node:fs'
 import path from 'node:path'
+import CurrentUserService from '#services/current_user_service'
+import Logs from '#models/log'
 
 export default class LancamentosController {
   async createLancamento({ request, response, params }: HttpContext) {
@@ -345,6 +347,25 @@ export default class LancamentosController {
       await MedicaoAnexo.query().where('lancamento_id', id).delete()
 
       await lancamento.delete()
+
+      try {
+        const userId = CurrentUserService.getCurrentUserId();
+        const username = CurrentUserService.getCurrentUsername();
+        const contrato = await lancamento.related('contratos').query().first();
+        if (!contrato) {
+          return response.status(404).json({ message: 'Contrato relacionado à medição não encontrado.' });
+        }
+        await Logs.create({
+          userId: userId || 0,
+          name: username || 'Usuário',
+          action: 'Deletar',
+          model: 'Lancamentos',
+          modelId: lancamento.id,
+          description: `${username} excluiu a medição com ID ${lancamento.id} do contrato "${contrato.nome_contrato}".`,
+        });
+      } catch (error) {
+        console.error('Erro ao criar o log de exclusão:', error);
+      }
 
       return response.status(200).send('Lançamento deletado com sucesso.')
     } catch (err) {

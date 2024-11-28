@@ -33,7 +33,7 @@ export default class Profile extends BaseModel {
         action: 'Criar',
         model: 'Perfil',
         modelId: profile.id,
-        description: `Usuário ${username} criou o perfil "${profile.name}" com id ${profile.id}.`,
+        description: `${username} criou o perfil "${profile.name}" com id ${profile.id}.`,
       })
     } catch (error) {
       console.error('Não foi possível criar log: ', error)
@@ -52,7 +52,7 @@ export default class Profile extends BaseModel {
         action: 'Atualizar',
         model: 'Perfil',
         modelId: profile.id,
-        description: `Usuário ${username} atualizou o perfil "${profile.name}" com id ${profile.id}.`,
+        description: `${username} atualizou o perfil "${profile.name}" com id ${profile.id}.`,
       })
     } catch (error) {
       console.error('Não foi possível criar log: ', error)
