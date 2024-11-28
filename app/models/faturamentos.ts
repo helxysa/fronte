@@ -66,7 +66,6 @@ export default class Faturamentos extends compose(BaseModel, SoftDeletes) {
       const userId = CurrentUserService.getCurrentUserId()
       const username = CurrentUserService.getCurrentUsername()
       const contrato = await fat.related('contrato').query().first()
-      console.log('criou fat')
       await Logs.create({
         userId: userId || 0,
         name: username || 'Usuário',
