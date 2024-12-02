@@ -32,13 +32,18 @@ export default class FaturamentosController {
 
       const notaArray = Array.isArray(descricao_nota) ? descricao_nota : []
 
+      const competenciaDate = DateTime.fromFormat(competencia, 'yyyy-MM');
+      if (!competenciaDate.isValid) {
+        return response.status(400).send('Formato de competência inválido. Use "YYYY-MM".');
+      }
+
       const faturamento = await Faturamentos.create({
         contrato_id: contrato.id,
         nota_fiscal,
         data_faturamento,
         status,
         observacoes,
-        competencia
+        competencia: competenciaDate,
       })
 
       for (const lancamentoId of notaArray) {
@@ -86,12 +91,20 @@ export default class FaturamentosController {
       return response.status(404).json({ message: 'Faturamento não encontrado.' })
     }
 
+    let competenciaDate = null;
+    if (competencia) {
+      competenciaDate = DateTime.fromFormat(competencia, 'yyyy-MM');
+      if (!competenciaDate.isValid) {
+        return response.status(400).send('Formato de competência inválido. Use "YYYY-MM".');
+      }
+    }
+
     // Atualiza os campos do faturamento
     faturamento.nota_fiscal = nota_fiscal ?? faturamento.nota_fiscal
     faturamento.data_faturamento = data_faturamento ? DateTime.fromISO(data_faturamento) : faturamento.data_faturamento
     faturamento.status = status ?? faturamento.status
     faturamento.observacoes = observacoes ?? faturamento.observacoes
-    faturamento.competencia = competencia ?? faturamento.competencia
+    faturamento.competencia = competenciaDate ? competenciaDate : faturamento.competencia;
     await faturamento.save()
 
     // Atualiza os itens do faturamento se necessário
