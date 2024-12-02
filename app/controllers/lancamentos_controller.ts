@@ -51,6 +51,13 @@ export default class LancamentosController {
         return response.status(400).send('Já existe uma medição com a mesma tarefa para este contrato.');
       }
 
+      const competenciaDate = DateTime.fromFormat(competencia, 'yyyy-MM');
+      if (!competenciaDate.isValid) {
+        return response.status(400).send('Formato de competência inválido. Use "YYYY-MM".');
+      }
+
+      // const competenciaFormatted = competenciaDate.toFormat('yyyy-MM-01');
+
       // Criação do novo lançamento
       const novoLancamento = await Lancamentos.create({
         contrato_id: id,
@@ -59,7 +66,7 @@ export default class LancamentosController {
         data_medicao: data_medicao,
         tarefa_medicao,
         tipo_medicao,
-        competencia,
+        competencia: competenciaDate,
         descricao,
         dias: tipo_medicao === 'Relatório Mensal' ? dias : null
       })
@@ -222,11 +229,16 @@ export default class LancamentosController {
           .send('Já existe uma medição com a mesma tarefa para este contrato.')
       }
 
+      const competenciaDate = DateTime.fromFormat(competencia, 'yyyy-MM');
+      if (!competenciaDate.isValid) {
+        return response.status(400).send('Formato de competência inválido. Use "YYYY-MM".');
+      }
+
       lancamentoAtual.status = status
       lancamentoAtual.projetos = projetos
       lancamentoAtual.tarefa_medicao = tarefa_medicao
       lancamentoAtual.tipo_medicao = tipo_medicao
-      lancamentoAtual.competencia = competencia
+      lancamentoAtual.competencia = competenciaDate
       lancamentoAtual.descricao = descricao
       lancamentoAtual.data_medicao = dataMedicao;
       lancamentoAtual.dias = tipo_medicao === 'Relatório Mensal' ? dias : null;
