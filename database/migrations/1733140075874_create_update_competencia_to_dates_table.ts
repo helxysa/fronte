@@ -37,8 +37,18 @@ export default class extends BaseSchema {
             await Database.from('lancamentos')
               .where('id', lancamento.id)
               .update({ competencia: date.toSQLDate() })
+          } else {
+            await Database.from('lancamentos')
+              .where('id', lancamento.id)
+              .update({ competencia: null })
           }
+        } else {
+          await Database.from('lancamentos')
+            .where('id', lancamento.id)
+            .update({ competencia: null })
         }
+      } else {
+        await Database.from('lancamentos').where('id', lancamento.id).update({ competencia: null })
       }
     }
   }
