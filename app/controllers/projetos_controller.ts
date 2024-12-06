@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import type { HttpContext } from '@adonisjs/core/http'
 import Projeto from '#models/projetos'
+import CurrentUserService from '#services/current_user_service'
+import Logs from '#models/log'
 
 export default class ProjetosController {
   async index({ params, response }: HttpContext) {
@@ -167,6 +169,19 @@ export default class ProjetosController {
   async destroy({ params, response }: HttpContext) {
     try {
       const projeto = await Projeto.findOrFail(params.id)
+
+      const userId = CurrentUserService.getCurrentUserId()
+      const username = CurrentUserService.getCurrentUsername()
+
+      await Logs.create({
+        userId: userId || 0,
+        name: username || 'Usuário',
+        action: 'Deletar',
+        model: 'Projeto',
+        modelId: projeto.id,
+        description: `${username} excluiu o projeto "${projeto.projeto}" com ID ${projeto.id}.`,
+      })
+
       await projeto.delete()
       return response.json({
         status: 'success',

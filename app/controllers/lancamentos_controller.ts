@@ -10,11 +10,13 @@ import MedicaoAnexo from '#models/medicao_anexo'
 import app from '@adonisjs/core/services/app'
 import fs from 'node:fs'
 import path from 'node:path'
+import CurrentUserService from '#services/current_user_service'
+import Logs from '#models/log'
 
 export default class LancamentosController {
   async createLancamento({ request, response, params }: HttpContext) {
     const { id } = params
-    const { status, projetos, data_medicao, itens, tarefa_medicao, tipo_medicao, competencia, descricao } = request.only([
+    const { status, projetos, data_medicao, itens, tarefa_medicao, tipo_medicao, competencia, descricao, dias } = request.only([
       'status',
       'itens',
       'projetos',
@@ -23,7 +25,12 @@ export default class LancamentosController {
       'tipo_medicao',
       'competencia',
       'descricao',
+      'dias'
     ])
+
+    if (tipo_medicao === 'Relatório Mensal' && (dias === undefined)) {
+      return response.status(400).send('O campo "dias" é obrigatório para o tipo Relatório Mensal.');
+    }
 
     if (!projetos || !itens || !itens.length) {
       return response.status(400).send('Nome do projeto e itens são obrigatórios.')
@@ -44,6 +51,13 @@ export default class LancamentosController {
         return response.status(400).send('Já existe uma medição com a mesma tarefa para este contrato.');
       }
 
+      const competenciaDate = DateTime.fromFormat(competencia, 'yyyy-MM');
+      if (!competenciaDate.isValid) {
+        return response.status(400).send('Formato de competência inválido. Use "YYYY-MM".');
+      }
+
+      // const competenciaFormatted = competenciaDate.toFormat('yyyy-MM-01');
+
       // Criação do novo lançamento
       const novoLancamento = await Lancamentos.create({
         contrato_id: id,
@@ -52,8 +66,9 @@ export default class LancamentosController {
         data_medicao: data_medicao,
         tarefa_medicao,
         tipo_medicao,
-        competencia,
-        descricao
+        competencia: competenciaDate,
+        descricao,
+        dias: tipo_medicao === 'Relatório Mensal' ? dias : null
       })
 
       // Processamento dos itens
@@ -173,7 +188,7 @@ export default class LancamentosController {
 
   async updateLancamento({ request, response, params }: HttpContext) {
     const { id } = params
-    const { status, itens, projetos, data_medicao, tarefa_medicao, tipo_medicao, competencia, descricao } = request.only([
+    const { status, itens, projetos, data_medicao, tarefa_medicao, tipo_medicao, competencia, descricao, dias} = request.only([
       'status',
       'itens',
       'projetos',
@@ -181,8 +196,13 @@ export default class LancamentosController {
       'tarefa_medicao',
       'tipo_medicao',
       'competencia',
-      'descricao'
+      'descricao',
+      'dias'
     ])
+
+    if (tipo_medicao === 'Relatório Mensal' && (dias === undefined)) {
+      return response.status(400).send('O campo "dias" é obrigatório para o tipo Relatório Mensal.');
+    }
 
     try {
       const lancamentoAtual = await Lancamentos.find(id)
@@ -209,13 +229,19 @@ export default class LancamentosController {
           .send('Já existe uma medição com a mesma tarefa para este contrato.')
       }
 
+      const competenciaDate = DateTime.fromFormat(competencia, 'yyyy-MM');
+      if (!competenciaDate.isValid) {
+        return response.status(400).send('Formato de competência inválido. Use "YYYY-MM".');
+      }
+
       lancamentoAtual.status = status
       lancamentoAtual.projetos = projetos
       lancamentoAtual.tarefa_medicao = tarefa_medicao
       lancamentoAtual.tipo_medicao = tipo_medicao
-      lancamentoAtual.competencia = competencia
+      lancamentoAtual.competencia = competenciaDate
       lancamentoAtual.descricao = descricao
       lancamentoAtual.data_medicao = dataMedicao;
+      lancamentoAtual.dias = tipo_medicao === 'Relatório Mensal' ? dias : null;
 
       await lancamentoAtual.save()
 
@@ -346,6 +372,25 @@ export default class LancamentosController {
 
       await lancamento.delete()
 
+      try {
+        const userId = CurrentUserService.getCurrentUserId();
+        const username = CurrentUserService.getCurrentUsername();
+        const contrato = await lancamento.related('contratos').query().first();
+        if (!contrato) {
+          return response.status(404).json({ message: 'Contrato relacionado à medição não encontrado.' });
+        }
+        await Logs.create({
+          userId: userId || 0,
+          name: username || 'Usuário',
+          action: 'Deletar',
+          model: 'Lancamentos',
+          modelId: lancamento.id,
+          description: `${username} excluiu a medição com ID ${lancamento.id} do contrato "${contrato.nome_contrato}".`,
+        });
+      } catch (error) {
+        console.error('Erro ao criar o log de exclusão:', error);
+      }
+
       return response.status(200).send('Lançamento deletado com sucesso.')
     } catch (err) {
       console.error(err)
@@ -438,15 +483,3 @@ export default class LancamentosController {
     }
   }
 }
-
-// function parseDate(dateString: string): DateTime | null {
-//   const formats = ['dd/MM/yyyy', 'yyyy/MM/dd', 'yyyy-MM-dd', 'dd-MM-yyyy']
-
-//   for (const format of formats) {
-//     const date = DateTime.fromFormat(dateString, format)
-//     if (date.isValid) {
-//       return date.startOf('day')
-//     }
-//   }
-//   return null
-// }

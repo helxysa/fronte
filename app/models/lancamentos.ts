@@ -39,13 +39,16 @@ export default class Lancamentos extends compose(BaseModel, SoftDeletes) {
   declare tipo_medicao: string
 
   @column()
+  declare dias: number
+
+  @column()
   declare data_medicao: DateTime | null
 
   @column()
   declare projetos: string
 
-  @column()
-  declare competencia: string
+  @column.date()
+  declare competencia: DateTime | null
 
   @column()
   declare descricao: string
@@ -83,13 +86,14 @@ export default class Lancamentos extends compose(BaseModel, SoftDeletes) {
     try {
       const userId = CurrentUserService.getCurrentUserId()
       const username = CurrentUserService.getCurrentUsername()
+      const contrato = await medicao.related('contratos').query().first()
       await Logs.create({
         userId: userId || 0,
         name: username || 'Usuário',
         action: 'Criar',
         model: 'Medição',
         modelId: medicao.id,
-        description: `Usuário ${username} criou a medição com id ${medicao.id}.`,
+        description: `${username} criou a medição com id ${medicao.id} no contrato ${contrato?.nome_contrato || ''}.`,
       })
     } catch (error) {
       console.error('Não foi possível criar log: ', error)
@@ -102,13 +106,14 @@ export default class Lancamentos extends compose(BaseModel, SoftDeletes) {
     try {
       const userId = CurrentUserService.getCurrentUserId()
       const username = CurrentUserService.getCurrentUsername()
+      const contrato = await medicao.related('contratos').query().first()
       await Logs.create({
         userId: userId || 0,
         name: username || 'Usuário',
         action: 'Atualizar',
         model: 'Medição',
         modelId: medicao.id,
-        description: `Usuário ${username} atualizou a medição com id ${medicao.id}.`,
+        description: `${username} atualizou a medição com id ${medicao.id} no contrato ${contrato?.nome_contrato || ''}.`,
       })
     } catch (error) {
       console.error('Não foi possível criar log: ', error)

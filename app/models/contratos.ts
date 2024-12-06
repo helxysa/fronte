@@ -118,7 +118,7 @@ export default class Contratos extends compose(BaseModel, SoftDeletes) {
         action: 'Criar',
         model: 'Contrato',
         modelId: contrato.id,
-        description: `Usuário ${username} criou o contrato "${contrato.nome_contrato}" com id ${contrato.id}.`,
+        description: `${username} criou o contrato "${contrato.nome_contrato}" com id ${contrato.id}.`,
       })
     } catch (error) {
       console.error('Não foi possível criar log: ', error)
@@ -137,7 +137,7 @@ export default class Contratos extends compose(BaseModel, SoftDeletes) {
         action: 'Atualizar',
         model: 'Contrato',
         modelId: contrato.id,
-        description: `Usuário ${username} atualizou o contrato "${contrato.nome_contrato}" com id ${contrato.id}.`,
+        description: `${username} atualizou o contrato "${contrato.nome_contrato}" com id ${contrato.id}.`,
       })
     } catch (error) {
       console.error('Não foi possível criar log: ', error)

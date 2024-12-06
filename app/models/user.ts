@@ -69,7 +69,7 @@ export default class User extends compose(BaseModel, AuthFinder) {
         action: 'Criar',
         model: 'Usuário',
         modelId: user.id,
-        description: `Usuário ${username} criou o usuário com id ${user.id}.`,
+        description: `${username} criou o usuário com id ${user.id}.`,
       })
     } catch (error) {
       console.error('Não foi possível criar log: ', error)

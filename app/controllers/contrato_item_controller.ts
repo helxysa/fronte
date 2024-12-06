@@ -2,6 +2,8 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import ContratoItens from '#models/contrato_itens'
 import LancamentoItens from '#models/lancamento_itens'
+import CurrentUserService from '#services/current_user_service'
+import Logs from '#models/log'
 
 export default class ContratoItemController {
   async createContractItem({ request, response, params }: HttpContext) {
@@ -137,6 +139,26 @@ export default class ContratoItemController {
         return response.status(400).json({
           message: 'Este item do contrato está vinculado a uma medição e não pode ser excluído.',
         })
+      }
+      try {
+        const userId = CurrentUserService.getCurrentUserId()
+        const username = CurrentUserService.getCurrentUsername()
+        const contrato = await contratoItem.related('contratos').query().first()
+        if (!contrato) {
+          return response
+            .status(404)
+            .json({ message: 'Contrato relacionado ao item não encontrado.' })
+        }
+        await Logs.create({
+          userId: userId || 0,
+          name: username || 'Usuário',
+          action: 'Deletar',
+          model: 'Itens',
+          modelId: contratoItem.id,
+          description: `${username} excluiu o item "${contratoItem.titulo}" do contrato "${contrato.nome_contrato}".`,
+        })
+      } catch (error) {
+        console.error('Erro ao criar o log de exclusão:', error)
       }
 
       await contratoItem.delete()

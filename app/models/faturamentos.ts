@@ -38,8 +38,8 @@ export default class Faturamentos extends compose(BaseModel, SoftDeletes) {
   @column()
   declare observacoes: string
 
-  @column()
-  declare competencia: string
+  @column.date()
+  declare competencia: DateTime | null
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -50,7 +50,7 @@ export default class Faturamentos extends compose(BaseModel, SoftDeletes) {
   @column.dateTime()
   declare deletedAt: DateTime | null
 
-  @belongsTo(() => Contratos)
+  @belongsTo(() => Contratos, { foreignKey: 'contrato_id' })
   declare contrato: BelongsTo<typeof Contratos>
 
   @hasMany(() => Lancamentos, { foreignKey: 'lancamento_id' })
@@ -65,13 +65,14 @@ export default class Faturamentos extends compose(BaseModel, SoftDeletes) {
     try {
       const userId = CurrentUserService.getCurrentUserId()
       const username = CurrentUserService.getCurrentUsername()
+      const contrato = await fat.related('contrato').query().first()
       await Logs.create({
         userId: userId || 0,
         name: username || 'Usuário',
         action: 'Criar',
         model: 'Faturamento',
         modelId: fat.id,
-        description: `Usuário ${username} criou o faturamento com id ${fat.id}.`,
+        description: `${username} criou o faturamento com id ${fat.id} no contrato ${contrato?.nome_contrato || ''}.`,
       })
     } catch (error) {
       console.error('Não foi possível criar log: ', error)
@@ -84,13 +85,14 @@ export default class Faturamentos extends compose(BaseModel, SoftDeletes) {
     try {
       const userId = CurrentUserService.getCurrentUserId()
       const username = CurrentUserService.getCurrentUsername()
+      const contrato = await fat.related('contrato').query().first()
       await Logs.create({
         userId: userId || 0,
         name: username || 'Usuário',
         action: 'Atualizar',
         model: 'Faturamento',
         modelId: fat.id,
-        description: `Usuário ${username} atualizou o faturamento com id ${fat.id}.`,
+        description: `${username} atualizou o faturamento com id ${fat.id} no contrato ${contrato?.nome_contrato || ''}.`,
       })
     } catch (error) {
       console.error('Não foi possível criar log: ', error)
