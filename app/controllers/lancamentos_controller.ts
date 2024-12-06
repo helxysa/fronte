@@ -132,7 +132,6 @@ export default class LancamentosController {
     const sortBy = request.input('sortBy', 'created_at')
     const sortOrder = request.input('sortOrder', 'desc')
     let statuses = request.input('statuses', null);
-    console.log('test prod')
     try {
       const query = Lancamentos.query()
       .where('contrato_id', id)
