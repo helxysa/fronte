@@ -285,7 +285,12 @@ export default class LancamentosController {
         return response.status(400).send('O campo "Competência" é obrigatório.');
       }
 
-      lancamentoAtual.competencia = competencia;
+      const competenciaDate = DateTime.fromFormat(competencia, 'yyyy-MM');
+      if (!competenciaDate.isValid) {
+        return response.status(400).send('Formato de competência inválido. Use "YYYY-MM".');
+      }
+
+      lancamentoAtual.competencia = competenciaDate;
       await lancamentoAtual.save();
 
       return response.status(200).json(lancamentoAtual);
