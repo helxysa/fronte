@@ -131,7 +131,9 @@ export default class LancamentosController {
     const limit = request.input('limit', 10)
     const sortBy = request.input('sortBy', 'created_at')
     const sortOrder = request.input('sortOrder', 'desc')
-    let statuses = request.input('statuses', null);
+    let statuses = request.input('statuses', null)
+    const search = request.input('search', '')
+
     try {
       const query = Lancamentos.query()
       .where('contrato_id', id)
@@ -152,6 +154,15 @@ export default class LancamentosController {
           query.whereIn('status', statuses);
         }
       }
+
+    if (search) {
+      query.where((builder) => {
+        builder.whereRaw('CAST(id AS TEXT) ILIKE ?', [`%${search}%`])
+          .orWhere('projetos', 'ilike', `%${search}%`)
+          .orWhere('tarefa_medicao', 'ilike', `%${search}%`)
+          .orWhere('tipo_medicao', 'ilike', `%${search}%`);
+      })
+    }
 
     const lancamento = await query.paginate(page, limit);
 
