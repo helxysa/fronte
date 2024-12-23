@@ -161,6 +161,7 @@ export default class FaturamentosController {
               .preload('lancamentoItens', (lancamentoItensQuery) => {
                 lancamentoItensQuery.select([
                   'id',
+                  'titulo',
                   'unidade_medida',
                   'valor_unitario',
                   'quantidade_itens',
