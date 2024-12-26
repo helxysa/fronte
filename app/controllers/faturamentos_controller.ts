@@ -133,13 +133,15 @@ export default class FaturamentosController {
   }
 
   async getFaturamentosByContratoId({ params, request, response }: HttpContext) {
-    const { id } = params
-    const page = request.input('page', 1)
-    const limit = request.input('limit', 10)
-    const sortBy = request.input('sortBy', 'created_at')
-    const sortOrder = request.input('sortOrder', 'desc')
+    const { id } = params;
+    const page = request.input('page', 1);
+    const limit = request.input('limit', 10);
+    const sortBy = request.input('sortBy', 'created_at');
+    const sortOrder = request.input('sortOrder', 'desc');
+    const search = request.input('search', '');
+
     try {
-      const faturamentos = await Faturamentos.query()
+      const query = Faturamentos.query()
         .where('contrato_id', id)
         .select([
           'id',
@@ -159,27 +161,37 @@ export default class FaturamentosController {
               .preload('lancamentoItens', (lancamentoItensQuery) => {
                 lancamentoItensQuery.select([
                   'id',
+                  'titulo',
                   'unidade_medida',
                   'valor_unitario',
                   'quantidade_itens',
-                ])
-              })
-          })
+                ]);
+              });
+          });
         })
-      .orderBy(sortBy, sortOrder)
-      .paginate(page, limit)
+        .orderBy(sortBy, sortOrder);
 
-      if (faturamentos.length === 0) {
-        return response
-          .status(404)
-          .json({ message: 'Nenhum faturamento encontrado para o contrato fornecido.' })
+      if (search) {
+        query.where((builder) => {
+          builder
+            .whereRaw('CAST(id AS TEXT) ILIKE ?', [`%${search}%`])
+            .orWhere('nota_fiscal', 'ilike', `%${search}%`)
+            .orWhere('status', 'ilike', `%${search}%`)
+        });
       }
 
-      return response.status(200).json(faturamentos)
+      const faturamentos = await query.paginate(page, limit);
+
+      if (!faturamentos) {
+        return response.status(404).json({ message: 'Nenhum faturamento encontrado para o contrato fornecido.' })
+      }
+
+      return response.status(200).json(faturamentos);
     } catch (error) {
+      console.error(error);
       return response
         .status(500)
-        .json({ message: 'Erro ao buscar faturamentos', error: error.message })
+        .json({ message: 'Erro ao buscar faturamentos', error: error.message });
     }
   }
 
