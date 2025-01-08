@@ -165,6 +165,7 @@ export default class FaturamentosController {
                   'unidade_medida',
                   'valor_unitario',
                   'quantidade_itens',
+                  'convertido'
                 ]);
               });
           });
