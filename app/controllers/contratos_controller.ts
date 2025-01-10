@@ -841,6 +841,7 @@ export default class ContratosController {
 
       const contrato = await Contrato.query()
         .where('id', contratoId)
+        .preload('contratoItens')
         .preload('projetos')
         .preload('lancamentos', (lancamentosQuery) => {
           lancamentosQuery
