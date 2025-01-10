@@ -60,6 +60,7 @@ router.group(() => {
   router.get('/contratos-e-termos', [ContratosController, 'getContractAndAditiveTerms'])
   router.get('/contratos', [ContratosController, 'getContracts'])
   router.get('/contratos/:id', [ContratosController, 'getContractById'])
+  router.get('/contratos/relatorio/:id', [ContratosController, 'getRelatorio'])
   router.put('/contratos/:id', [ContratosController, 'updateContract'])
   router.put('/contratos/restore/:id', [ContratosController, 'restoreContract'])
   router.delete('/contratos/:id', [ContratosController, 'deleteContract'])

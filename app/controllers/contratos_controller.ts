@@ -589,103 +589,6 @@ export default class ContratosController {
     }
   }
 
-  // async updateContract({ params, request, response }: HttpContext) {
-  //   try {
-  //     const {
-  //       nome_contrato,
-  //       nome_cliente,
-  //       data_inicio,
-  //       data_fim,
-  //       lembrete_vencimento,
-  //       observacoes,
-  //       saldo_contrato,
-  //       fiscal: { nome, telefone, email },
-  //       ponto_focal,
-  //       cidade,
-  //       estado,
-  //       objeto_contrato,
-  //       items,
-  //     } = request.only([
-  //       'nome_contrato',
-  //       'nome_cliente',
-  //       'data_inicio',
-  //       'data_fim',
-  //       'lembrete_vencimento',
-  //       'observacoes',
-  //       'saldo_contrato',
-  //       'fiscal',
-  //       'ponto_focal',
-  //       'cidade',
-  //       'estado',
-  //       'objeto_contrato',
-  //       'items',
-  //     ])
-
-  //     const contrato = await Contrato.find(params.id)
-
-  //     if (!contrato) {
-  //       return response.status(404).json({ message: 'Contrato não encontrado' })
-  //     }
-
-  //     contrato.nome_contrato = nome_contrato
-  //     contrato.nome_cliente = nome_cliente
-  //     contrato.data_inicio = data_inicio
-  //     contrato.data_fim = data_fim
-  //     contrato.lembrete_vencimento = lembrete_vencimento
-  //     contrato.observacoes = observacoes
-  //     contrato.saldo_contrato = saldo_contrato
-  //     contrato.fiscal = { nome, telefone, email }
-  //     contrato.ponto_focal = ponto_focal
-  //     contrato.cidade = cidade
-  //     contrato.estado = estado
-  //     contrato.objeto_contrato = objeto_contrato
-  //     await contrato.save()
-
-  //     // Atualiza os itens do contrato, se necessário
-  //     if (items && items.length > 0) {
-  //       await Promise.all(
-  //         items.map(
-  //           async (item: {
-  //             id?: number
-  //             titulo: string
-  //             unidade_medida: string
-  //             valor_unitario: string
-  //             saldo_quantidade_contratada: string
-  //           }) => {
-  //             if (item.id) {
-  //               // Atualiza item existente
-  //               const contratoItem = await ContratoItem.find(item.id)
-  //               if (contratoItem) {
-  //                 contratoItem.titulo = item.titulo
-  //                 contratoItem.unidade_medida = item.unidade_medida
-  //                 contratoItem.valor_unitario = item.valor_unitario
-  //                 contratoItem.saldo_quantidade_contratada = item.saldo_quantidade_contratada
-  //                 await contratoItem.save()
-  //               }
-  //             } else {
-  //               // Cria novo item
-  //               await ContratoItem.create({
-  //                 contrato_id: contrato.id,
-  //                 titulo: item.titulo,
-  //                 unidade_medida: item.unidade_medida,
-  //                 valor_unitario: item.valor_unitario,
-  //                 saldo_quantidade_contratada: item.saldo_quantidade_contratada,
-  //               })
-  //             }
-  //           }
-  //         )
-  //       )
-  //     }
-
-  //     // Recarrega o contrato com os itens atualizados
-  //     await contrato.load('contratoItens')
-
-  //     return response.json(contrato)
-  //   } catch (err) {
-  //     console.error(err)
-  //     return response.status(500).send('Erro no servidor')
-  //   }
-  // }
   async updateContract({ params, request, response }: HttpContext) {
     try {
       const data = request.only([
@@ -928,6 +831,116 @@ export default class ContratosController {
     } catch (err) {
       console.error(err)
       return response.status(500).send('Erro no servidor')
+    }
+  }
+
+  async getRelatorio({ params, request, response }: HttpContext) {
+    try {
+      const contratoId = params.id;
+      const filtroProjetos = request.input('projetos', []);
+
+      const contrato = await Contrato.query()
+        .where('id', contratoId)
+        .preload('projetos')
+        .preload('lancamentos', (lancamentosQuery) => {
+          lancamentosQuery
+            .preload('lancamentoItens')
+            .if(filtroProjetos.length > 0, (query) => {
+              query.whereIn('projetos', filtroProjetos);
+            });
+        })
+        .preload('faturamentos', (faturamentosQuery) => {
+          faturamentosQuery.preload('faturamentoItens', (faturamentoItensQuery) => {
+            faturamentoItensQuery.preload('lancamento').preload('lancamento', (lancamentoQuery) => {
+              lancamentoQuery
+                .whereNull('deleted_at')
+                .select(['id', 'status', 'projetos', 'data_medicao'])
+                .preload('lancamentoItens', (lancamentoItensQuery) => {
+                  lancamentoItensQuery
+                    .whereNull('deleted_at')
+                    .select(['id', 'unidade_medida', 'valor_unitario', 'quantidade_itens'])
+                })
+            })
+          })
+        })
+        .firstOrFail();
+
+      const projetos = contrato.projetos.map((projeto) => ({
+        id: projeto.id,
+        nome: projeto.projeto,
+      }));
+
+      // Saldo Total e Atual
+      const saldoTotal = Number(contrato.saldo_contrato) || 0;
+      const saldoAtual = saldoTotal - (contrato.lancamentos || []).reduce((total, lancamento) => {
+        return total + (lancamento.lancamentoItens || []).reduce((soma, item) => {
+          return soma + (Number(item.valor_unitario) * Number(item.quantidade_itens));
+        }, 0);
+      }, 0);
+
+      // Distribuição por Projeto com Status
+      const distribuicaoPorProjeto = (contrato.faturamentos || []).reduce((result: any, faturamento) => {
+        const status = faturamento.status || 'Indefinido';
+
+        (faturamento.faturamentoItens || []).forEach((faturamentoItem: any) => {
+          const lancamento = faturamentoItem.lancamento;
+          if (!lancamento) return;
+
+          const projeto = lancamento.projetos || 'Sem Projeto';
+          if (!result[projeto]) {
+            result[projeto] = {
+              total: 0,
+              pago: 0,
+              aguardandoPagamento: 0,
+              aguardandoFaturamento: 0,
+            };
+          }
+
+          const totalLancamento = (lancamento.lancamentoItens || []).reduce((soma: any, item: any) => {
+            return soma + (Number(item.valor_unitario) * Number(item.quantidade_itens));
+          }, 0);
+
+          result[projeto].total += totalLancamento;
+
+          // Classificar valores por status do faturamento
+          if (status === 'Pago') {
+            result[projeto].pago += totalLancamento;
+          } else if (status === 'Aguardando Pagamento') {
+            result[projeto].aguardandoPagamento += totalLancamento;
+          } else if (status === 'Aguardando Faturamento') {
+            result[projeto].aguardandoFaturamento += totalLancamento;
+          }
+        });
+
+        return result;
+      }, {});
+
+      // Distribuição de Valores por Status
+      const distribuicaoPorStatus = (contrato.faturamentos || []).reduce((result: any, faturamento) => {
+        const status = faturamento.status || 'Indefinido';
+        if (!result[status]) result[status] = { total: 0 };
+        result[status].total += (faturamento.faturamentoItens || []).reduce((soma: any, item: any) => {
+          return soma + ((item.lancamento?.lancamentoItens || []).reduce((somaLancamento: any, lancamentoItem: any) => {
+            return somaLancamento + (Number(lancamentoItem.valor_unitario) * Number(lancamentoItem.quantidade_itens));
+          }, 0));
+        }, 0);
+        return result;
+      }, {});
+
+      // Total de Projetos
+      const totalProjetos = projetos.length;
+
+      return response.status(200).json({
+        contrato: contrato.toJSON(),
+        saldoTotal,
+        saldoAtual,
+        distribuicaoPorProjeto,
+        distribuicaoPorStatus,
+        totalProjetos,
+      });
+    } catch (error) {
+      console.error(error);
+      return response.status(500).json({ message: 'Erro ao gerar o relatório', error });
     }
   }
 
