@@ -859,10 +859,10 @@ export default class ContratosController {
                 .preload('lancamentoItens', (lancamentoItensQuery) => {
                   lancamentoItensQuery
                     .whereNull('deleted_at')
-                    .select(['id', 'unidade_medida', 'valor_unitario', 'quantidade_itens'])
-                })
-            })
-          })
+                    .select(['id', 'unidade_medida', 'valor_unitario', 'quantidade_itens']);
+                });
+            });
+          });
         })
         .firstOrFail();
 
@@ -873,23 +873,81 @@ export default class ContratosController {
 
       // Saldo Total e Atual
       const saldoTotal = Number(contrato.saldo_contrato) || 0;
-      const saldoAtual = saldoTotal - (contrato.lancamentos || []).reduce((total, lancamento) => {
-        return total + (lancamento.lancamentoItens || []).reduce((soma, item) => {
-          return soma + (Number(item.valor_unitario) * Number(item.quantidade_itens));
-        }, 0);
-      }, 0);
+      let saldoAtual = saldoTotal;
+
+      (contrato.lancamentos || []).forEach((lancamento) => {
+        (lancamento.lancamentoItens || []).forEach((item) => {
+          saldoAtual -= Number(item.valor_unitario) * Number(item.quantidade_itens);
+        });
+      });
+
+      // Série Histórica - Últimos 6 meses considerando apenas faturamentos com status "Pago"
+      const hoje = DateTime.now().setLocale('pt-BR');
+      const meses = Array.from({ length: 6 }, (_, index) =>
+        hoje.minus({ months: 5 - index }).toFormat("MMM yyyy")
+      ).map((mes) => {
+        const [mesAbreviado, ano] = mes.split(" ");
+        const mesSemPonto = mesAbreviado.replace('.', '');
+        return `${mesSemPonto.charAt(0).toUpperCase()}${mesSemPonto.slice(1)} ${ano}`;
+      });
+
+      const pagamentosMensais = meses.map((mes) => {
+        let total = 0;
+        contrato.faturamentos
+          .filter((faturamento) => faturamento.status === 'Pago')
+          .forEach((faturamento) => {
+            console.log('fat', faturamento.toJSON())
+            let dataFaturamento;
+
+            // Verifica se é um objeto Date e converte para ISO
+            if (faturamento.data_faturamento instanceof Date) {
+              dataFaturamento = DateTime.fromISO(faturamento.data_faturamento.toISOString());
+            } else if (typeof faturamento.data_faturamento === 'string') {
+              dataFaturamento = DateTime.fromISO(faturamento.data_faturamento);
+            } else {
+              console.log(`Data inválida encontrada: ${faturamento.data_faturamento}`);
+              return;
+            }
+
+            if (!dataFaturamento.isValid) {
+              console.log(`Data inválida encontrada: ${faturamento.data_faturamento}`);
+              return;
+            }
+
+            const mesFaturamento = dataFaturamento.toFormat('MMM yyyy');
+            if (mesFaturamento === mes) {
+              faturamento.faturamentoItens.forEach((item) => {
+                item.lancamento.lancamentoItens.forEach((lancamentoItem) => {
+                  total += Number(lancamentoItem.valor_unitario) * Number(lancamentoItem.quantidade_itens);
+                });
+              });
+            }
+          });
+        return total;
+      });
+
+      const serieHistorica = {
+        months: meses,
+        pagamentos: pagamentosMensais,
+      };
 
       // Distribuição por Projeto com Status
-      const distribuicaoPorProjeto = (contrato.faturamentos || []).reduce((result: any, faturamento) => {
+      const distribuicaoPorProjeto: any = {};
+      (contrato.faturamentos || []).forEach((faturamento) => {
         const status = faturamento.status || 'Indefinido';
 
         (faturamento.faturamentoItens || []).forEach((faturamentoItem: any) => {
           const lancamento = faturamentoItem.lancamento;
           if (!lancamento) return;
 
+          // Filtrar apenas os projetos especificados (se fornecidos)
+          if (filtroProjetos.length > 0 && !filtroProjetos.includes(lancamento.projetos)) {
+            return;
+          }
+
           const projeto = lancamento.projetos || 'Sem Projeto';
-          if (!result[projeto]) {
-            result[projeto] = {
+          if (!distribuicaoPorProjeto[projeto]) {
+            distribuicaoPorProjeto[projeto] = {
               total: 0,
               pago: 0,
               aguardandoPagamento: 0,
@@ -897,36 +955,50 @@ export default class ContratosController {
             };
           }
 
-          const totalLancamento = (lancamento.lancamentoItens || []).reduce((soma: any, item: any) => {
-            return soma + (Number(item.valor_unitario) * Number(item.quantidade_itens));
-          }, 0);
+          let totalLancamento = 0;
+          (lancamento.lancamentoItens || []).forEach((item: any) => {
+            totalLancamento += Number(item.valor_unitario) * Number(item.quantidade_itens);
+          });
 
-          result[projeto].total += totalLancamento;
+          distribuicaoPorProjeto[projeto].total += totalLancamento;
 
           // Classificar valores por status do faturamento
           if (status === 'Pago') {
-            result[projeto].pago += totalLancamento;
+            distribuicaoPorProjeto[projeto].pago += totalLancamento;
           } else if (status === 'Aguardando Pagamento') {
-            result[projeto].aguardandoPagamento += totalLancamento;
+            distribuicaoPorProjeto[projeto].aguardandoPagamento += totalLancamento;
           } else if (status === 'Aguardando Faturamento') {
-            result[projeto].aguardandoFaturamento += totalLancamento;
+            distribuicaoPorProjeto[projeto].aguardandoFaturamento += totalLancamento;
           }
         });
-
-        return result;
-      }, {});
+      });
 
       // Distribuição de Valores por Status
-      const distribuicaoPorStatus = (contrato.faturamentos || []).reduce((result: any, faturamento) => {
+      const distribuicaoPorStatus: any = {};
+      (contrato.faturamentos || []).forEach((faturamento) => {
+
         const status = faturamento.status || 'Indefinido';
-        if (!result[status]) result[status] = { total: 0 };
-        result[status].total += (faturamento.faturamentoItens || []).reduce((soma: any, item: any) => {
-          return soma + ((item.lancamento?.lancamentoItens || []).reduce((somaLancamento: any, lancamentoItem: any) => {
-            return somaLancamento + (Number(lancamentoItem.valor_unitario) * Number(lancamentoItem.quantidade_itens));
-          }, 0));
-        }, 0);
-        return result;
-      }, {});
+
+        // Filtrar apenas os projetos especificados (se fornecidos)
+        if (
+          filtroProjetos.length > 0 &&
+          !faturamento.faturamentoItens.some((item: any) =>
+            filtroProjetos.includes(item.lancamento?.projetos)
+          )
+        ) {
+          return;
+        }
+
+        if (!distribuicaoPorStatus[status]) {
+          distribuicaoPorStatus[status] = { total: 0 };
+        }
+
+        (faturamento.faturamentoItens || []).forEach((item: any) => {
+          (item.lancamento?.lancamentoItens || []).forEach((lancamentoItem: any) => {
+            distribuicaoPorStatus[status].total += Number(lancamentoItem.valor_unitario) * Number(lancamentoItem.quantidade_itens);
+          });
+        });
+      });
 
       // Total de Projetos
       const totalProjetos = projetos.length;
@@ -935,6 +1007,7 @@ export default class ContratosController {
         contrato: contrato.toJSON(),
         saldoTotal,
         saldoAtual,
+        serieHistorica,
         distribuicaoPorProjeto,
         distribuicaoPorStatus,
         totalProjetos,
