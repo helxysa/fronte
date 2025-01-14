@@ -14,9 +14,21 @@ import axios from 'axios'
 import Cidade from '#models/cidade'
 import app from '@adonisjs/core/services/app'
 import fs from 'node:fs'
-import path from 'node:path'
+// import path from 'node:path'
+import path, { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import CurrentUserService from '#services/current_user_service'
 import Logs from '#models/log'
+import puppeteer from 'puppeteer';
+import { Edge } from 'edge.js';
+import Handlebars from 'handlebars';
+
+const edge = new Edge();
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+
+const viewsPath = join(__dirname, '..', '..', 'resources', 'views')
+edge.mount(viewsPath)
 
 export default class ContratosController {
   async createContract({ request, response }: HttpContext) {
@@ -418,7 +430,7 @@ export default class ContratosController {
         .if(dataInicio && dataFim, (query) => {
           query.where('data_inicio', '>=', dataInicio)
             .andWhere('data_fim', '<=', dataFim)
-          })
+        })
         .preload('faturamentos', (faturamentosQuery) => {
           faturamentosQuery
             .whereNull('deleted_at')
@@ -896,7 +908,6 @@ export default class ContratosController {
         contrato.faturamentos
           .filter((faturamento) => faturamento.status === 'Pago')
           .forEach((faturamento) => {
-            console.log('fat', faturamento.toJSON())
             let dataFaturamento;
 
             // Verifica se é um objeto Date e converte para ISO
@@ -1017,6 +1028,161 @@ export default class ContratosController {
       return response.status(500).json({ message: 'Erro ao gerar o relatório', error });
     }
   }
+
+  async getRelatorioPdf({ response }: HttpContext) {
+    try {
+      const fileTemplate = path.resolve(
+        __dirname,
+        '..',
+        '..',
+        'resources',
+        'views',
+        'teste.hbs',
+      );
+
+      const templateFileContent = await fs.promises.readFile(fileTemplate, {
+        encoding: 'utf-8',
+      });
+
+      const browser = await puppeteer.launch({
+        args: [
+          '--no-sandbox',
+          '--enable-font-antialiasing',
+          '--font-render-hinting=none',
+          '--disable-web-security',
+          '--disable-gpu',
+          '--hide-scrollbars',
+          '--disable-setuid-sandbox',
+          '--force-color-profile=srgb',
+        ],
+      });
+
+      const pagina = await browser.newPage();
+      pagina.setDefaultNavigationTimeout(0)
+      pagina.setDefaultTimeout(0)
+      await pagina.setViewport({ width: 1080, height: 1024 });
+
+      await pagina.setUserAgent(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.121 Safari/537.36'
+      );
+
+      const parseTemplate = Handlebars.compile(templateFileContent);
+
+      const dataContext = { qualquer: 'qualquer' };
+
+      const html = parseTemplate(dataContext);
+      const filename = `${Date.now()}.pdf`;
+      //Salva o pdf na maquina local
+      const tmpFolder = path.resolve(__dirname, '..', '..', 'tmpPublic');
+      const reportsFolder = path.resolve(tmpFolder, 'uploads');
+      const pathFile = `${reportsFolder}/${filename}`;
+
+      await pagina.setContent(html, {
+        timeout: 0
+      });
+
+      await pagina.pdf({
+        path: pathFile,
+        landscape: true,
+        printBackground: true,
+        format: 'a4',
+        displayHeaderFooter: true,
+        timeout: 0,
+        headerTemplate: '<div>Header</div>',
+        footerTemplate: '<footer>Nome do usuário - footer</footer>',
+        margin: { top: 50, bottom: 180, left: 20, right: 20 },
+      })
+      await browser.close();
+      // const url = `${process.env.BASE_URL}/files/${filename}`;
+      const url = `http://localhost:3333/files/${filename}`;
+
+      return response.send({ url });
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error)
+      return response.status(500).send('Erro ao gerar o PDF.')
+    }
+  }
+  // async getRelatorioPdf({ params, response }: HttpContext) {
+  //   try {
+  //     const contratoId = params.id
+
+  //     // 1) Carrega os dados do relatório que você quiser exibir:
+  //     const contrato = await Contrato.query()
+  //       .where('id', contratoId)
+  //       .preload('contratoItens')
+  //       .preload('projetos')
+  //       .preload('faturamentos')
+  //       .firstOrFail()
+
+  //     const relatorio = contrato.toJSON()
+
+  //     // 2) Renderiza o template Edge que você criou, por exemplo "relatorio-template.edge"
+  //     //    Certifique-se de ter configurado o path (edge.mount) conforme seu projeto.
+  //     const htmlContent = await edge.render('relatorio.edge', { relatorio })
+
+  //     // 3) Gera o PDF usando Puppeteer
+  //     const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] })
+  //     const page = await browser.newPage()
+  //     await page.setContent(htmlContent, { waitUntil: 'networkidle0' })
+
+  //     const pdfBuffer = await page.pdf({
+  //       format: 'A4',
+  //       printBackground: true,
+  //     })
+
+  //     await browser.close()
+
+  //     // 4) Retorna o PDF para download
+  //     response.header('Content-Type', 'application/pdf')
+  //     response.header('Content-Disposition', `attachment; filename="relatorio-${contratoId}.pdf"`)
+
+  //     return response.send(pdfBuffer)
+  //   } catch (error) {
+  //     console.error('Erro ao gerar PDF:', error)
+  //     return response.status(500).send('Erro ao gerar o PDF.')
+  //   }
+  // }
+
+  // async getRelatorioPdf({ response }: HttpContext) {
+  //   try {
+  //     // 1) Inicia o navegador headless
+  //     const browser = await puppeteer.launch({
+  //       headless: true,
+  //       args: ['--no-sandbox'],
+  //     })
+
+  //     const page = await browser.newPage()
+
+  //     const html = `
+  //       <html>
+  //         <head>
+  //           <meta charset="UTF-8"/>
+  //           <title>Teste PDF Puppeteer</title>
+  //         </head>
+  //         <body>
+  //           <h1>Hello PDF!</h1>
+  //           <p>Este é um teste de PDF gerado pelo Puppeteer no Adonis 6.</p>
+  //         </body>
+  //       </html>
+  //     `
+  //     await page.setContent(html, { waitUntil: 'networkidle0' })
+
+  //     const pdfBuffer = await page.pdf({
+  //       format: 'A4',
+  //       printBackground: true,
+  //     })
+
+  //     await browser.close()
+
+  //     response.header('Content-Type', 'application/pdf')
+  //     response.header('Content-Disposition', 'attachment; filename="teste.pdf"')
+
+  //     return response.send(pdfBuffer)
+  //   } catch (error) {
+  //     console.error('Erro ao gerar PDF:', error)
+  //     return response.status(500).json({ message: 'Erro ao gerar PDF' })
+  //   }
+  // }
 
   async getDashboard({ request, response }: HttpContext) {
     const page = request.input('page', 1)
