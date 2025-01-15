@@ -1029,8 +1029,59 @@ export default class ContratosController {
     }
   }
 
-  async getRelatorioPdf({ response }: HttpContext) {
+  async getRelatorioPdf({ params, request, response }: HttpContext) {
     try {
+      // Recebe os gráficos enviados
+      const graficoBase64 = request.input('grafico', null);
+
+      // Verifica se o gráfico foi enviado e converte para base64
+      let graficoSrc = null;
+      if (graficoBase64) {
+        graficoSrc = graficoBase64; // O base64 pode ser usado diretamente no HTML
+      }
+
+      //Lógica dos dados do PDF
+      const contratoId = params.id;
+      const filtroProjetos = request.input('projetos', []);
+
+      // Reutiliza a lógica de getRelatorio para buscar e processar os dados
+      const contrato = await Contrato.query()
+        .where('id', contratoId)
+        .preload('contratoItens')
+        .preload('projetos')
+        .preload('lancamentos', (lancamentosQuery) => {
+          lancamentosQuery
+            .preload('lancamentoItens')
+            .if(filtroProjetos.length > 0, (query) => {
+              query.whereIn('projetos', filtroProjetos);
+            });
+        })
+        .preload('faturamentos', (faturamentosQuery) => {
+          faturamentosQuery
+            .preload('faturamentoItens', (faturamentoItensQuery) => {
+              faturamentoItensQuery.preload('lancamento', (lancamentoQuery) => {
+                lancamentoQuery.preload('lancamentoItens');
+              });
+            });
+        })
+        .firstOrFail();
+
+      const projetos = contrato.projetos.map((projeto) => ({
+        id: projeto.id,
+        nome: projeto.projeto,
+      }));
+
+      const saldoTotal = Number(contrato.saldo_contrato) || 0;
+      let saldoAtual = saldoTotal;
+
+      (contrato.lancamentos || []).forEach((lancamento) => {
+        (lancamento.lancamentoItens || []).forEach((item) => {
+          saldoAtual -= Number(item.valor_unitario) * Number(item.quantidade_itens);
+        });
+      });
+
+      // Lógica de PDF ABAIXO
+
       const fileTemplate = path.resolve(
         __dirname,
         '..',
@@ -1060,7 +1111,7 @@ export default class ContratosController {
       const pagina = await browser.newPage();
       pagina.setDefaultNavigationTimeout(0)
       pagina.setDefaultTimeout(0)
-      await pagina.setViewport({ width: 1080, height: 1024 });
+      await pagina.setViewport({ width: 794, height: 1123 });
 
       await pagina.setUserAgent(
         'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.121 Safari/537.36'
@@ -1068,10 +1119,38 @@ export default class ContratosController {
 
       const parseTemplate = Handlebars.compile(templateFileContent);
 
-      const dataContext = { qualquer: 'qualquer' };
+      const dataContext = {
+        contrato: { ...contrato.toJSON() },
+        saldoTotal: formatCurrencySemArrendondar(saldoTotal),
+        saldoAtual: formatCurrencySemArrendondar(saldoAtual),
+        totalProjetos: projetos.length,
+        contratoItens: contrato.contratoItens.map((item) => ({
+          titulo: item.titulo,
+          unidadeMedida: item.unidade_medida,
+          saldo: formatCurrencySemArrendondar((Number.parseFloat(item.valor_unitario) * Number.parseFloat(item.saldo_quantidade_contratada))),
+          quantidadeRestante: calcularItensRestante(item.id, item.saldo_quantidade_contratada, contrato.lancamentos),
+        })),
+        lancamentos: contrato.lancamentos.map((lanc) => ({
+          dataMedicao: formatDate(lanc.data_medicao),
+          projetos: lanc.projetos || '—',
+          unidadeMedida: lanc.lancamentoItens[0]?.unidade_medida || 'N/A',
+          medicao: lanc.lancamentoItens
+            .reduce((total, subitem) => total + Number.parseFloat(subitem.quantidade_itens || "0"), 0)
+            .toFixed(3),
+        })),
+        faturamentos: contrato.faturamentos.map((fat) => ({
+          dataFaturamento: formatDate(fat.data_faturamento),
+          competencia: formatCompetencia(fat.competencia),
+          notaFiscal: fat.nota_fiscal || 'N/A',
+          total: formatCurrencySemArrendondar(calcularSaldoFaturamentoItens(fat.faturamentoItens || [])),
+          status: fat.status || '—',
+        })),
+        graficoSrc
+      };
 
       const html = parseTemplate(dataContext);
       const filename = `${Date.now()}.pdf`;
+
       //Salva o pdf na maquina local
       const tmpFolder = path.resolve(__dirname, '..', '..', 'tmpPublic');
       const reportsFolder = path.resolve(tmpFolder, 'uploads');
@@ -1083,7 +1162,7 @@ export default class ContratosController {
 
       await pagina.pdf({
         path: pathFile,
-        landscape: true,
+        landscape: false,
         printBackground: true,
         format: 'a4',
         displayHeaderFooter: true,
@@ -1102,87 +1181,23 @@ export default class ContratosController {
       return response.status(500).send('Erro ao gerar o PDF.')
     }
   }
-  // async getRelatorioPdf({ params, response }: HttpContext) {
-  //   try {
-  //     const contratoId = params.id
 
-  //     // 1) Carrega os dados do relatório que você quiser exibir:
-  //     const contrato = await Contrato.query()
-  //       .where('id', contratoId)
-  //       .preload('contratoItens')
-  //       .preload('projetos')
-  //       .preload('faturamentos')
-  //       .firstOrFail()
+  async uploadChart({ request, response }: HttpContext) {
+    const { image } = request.only(['image']); // Recebe a imagem base64
 
-  //     const relatorio = contrato.toJSON()
+    // Remove o prefixo "data:image/png;base64," e converte para buffer
+    const base64Data = image.replace(/^data:image\/png;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
 
-  //     // 2) Renderiza o template Edge que você criou, por exemplo "relatorio-template.edge"
-  //     //    Certifique-se de ter configurado o path (edge.mount) conforme seu projeto.
-  //     const htmlContent = await edge.render('relatorio.edge', { relatorio })
+    // Salva a imagem no disco (opcional)
+    const tmpFolder = path.resolve(__dirname, '..', '..', 'tmpPublic', 'uploads');
+    const chartsFolder = path.resolve(tmpFolder, `chart-${Date.now()}.png`);
+    fs.writeFileSync(chartsFolder, buffer);
 
-  //     // 3) Gera o PDF usando Puppeteer
-  //     const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] })
-  //     const page = await browser.newPage()
-  //     await page.setContent(htmlContent, { waitUntil: 'networkidle0' })
+    // Retorna sucesso
+    return response.json({ success: true, chartsFolder });
+  }
 
-  //     const pdfBuffer = await page.pdf({
-  //       format: 'A4',
-  //       printBackground: true,
-  //     })
-
-  //     await browser.close()
-
-  //     // 4) Retorna o PDF para download
-  //     response.header('Content-Type', 'application/pdf')
-  //     response.header('Content-Disposition', `attachment; filename="relatorio-${contratoId}.pdf"`)
-
-  //     return response.send(pdfBuffer)
-  //   } catch (error) {
-  //     console.error('Erro ao gerar PDF:', error)
-  //     return response.status(500).send('Erro ao gerar o PDF.')
-  //   }
-  // }
-
-  // async getRelatorioPdf({ response }: HttpContext) {
-  //   try {
-  //     // 1) Inicia o navegador headless
-  //     const browser = await puppeteer.launch({
-  //       headless: true,
-  //       args: ['--no-sandbox'],
-  //     })
-
-  //     const page = await browser.newPage()
-
-  //     const html = `
-  //       <html>
-  //         <head>
-  //           <meta charset="UTF-8"/>
-  //           <title>Teste PDF Puppeteer</title>
-  //         </head>
-  //         <body>
-  //           <h1>Hello PDF!</h1>
-  //           <p>Este é um teste de PDF gerado pelo Puppeteer no Adonis 6.</p>
-  //         </body>
-  //       </html>
-  //     `
-  //     await page.setContent(html, { waitUntil: 'networkidle0' })
-
-  //     const pdfBuffer = await page.pdf({
-  //       format: 'A4',
-  //       printBackground: true,
-  //     })
-
-  //     await browser.close()
-
-  //     response.header('Content-Type', 'application/pdf')
-  //     response.header('Content-Disposition', 'attachment; filename="teste.pdf"')
-
-  //     return response.send(pdfBuffer)
-  //   } catch (error) {
-  //     console.error('Erro ao gerar PDF:', error)
-  //     return response.status(500).json({ message: 'Erro ao gerar PDF' })
-  //   }
-  // }
 
   async getDashboard({ request, response }: HttpContext) {
     const page = request.input('page', 1)
@@ -1407,3 +1422,87 @@ async function fetchLocationData(cidade: string, estado: string): Promise<{ lati
 
   return { latitude: null, longitude: null };
 }
+
+// Função para formatar datas no formato dd/MM/yyyy
+const formatDate = (isoString: any): string => {
+  if (!isoString) {
+    return 'Data inválida'; // Retorna um valor padrão caso seja null ou undefined
+  }
+
+  // Verifica se é um objeto Date
+  if (isoString instanceof Date) {
+    isoString = isoString.toISOString(); // Converte para formato ISO
+  }
+
+  // Verifica se é uma string válida
+  if (typeof isoString !== 'string') {
+    console.error('Formato de data inválido:', isoString);
+    return 'Data inválida';
+  }
+
+  const [datePart] = isoString.split('T'); // Divide a data e hora
+  const [ano, mes, dia] = datePart.split('-'); // Extrai partes da data
+  return `${dia}/${mes}/${ano}`; // Retorna no formato dd/mm/yyyy
+};
+
+// Função para formatar mês e ano no formato "MMMM yyyy"
+const formatCompetencia = (isoString: any) => {
+  if (!isoString) return '—';
+  const date = new Date(isoString);
+  return date.toLocaleString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
+};
+
+// Função para calcular o saldo total de faturamento itens
+const calcularSaldoFaturamentoItens = (faturamentoItens: any[]) => {
+  let saldoTotal = 0;
+  faturamentoItens.forEach((faturamentoItem: any) => {
+    const lancamento = faturamentoItem.lancamento;
+    const lancamentoItens = lancamento.lancamentoItens || [];
+    lancamentoItens.forEach((lancamentoItem: any) => {
+      const valor = Number.parseFloat(lancamentoItem.valor_unitario || "0");
+      const quantidade = Number.parseFloat(lancamentoItem.quantidade_itens || "0");
+      const dias = lancamento.dias ? Number.parseFloat(lancamento.dias) : 0;
+      if (dias > 0) {
+        saldoTotal += (valor / 30) * dias;
+      } else {
+        saldoTotal += valor * quantidade;
+      }
+    });
+  });
+
+  return saldoTotal.toFixed(2);
+};
+
+// Função para calcular a quantidade restante de itens
+const calcularItensRestante = (idItem: number, quantidadeContratada: string | number, lancamentos: any[]): string => {
+  let quantidadeUtilizada = 0;
+
+  lancamentos.forEach((lancamento) => {
+    if (["Autorizada", "Não Autorizada", "Cancelada", "Não Iniciada", "Em Andamento"].includes(lancamento.status)) {
+      return;
+    }
+
+    // Somar as quantidades dos itens correspondentes ao idItem
+    lancamento.lancamentoItens.forEach((lancamentoItem: any) => {
+      if (lancamentoItem.contrato_item_id === idItem) {
+        quantidadeUtilizada += Number.parseFloat(lancamentoItem.quantidade_itens || "0");
+      }
+    });
+  });
+
+  // Calcular quantidade restante
+  const quantidadeContratadaNumerica = Number.parseFloat(String(quantidadeContratada)) || 0;
+  const quantidadeRestante = quantidadeContratadaNumerica - quantidadeUtilizada;
+
+  // Retornar com três casas decimais
+  // return quantidadeRestante.toFixed(3);
+  return new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }).format(quantidadeRestante);
+};
+
+
+const formatCurrencySemArrendondar = (value: any) => {
+  const [parteInteira, parteDecimal] = value.toString().split('.');
+  const inteiroFormatado = parteInteira.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const decimalFormatado = (parteDecimal || '00').substring(0, 2).padEnd(2, '0');
+  return `${inteiroFormatado},${decimalFormatado}`;
+};

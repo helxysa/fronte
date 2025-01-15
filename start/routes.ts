@@ -55,6 +55,7 @@ router.get('files/:filename', async ({ params, response }) => {
     return response.status(500).send('Erro ao acessar o arquivo.');
   }
 })
+router.post('upload/chart', [ContratosController, 'uploadChart'])
 // Perfis e Permissões
 router.group(() => {
   router.get('perfil', [ProfilesController, 'index'])
@@ -74,7 +75,7 @@ router.group(() => {
   router.get('/contratos', [ContratosController, 'getContracts'])
   router.get('/contratos/:id', [ContratosController, 'getContractById'])
   router.post('/contratos/:id/relatorio/', [ContratosController, 'getRelatorio'])
-  router.get('/contratos/:id/relatorio/pdf', [ContratosController, 'getRelatorioPdf'])
+  router.post('/contratos/:id/relatorio/pdf', [ContratosController, 'getRelatorioPdf'])
   router.put('/contratos/:id', [ContratosController, 'updateContract'])
   router.put('/contratos/restore/:id', [ContratosController, 'restoreContract'])
   router.delete('/contratos/:id', [ContratosController, 'deleteContract'])
