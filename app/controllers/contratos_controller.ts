@@ -1160,6 +1160,12 @@ export default class ContratosController {
         timeout: 0
       });
 
+      const logoEsquerdoPath = path.resolve(__dirname, '..', '..', 'resources', 'views', 'logos', 'logoMSB.png');
+      const logoDireitoPath = path.resolve(__dirname, '..', '..', 'resources', 'views', 'logos', 'SeloCMMI.png');
+
+      const logoBase64Esquerdo = fs.readFileSync(logoEsquerdoPath, 'base64');
+      const logoBase64Direito = fs.readFileSync(logoDireitoPath, 'base64');
+
       await pagina.pdf({
         path: pathFile,
         landscape: false,
@@ -1167,10 +1173,15 @@ export default class ContratosController {
         format: 'a4',
         displayHeaderFooter: true,
         timeout: 0,
-        headerTemplate: '<div>Header</div>',
-        footerTemplate: '<footer>Nome do usuário - footer</footer>',
-        margin: { top: 50, bottom: 180, left: 20, right: 20 },
-      })
+        headerTemplate: `
+           <div style="width: 100%; height:100%; display: flex; justify-content: space-between; align-items: center; font-size: 10px; margin-left: 50px; padding-bottom: 50px; box-sizing: border-box;">
+            <img src="data:image/png;base64, ${logoBase64Esquerdo}" alt="Logo MSB" style="width: 150px; height: auto;" />
+            <img src="data:image/png;base64, ${logoBase64Direito}" alt="Selo CMMI" style="width: 150px; height: auto;" />
+          </div>
+      `,
+        footerTemplate: '<footer style="text-align: center; font-size: 10px; color: #666; margin-left: 30px;"> Usuário: Nome completo do usuário Data: dd/mm/aaaa Hora: 00h00 </footer>',
+        margin: { top: 150, bottom: 50, left: 10, right: 10 },
+      });
       await browser.close();
       // const url = `${process.env.BASE_URL}/files/${filename}`;
       const url = `http://localhost:3333/files/${filename}`;

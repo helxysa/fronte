@@ -6,18 +6,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Relatório</title>
   <style>
-    body {
+    body, html {
       font-family: Arial, sans-serif;
       margin: 0;
       padding: 0;
-      background-color: #F1F8FE;
+      box-sizing: 0;
     }
 
     .container {
       max-width: 1920px;
       margin: 0 auto;
       background: white;
-      padding: 20px;
+      padding: 16px;
+      height: auto;
+    }
+
+    #grafico img {
+      max-width: 100%;
+      height: auto;
+    }
+
+    #grafico {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: auto;
     }
 
     h1 {
@@ -38,6 +55,7 @@
       justify-content: space-between;
       gap: 16px;
       margin-bottom: 32px;
+      top: 100px;
     }
 
     .header-card {
@@ -62,16 +80,14 @@
 
     .header-info {
       flex: 2;
-      border: 1px solid #3B82F6;
+      border: 0.5px solid #3B82F6;
       border-radius: 8px;
       padding: 16px;
       background-color: white;
     }
 
     .header-info p {
-      margin: 8px 0;
       font-size: 14px;
-      color: #4B5563;
     }
 
     .header-info p:first-child {
@@ -84,7 +100,7 @@
       width: 100%;
       border-collapse: separate;
       border-spacing: 0;
-      border: 1px solid #3B82F6;
+      border: 0.5px solid #3B82F6;
       border-radius: 8px;
       overflow: hidden;
     }
@@ -118,119 +134,134 @@
       text-align: center;
       color: #999;
     }
+
+    .page {
+      page-break-after: always;
+    }
+
+    .page:last-child {
+      page-break-after: auto;
+    }
   </style>
 </head>
 
 <body>
   <div class="container">
-    <!-- Header -->
-    <h1>{{contrato.nomeContrato}}</h1>
-    <div class="header-container">
-      <div class="header-info">
-        <p>Cliente: {{contrato.nomeCliente}}</p>
-        <p>Período de Vigência: {{contrato.dataInicio}} - {{contrato.dataFim}}</p>
-        <p>Total de Projetos: {{totalProjetos}}</p>
+    <div class="page">
+      <!-- Header -->
+      <h1>Relatório - {{contrato.nomeContrato}}</h1>
+      <div class="header-container">
+        <div class="header-info">
+          <p>Cliente: {{contrato.nomeCliente}}</p>
+          <p>Período de Vigência: {{contrato.dataInicio}} - {{contrato.dataFim}}</p>
+          <p>Total de Projetos: {{totalProjetos}}</p>
+        </div>
+        <div class="header-card">
+          <p>Valor Total</p>
+          <p></p>
+          <p>R$ {{saldoTotal}}</p>
+          </div>
+          <div class="header-card">
+            <p>Saldo Atual</p>
+          <p></p>
+          <p>R$ {{saldoAtual}}</p>
+          </div>
+          </div>
+
+      <div id="grafico"
+        style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 90%; transform: scale(1.1); transform-origin: center center; margin-top: 2.5rem;">
+        {{#if graficoSrc}}
+        <img src="{{graficoSrc}}" alt="Gráfico" style="width: 95%; height: auto; margin: 0 auto;" />
+        {{else}}
+        <p>Gráfico não disponível</p>
+        {{/if}}
       </div>
-      <div class="header-card">
-        <p>Valor Total</p>
-        <p>R$ {{saldoTotal}}</p>
-      </div>
-      <div class="header-card">
-        <p>Saldo Atual</p>
-        <p>R$ {{saldoAtual}}</p>
-      </div>
+</div>
+
+<div class="page">
+      <!-- Tabela de Itens -->
+      <h2>Itens</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Nome do Item</th>
+            <th>Unidade</th>
+            <th>Saldo</th>
+            <th>Quantidade Restante</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each contratoItens}}
+          <tr>
+            <td>{{titulo}}</td>
+            <td>{{unidadeMedida}}</td>
+            <td>R$ {{saldo}}</td>
+            <td>{{quantidadeRestante}}</td>
+          </tr>
+          {{else}}
+          <tr class="empty-row">
+            <td colspan="4">Nenhum item encontrado</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+
+      <!-- Tabela de Medições -->
+      <h2>Medições</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Projeto</th>
+            <th>Unidade</th>
+            <th>Medição</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each lancamentos}}
+          <tr>
+            <td>{{dataMedicao}}</td>
+            <td>{{projetos}}</td>
+            <td>{{unidadeMedida}}</td>
+            <td>{{medicao}}</td>
+          </tr>
+          {{else}}
+          <tr class="empty-row">
+            <td colspan="4">Nenhuma medição encontrada</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+
+      <!-- Tabela de Faturamentos -->
+      <h2>Faturamentos</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Data</th>
+            <th>Competência</th>
+            <th>Nota Fiscal</th>
+            <th>Total</th>
+            <th>Situação</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each faturamentos}}
+          <tr>
+            <td>{{dataFaturamento}}</td>
+            <td>{{competencia}}</td>
+            <td>{{notaFiscal}}</td>
+            <td>R$ {{total}}</td>
+            <td>{{status}}</td>
+          </tr>
+          {{else}}
+          <tr class="empty-row">
+            <td colspan="5">Nenhum faturamento encontrado</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
     </div>
-
-    <div id="grafico" style="text-align: center; margin: 20px 0;">
-      {{#if graficoSrc}}
-      <img src="{{graficoSrc}}" alt="Gráfico" style="max-width: 100%; height: auto;" />
-      {{else}}
-      <p>Gráfico não disponível</p>
-      {{/if}}
-    </div>
-
-    <!-- Tabela de Itens -->
-    <h2>Itens do Contrato</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Nome do Item</th>
-          <th>Unidade</th>
-          <th>Saldo</th>
-          <th>Quantidade Restante</th>
-        </tr>
-      </thead>
-      <tbody>
-        {{#each contratoItens}}
-        <tr>
-          <td>{{titulo}}</td>
-          <td>{{unidadeMedida}}</td>
-          <td>R$ {{saldo}}</td>
-          <td>{{quantidadeRestante}}</td>
-        </tr>
-        {{else}}
-        <tr class="empty-row">
-          <td colspan="4">Nenhum item encontrado</td>
-        </tr>
-        {{/each}}
-      </tbody>
-    </table>
-
-    <!-- Tabela de Medições -->
-    <h2>Medições</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Data</th>
-          <th>Projeto</th>
-          <th>Unidade</th>
-          <th>Medição</th>
-        </tr>
-      </thead>
-      <tbody>
-        {{#each lancamentos}}
-        <tr>
-          <td>{{dataMedicao}}</td>
-          <td>{{projetos}}</td>
-          <td>{{unidadeMedida}}</td>
-          <td>{{medicao}}</td>
-        </tr>
-        {{else}}
-        <tr class="empty-row">
-          <td colspan="4">Nenhuma medição encontrada</td>
-        </tr>
-        {{/each}}
-      </tbody>
-    </table>
-
-    <!-- Tabela de Faturamentos -->
-    <h2>Faturamentos</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Data</th>
-          <th>Competência</th>
-          <th>Nota Fiscal</th>
-          <th>Total</th>
-          <th>Situação</th>
-        </tr>
-      </thead>
-      <tbody>
-        {{#each faturamentos}}
-        <tr>
-          <td>{{dataFaturamento}}</td>
-          <td>{{competencia}}</td>
-          <td>{{notaFiscal}}</td>
-          <td>R$ {{total}}</td>
-          <td>{{status}}</td>
-        </tr>
-        {{else}}
-        <tr class="empty-row">
-          <td colspan="5">Nenhum faturamento encontrado</td>
-        </tr>
-        {{/each}}
-      </tbody>
-    </table>
   </div>
 </body>
 
