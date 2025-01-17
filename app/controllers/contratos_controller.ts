@@ -1164,8 +1164,8 @@ export default class ContratosController {
       const filename = `${Date.now()}.pdf`;
 
       //Salva o pdf na maquina local
-      const tmpFolder = path.resolve(__dirname, '..', '..', 'tmpPublic');
-      const reportsFolder = path.resolve(tmpFolder, 'uploads');
+      const tmpFolder = path.resolve(__dirname, '..', '..', 'tmpPublic', 'uploads');
+      const reportsFolder = path.resolve(tmpFolder, 'relatorios');
       const pathFile = `${reportsFolder}/${filename}`;
 
       await pagina.setContent(html, {
@@ -1195,8 +1195,13 @@ export default class ContratosController {
         margin: { top: 150, bottom: 50, left: 10, right: 10 },
       });
       await browser.close();
-      // const url = `${process.env.BASE_URL}/files/${filename}`;
-      const url = `http://localhost:3333/files/${filename}`;
+      let url = `http://localhost:3333/files/${filename}`;
+
+      if (process.env.NODE_ENV === 'development') {
+        url = `https://boss.msbtec.dev/files/${filename}`;
+      } else {
+        url = `https://boss.msbtec.app/files/${filename}`;
+      }
 
       return response.send({ url });
     } catch (error) {
@@ -1213,7 +1218,7 @@ export default class ContratosController {
     const buffer = Buffer.from(base64Data, 'base64');
 
     // Salva a imagem no disco (opcional)
-    const tmpFolder = path.resolve(__dirname, '..', '..', 'tmpPublic', 'uploads');
+    const tmpFolder = path.resolve(__dirname, '..', '..', 'tmpPublic', 'uploads', 'relatorios');
     const chartsFolder = path.resolve(tmpFolder, `chart-${Date.now()}.png`);
     fs.writeFileSync(chartsFolder, buffer);
 
