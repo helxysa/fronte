@@ -1198,7 +1198,7 @@ export default class ContratosController {
       let url = `http://localhost:3333/files/relatorios/${filename}`;
 
       if (process.env.NODE_ENV === 'development') {
-        url = `https://api-boss.msbtec.dev/files/relatorios/${filename}`;
+        url = `https://boss.msbtec.dev/files/relatorios/${filename}`;
       } else {
         url = `https://api-boss.msbtec.app/files/relatorios/${filename}`;
       }
