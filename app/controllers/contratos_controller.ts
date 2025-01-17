@@ -1198,7 +1198,7 @@ export default class ContratosController {
       let url = `http://localhost:3333/files/relatorios/${filename}`;
 
       if (process.env.NODE_ENV === 'development') {
-        url = `https://boss.msbtec.dev/files/relatorios/${filename}`;
+        url = `https://api-boss.msbtec.dev/files/relatorios/${filename}`;
       } else {
         url = `https://api-boss.msbtec.app/files/relatorios/${filename}`;
       }
@@ -1206,6 +1206,7 @@ export default class ContratosController {
       return response.send({ url });
     } catch (error) {
       console.error('Erro ao gerar PDF:', error)
+      console.log('erro', error)
       return response.status(500).send('Erro ao gerar o PDF.', error)
     }
   }
