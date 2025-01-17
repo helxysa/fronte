@@ -1164,7 +1164,7 @@ export default class ContratosController {
       const filename = `${Date.now()}.pdf`;
 
       //Salva o pdf na maquina local
-      const tmpFolder = path.resolve(__dirname, '..', '..', 'tmpPublic', 'uploads', 'relatorios');
+      const tmpFolder = path.resolve(__dirname, '..', '..', 'tmpPublic', 'uploads');
       const reportsFolder = path.resolve(tmpFolder, 'relatorios');
       const pathFile = `${reportsFolder}/${filename}`;
 
