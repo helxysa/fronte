@@ -860,21 +860,18 @@ export default class ContratosController {
       const contrato = await Contrato.query()
         .where('id', contratoId)
         .preload('contratoItens', (query) => {
-          query
-            .whereNull('deleted_at')
-            // .whereBetween('created_at', [dataInicioPeriodo, dataFimPeriodo]);
+          query.whereNull('deleted_at')
         })
         .preload('projetos')
         .preload('lancamentos', (lancamentosQuery) => {
           lancamentosQuery
             .preload('lancamentoItens', (lancamentoItensQuery) => {
-              lancamentoItensQuery.whereBetween('created_at', [dataInicioPeriodo, dataFimPeriodo]);
+              lancamentoItensQuery.whereBetween('data_medicao', [dataInicioPeriodo, dataFimPeriodo]);
             })
             .if(filtroProjetos.length > 0, (query) => {
               query.whereIn('projetos', filtroProjetos);
             });
-
-          lancamentosQuery.whereBetween('data_medicao', [dataInicioPeriodo, dataFimPeriodo]);
+          // lancamentosQuery.whereBetween('data_medicao', [dataInicioPeriodo, dataFimPeriodo]);
         })
         .preload('faturamentos', (faturamentosQuery) => {
           faturamentosQuery
@@ -884,7 +881,7 @@ export default class ContratosController {
               faturamentoItensQuery.preload('lancamento', (lancamentoQuery) => {
                 lancamentoQuery.whereBetween('data_medicao', [dataInicioPeriodo, dataFimPeriodo]);
                 lancamentoQuery.preload('lancamentoItens', (lancamentoItensQuery) => {
-                  lancamentoItensQuery.whereBetween('created_at', [dataInicioPeriodo, dataFimPeriodo]);
+                  lancamentoItensQuery.whereBetween('data_medicao', [dataInicioPeriodo, dataFimPeriodo]);
                 });
               });
             });
