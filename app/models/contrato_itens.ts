@@ -48,6 +48,8 @@ export default class ContratoItens extends compose(BaseModel, SoftDeletes) {
   declare renovacao: BelongsTo<typeof Renovacao>
 
   static skipHooks = false
+  saldo: number
+  quantidadeRestante: number
 
   @afterCreate()
   static async logCreate(contratoItem: ContratoItens) {

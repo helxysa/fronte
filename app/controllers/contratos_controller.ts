@@ -14,9 +14,21 @@ import axios from 'axios'
 import Cidade from '#models/cidade'
 import app from '@adonisjs/core/services/app'
 import fs from 'node:fs'
-import path from 'node:path'
+// import path from 'node:path'
+import path, { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import CurrentUserService from '#services/current_user_service'
 import Logs from '#models/log'
+import puppeteer from 'puppeteer';
+import { Edge } from 'edge.js';
+import Handlebars from 'handlebars';
+
+const edge = new Edge();
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+
+const viewsPath = join(__dirname, '..', '..', 'resources', 'views')
+edge.mount(viewsPath)
 
 export default class ContratosController {
   async createContract({ request, response }: HttpContext) {
@@ -418,7 +430,7 @@ export default class ContratosController {
         .if(dataInicio && dataFim, (query) => {
           query.where('data_inicio', '>=', dataInicio)
             .andWhere('data_fim', '<=', dataFim)
-          })
+        })
         .preload('faturamentos', (faturamentosQuery) => {
           faturamentosQuery
             .whereNull('deleted_at')
@@ -838,7 +850,213 @@ export default class ContratosController {
     try {
       const contratoId = params.id;
       const filtroProjetos = request.input('projetos', []);
+      const dataInicio = request.input('dataInicio', null);
+      const dataFim = request.input('dataFim', null);
 
+      const hoje = DateTime.now().setLocale('pt-BR');
+      const dataFimPeriodo = dataFim || DateTime.now();
+      const dataInicioPeriodo = dataInicio || dataFimPeriodo.minus({ months: 6 });
+
+      const contrato = await Contrato.query()
+        .where('id', contratoId)
+        .preload('contratoItens', (query) => {
+          query
+            .whereNull('deleted_at')
+            // .whereBetween('created_at', [dataInicioPeriodo, dataFimPeriodo]);
+        })
+        .preload('projetos')
+        .preload('lancamentos', (lancamentosQuery) => {
+          lancamentosQuery
+            .preload('lancamentoItens', (lancamentoItensQuery) => {
+              lancamentoItensQuery.whereBetween('created_at', [dataInicioPeriodo, dataFimPeriodo]);
+            })
+            .if(filtroProjetos.length > 0, (query) => {
+              query.whereIn('projetos', filtroProjetos);
+            });
+
+          lancamentosQuery.whereBetween('data_medicao', [dataInicioPeriodo, dataFimPeriodo]);
+        })
+        .preload('faturamentos', (faturamentosQuery) => {
+          faturamentosQuery
+            .whereNull('deleted_at')
+            .whereBetween('data_faturamento', [dataInicioPeriodo, dataFimPeriodo])
+            .preload('faturamentoItens', (faturamentoItensQuery) => {
+              faturamentoItensQuery.preload('lancamento', (lancamentoQuery) => {
+                lancamentoQuery.whereBetween('data_medicao', [dataInicioPeriodo, dataFimPeriodo]);
+                lancamentoQuery.preload('lancamentoItens', (lancamentoItensQuery) => {
+                  lancamentoItensQuery.whereBetween('created_at', [dataInicioPeriodo, dataFimPeriodo]);
+                });
+              });
+            });
+        })
+        .firstOrFail();
+
+      const projetos = contrato.projetos.map((projeto) => ({
+        id: projeto.id,
+        nome: projeto.projeto,
+      }));
+
+      // Saldo Total e Atual
+      const saldoTotal = Number(contrato.saldo_contrato) || 0;
+      let saldoAtual = saldoTotal;
+
+      (contrato.lancamentos || []).forEach((lancamento) => {
+        (lancamento.lancamentoItens || []).forEach((item) => {
+          saldoAtual -= Number(item.valor_unitario) * Number(item.quantidade_itens);
+        });
+      });
+
+      // Série Histórica - Últimos 6 meses considerando apenas faturamentos com status "Pago"
+      const meses = Array.from({ length: 6 }, (_, index) =>
+        hoje.minus({ months: 5 - index }).toFormat("MMM yyyy")
+      ).map((mes) => {
+        const [mesAbreviado, ano] = mes.split(" ");
+        const mesSemPonto = mesAbreviado.replace('.', '');
+        return `${mesSemPonto.charAt(0).toUpperCase()}${mesSemPonto.slice(1)} ${ano}`;
+      });
+
+      const pagamentosMensais = meses.map((mes) => {
+        let total = 0;
+        contrato.faturamentos
+          .filter((faturamento) => faturamento.status === 'Pago')
+          .forEach((faturamento) => {
+            let dataFaturamento;
+
+            // Verifica se é um objeto Date e converte para ISO
+            if (faturamento.data_faturamento instanceof Date) {
+              dataFaturamento = DateTime.fromISO(faturamento.data_faturamento.toISOString());
+            } else if (typeof faturamento.data_faturamento === 'string') {
+              dataFaturamento = DateTime.fromISO(faturamento.data_faturamento);
+            } else {
+              console.log(`Data inválida encontrada: ${faturamento.data_faturamento}`);
+              return;
+            }
+
+            if (!dataFaturamento.isValid) {
+              console.log(`Data inválida encontrada: ${faturamento.data_faturamento}`);
+              return;
+            }
+
+            const mesFaturamento = dataFaturamento.toFormat('MMM yyyy');
+            if (mesFaturamento === mes) {
+              faturamento.faturamentoItens.forEach((item) => {
+                item.lancamento.lancamentoItens.forEach((lancamentoItem) => {
+                  total += Number(lancamentoItem.valor_unitario) * Number(lancamentoItem.quantidade_itens);
+                });
+              });
+            }
+          });
+        return total;
+      });
+
+      const serieHistorica = {
+        months: meses,
+        pagamentos: pagamentosMensais,
+      };
+
+      // Distribuição por Projeto com Status
+      const distribuicaoPorProjeto: any = {};
+      (contrato.faturamentos || []).forEach((faturamento) => {
+        const status = faturamento.status || 'Indefinido';
+
+        (faturamento.faturamentoItens || []).forEach((faturamentoItem: any) => {
+          const lancamento = faturamentoItem.lancamento;
+          if (!lancamento) return;
+
+          // Filtrar apenas os projetos especificados (se fornecidos)
+          if (filtroProjetos.length > 0 && !filtroProjetos.includes(lancamento.projetos)) {
+            return;
+          }
+
+          const projeto = lancamento.projetos || 'Sem Projeto';
+          if (!distribuicaoPorProjeto[projeto]) {
+            distribuicaoPorProjeto[projeto] = {
+              total: 0,
+              pago: 0,
+              aguardandoPagamento: 0,
+              aguardandoFaturamento: 0,
+            };
+          }
+
+          let totalLancamento = 0;
+          (lancamento.lancamentoItens || []).forEach((item: any) => {
+            totalLancamento += Number(item.valor_unitario) * Number(item.quantidade_itens);
+          });
+
+          distribuicaoPorProjeto[projeto].total += totalLancamento;
+
+          // Classificar valores por status do faturamento
+          if (status === 'Pago') {
+            distribuicaoPorProjeto[projeto].pago += totalLancamento;
+          } else if (status === 'Aguardando Pagamento') {
+            distribuicaoPorProjeto[projeto].aguardandoPagamento += totalLancamento;
+          } else if (status === 'Aguardando Faturamento') {
+            distribuicaoPorProjeto[projeto].aguardandoFaturamento += totalLancamento;
+          }
+        });
+      });
+
+      // Distribuição de Valores por Status
+      const distribuicaoPorStatus: any = {};
+      (contrato.faturamentos || []).forEach((faturamento) => {
+
+        const status = faturamento.status || 'Indefinido';
+
+        // Filtrar apenas os projetos especificados (se fornecidos)
+        if (
+          filtroProjetos.length > 0 &&
+          !faturamento.faturamentoItens.some((item: any) =>
+            filtroProjetos.includes(item.lancamento?.projetos)
+          )
+        ) {
+          return;
+        }
+
+        if (!distribuicaoPorStatus[status]) {
+          distribuicaoPorStatus[status] = { total: 0 };
+        }
+
+        (faturamento.faturamentoItens || []).forEach((item: any) => {
+          (item.lancamento?.lancamentoItens || []).forEach((lancamentoItem: any) => {
+            distribuicaoPorStatus[status].total += Number(lancamentoItem.valor_unitario) * Number(lancamentoItem.quantidade_itens);
+          });
+        });
+      });
+
+      // Total de Projetos
+      const totalProjetos = projetos.length;
+
+      return response.status(200).json({
+        contrato: contrato.toJSON(),
+        saldoTotal,
+        saldoAtual,
+        serieHistorica,
+        distribuicaoPorProjeto,
+        distribuicaoPorStatus,
+        totalProjetos,
+      });
+    } catch (error) {
+      console.error(error);
+      return response.status(500).json({ message: 'Erro ao gerar o relatório', error });
+    }
+  }
+
+  async getRelatorioPdf({ params, request, response }: HttpContext) {
+    try {
+      // Recebe os gráficos enviados
+      const graficoBase64 = request.input('grafico', null);
+
+      // Verifica se o gráfico foi enviado e converte para base64
+      let graficoSrc = null;
+      if (graficoBase64) {
+        graficoSrc = graficoBase64; // O base64 pode ser usado diretamente no HTML
+      }
+
+      //Lógica dos dados do PDF
+      const contratoId = params.id;
+      const filtroProjetos = request.input('projetos', []);
+
+      // Reutiliza a lógica de getRelatorio para buscar e processar os dados
       const contrato = await Contrato.query()
         .where('id', contratoId)
         .preload('contratoItens')
@@ -851,18 +1069,12 @@ export default class ContratosController {
             });
         })
         .preload('faturamentos', (faturamentosQuery) => {
-          faturamentosQuery.preload('faturamentoItens', (faturamentoItensQuery) => {
-            faturamentoItensQuery.preload('lancamento').preload('lancamento', (lancamentoQuery) => {
-              lancamentoQuery
-                .whereNull('deleted_at')
-                .select(['id', 'status', 'projetos', 'data_medicao'])
-                .preload('lancamentoItens', (lancamentoItensQuery) => {
-                  lancamentoItensQuery
-                    .whereNull('deleted_at')
-                    .select(['id', 'unidade_medida', 'valor_unitario', 'quantidade_itens'])
-                })
-            })
-          })
+          faturamentosQuery
+            .preload('faturamentoItens', (faturamentoItensQuery) => {
+              faturamentoItensQuery.preload('lancamento', (lancamentoQuery) => {
+                lancamentoQuery.preload('lancamentoItens');
+              });
+            });
         })
         .firstOrFail();
 
@@ -871,79 +1083,144 @@ export default class ContratosController {
         nome: projeto.projeto,
       }));
 
-      // Saldo Total e Atual
       const saldoTotal = Number(contrato.saldo_contrato) || 0;
-      const saldoAtual = saldoTotal - (contrato.lancamentos || []).reduce((total, lancamento) => {
-        return total + (lancamento.lancamentoItens || []).reduce((soma, item) => {
-          return soma + (Number(item.valor_unitario) * Number(item.quantidade_itens));
-        }, 0);
-      }, 0);
+      let saldoAtual = saldoTotal;
 
-      // Distribuição por Projeto com Status
-      const distribuicaoPorProjeto = (contrato.faturamentos || []).reduce((result: any, faturamento) => {
-        const status = faturamento.status || 'Indefinido';
-
-        (faturamento.faturamentoItens || []).forEach((faturamentoItem: any) => {
-          const lancamento = faturamentoItem.lancamento;
-          if (!lancamento) return;
-
-          const projeto = lancamento.projetos || 'Sem Projeto';
-          if (!result[projeto]) {
-            result[projeto] = {
-              total: 0,
-              pago: 0,
-              aguardandoPagamento: 0,
-              aguardandoFaturamento: 0,
-            };
-          }
-
-          const totalLancamento = (lancamento.lancamentoItens || []).reduce((soma: any, item: any) => {
-            return soma + (Number(item.valor_unitario) * Number(item.quantidade_itens));
-          }, 0);
-
-          result[projeto].total += totalLancamento;
-
-          // Classificar valores por status do faturamento
-          if (status === 'Pago') {
-            result[projeto].pago += totalLancamento;
-          } else if (status === 'Aguardando Pagamento') {
-            result[projeto].aguardandoPagamento += totalLancamento;
-          } else if (status === 'Aguardando Faturamento') {
-            result[projeto].aguardandoFaturamento += totalLancamento;
-          }
+      (contrato.lancamentos || []).forEach((lancamento) => {
+        (lancamento.lancamentoItens || []).forEach((item) => {
+          saldoAtual -= Number(item.valor_unitario) * Number(item.quantidade_itens);
         });
-
-        return result;
-      }, {});
-
-      // Distribuição de Valores por Status
-      const distribuicaoPorStatus = (contrato.faturamentos || []).reduce((result: any, faturamento) => {
-        const status = faturamento.status || 'Indefinido';
-        if (!result[status]) result[status] = { total: 0 };
-        result[status].total += (faturamento.faturamentoItens || []).reduce((soma: any, item: any) => {
-          return soma + ((item.lancamento?.lancamentoItens || []).reduce((somaLancamento: any, lancamentoItem: any) => {
-            return somaLancamento + (Number(lancamentoItem.valor_unitario) * Number(lancamentoItem.quantidade_itens));
-          }, 0));
-        }, 0);
-        return result;
-      }, {});
-
-      // Total de Projetos
-      const totalProjetos = projetos.length;
-
-      return response.status(200).json({
-        contrato: contrato.toJSON(),
-        saldoTotal,
-        saldoAtual,
-        distribuicaoPorProjeto,
-        distribuicaoPorStatus,
-        totalProjetos,
       });
+
+      // Lógica de PDF ABAIXO
+
+      const fileTemplate = path.resolve(
+        __dirname,
+        '..',
+        '..',
+        'resources',
+        'views',
+        'teste.hbs',
+      );
+
+      const templateFileContent = await fs.promises.readFile(fileTemplate, {
+        encoding: 'utf-8',
+      });
+
+      const browser = await puppeteer.launch({
+        args: [
+          '--no-sandbox',
+          '--enable-font-antialiasing',
+          '--font-render-hinting=none',
+          '--disable-web-security',
+          '--disable-gpu',
+          '--hide-scrollbars',
+          '--disable-setuid-sandbox',
+          '--force-color-profile=srgb',
+        ],
+      });
+
+      const pagina = await browser.newPage();
+      pagina.setDefaultNavigationTimeout(0)
+      pagina.setDefaultTimeout(0)
+      await pagina.setViewport({ width: 794, height: 1123 });
+
+      await pagina.setUserAgent(
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/85.0.4183.121 Safari/537.36'
+      );
+
+      const parseTemplate = Handlebars.compile(templateFileContent);
+
+      const dataContext = {
+        contrato: { ...contrato.toJSON() },
+        saldoTotal: formatCurrencySemArrendondar(saldoTotal),
+        saldoAtual: formatCurrencySemArrendondar(saldoAtual),
+        totalProjetos: projetos.length,
+        contratoItens: contrato.contratoItens.map((item) => ({
+          titulo: item.titulo,
+          unidadeMedida: item.unidade_medida,
+          saldo: formatCurrencySemArrendondar((Number.parseFloat(item.valor_unitario) * Number.parseFloat(item.saldo_quantidade_contratada))),
+          quantidadeRestante: calcularItensRestante(item.id, item.saldo_quantidade_contratada, contrato.lancamentos),
+        })),
+        lancamentos: contrato.lancamentos.map((lanc) => ({
+          dataMedicao: formatDate(lanc.data_medicao),
+          projetos: lanc.projetos || '—',
+          unidadeMedida: lanc.lancamentoItens[0]?.unidade_medida || 'N/A',
+          medicao: lanc.lancamentoItens
+            .reduce((total, subitem) => total + Number.parseFloat(subitem.quantidade_itens || "0"), 0)
+            .toFixed(3),
+        })),
+        faturamentos: contrato.faturamentos.map((fat) => ({
+          dataFaturamento: formatDate(fat.data_faturamento),
+          competencia: formatCompetencia(fat.competencia),
+          notaFiscal: fat.nota_fiscal || 'N/A',
+          total: formatCurrencySemArrendondar(calcularSaldoFaturamentoItens(fat.faturamentoItens || [])),
+          status: fat.status || '—',
+        })),
+        graficoSrc
+      };
+
+      const html = parseTemplate(dataContext);
+      const filename = `${Date.now()}.pdf`;
+
+      //Salva o pdf na maquina local
+      const tmpFolder = path.resolve(__dirname, '..', '..', 'tmpPublic');
+      const reportsFolder = path.resolve(tmpFolder, 'uploads');
+      const pathFile = `${reportsFolder}/${filename}`;
+
+      await pagina.setContent(html, {
+        timeout: 0
+      });
+
+      const logoEsquerdoPath = path.resolve(__dirname, '..', '..', 'resources', 'views', 'logos', 'logoMSB.png');
+      const logoDireitoPath = path.resolve(__dirname, '..', '..', 'resources', 'views', 'logos', 'SeloCMMI.png');
+
+      const logoBase64Esquerdo = fs.readFileSync(logoEsquerdoPath, 'base64');
+      const logoBase64Direito = fs.readFileSync(logoDireitoPath, 'base64');
+
+      await pagina.pdf({
+        path: pathFile,
+        landscape: false,
+        printBackground: true,
+        format: 'a4',
+        displayHeaderFooter: true,
+        timeout: 0,
+        headerTemplate: `
+           <div style="width: 100%; height:100%; display: flex; justify-content: space-between; align-items: center; font-size: 10px; margin-left: 50px; padding-bottom: 50px; box-sizing: border-box;">
+            <img src="data:image/png;base64, ${logoBase64Esquerdo}" alt="Logo MSB" style="width: 150px; height: auto;" />
+            <img src="data:image/png;base64, ${logoBase64Direito}" alt="Selo CMMI" style="width: 150px; height: auto;" />
+          </div>
+      `,
+        footerTemplate: '<footer style="text-align: center; font-size: 10px; color: #666; margin-left: 30px;"> Usuário: Nome completo do usuário Data: dd/mm/aaaa Hora: 00h00 </footer>',
+        margin: { top: 150, bottom: 50, left: 10, right: 10 },
+      });
+      await browser.close();
+      // const url = `${process.env.BASE_URL}/files/${filename}`;
+      const url = `http://localhost:3333/files/${filename}`;
+
+      return response.send({ url });
     } catch (error) {
-      console.error(error);
-      return response.status(500).json({ message: 'Erro ao gerar o relatório', error });
+      console.error('Erro ao gerar PDF:', error)
+      return response.status(500).send('Erro ao gerar o PDF.')
     }
   }
+
+  async uploadChart({ request, response }: HttpContext) {
+    const { image } = request.only(['image']); // Recebe a imagem base64
+
+    // Remove o prefixo "data:image/png;base64," e converte para buffer
+    const base64Data = image.replace(/^data:image\/png;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    // Salva a imagem no disco (opcional)
+    const tmpFolder = path.resolve(__dirname, '..', '..', 'tmpPublic', 'uploads');
+    const chartsFolder = path.resolve(tmpFolder, `chart-${Date.now()}.png`);
+    fs.writeFileSync(chartsFolder, buffer);
+
+    // Retorna sucesso
+    return response.json({ success: true, chartsFolder });
+  }
+
 
   async getDashboard({ request, response }: HttpContext) {
     const page = request.input('page', 1)
@@ -1168,3 +1445,87 @@ async function fetchLocationData(cidade: string, estado: string): Promise<{ lati
 
   return { latitude: null, longitude: null };
 }
+
+// Função para formatar datas no formato dd/MM/yyyy
+const formatDate = (isoString: any): string => {
+  if (!isoString) {
+    return 'Data inválida'; // Retorna um valor padrão caso seja null ou undefined
+  }
+
+  // Verifica se é um objeto Date
+  if (isoString instanceof Date) {
+    isoString = isoString.toISOString(); // Converte para formato ISO
+  }
+
+  // Verifica se é uma string válida
+  if (typeof isoString !== 'string') {
+    console.error('Formato de data inválido:', isoString);
+    return 'Data inválida';
+  }
+
+  const [datePart] = isoString.split('T'); // Divide a data e hora
+  const [ano, mes, dia] = datePart.split('-'); // Extrai partes da data
+  return `${dia}/${mes}/${ano}`; // Retorna no formato dd/mm/yyyy
+};
+
+// Função para formatar mês e ano no formato "MMMM yyyy"
+const formatCompetencia = (isoString: any) => {
+  if (!isoString) return '—';
+  const date = new Date(isoString);
+  return date.toLocaleString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
+};
+
+// Função para calcular o saldo total de faturamento itens
+const calcularSaldoFaturamentoItens = (faturamentoItens: any[]) => {
+  let saldoTotal = 0;
+  faturamentoItens.forEach((faturamentoItem: any) => {
+    const lancamento = faturamentoItem.lancamento;
+    const lancamentoItens = lancamento.lancamentoItens || [];
+    lancamentoItens.forEach((lancamentoItem: any) => {
+      const valor = Number.parseFloat(lancamentoItem.valor_unitario || "0");
+      const quantidade = Number.parseFloat(lancamentoItem.quantidade_itens || "0");
+      const dias = lancamento.dias ? Number.parseFloat(lancamento.dias) : 0;
+      if (dias > 0) {
+        saldoTotal += (valor / 30) * dias;
+      } else {
+        saldoTotal += valor * quantidade;
+      }
+    });
+  });
+
+  return saldoTotal.toFixed(2);
+};
+
+// Função para calcular a quantidade restante de itens
+const calcularItensRestante = (idItem: number, quantidadeContratada: string | number, lancamentos: any[]): string => {
+  let quantidadeUtilizada = 0;
+
+  lancamentos.forEach((lancamento) => {
+    if (["Autorizada", "Não Autorizada", "Cancelada", "Não Iniciada", "Em Andamento"].includes(lancamento.status)) {
+      return;
+    }
+
+    // Somar as quantidades dos itens correspondentes ao idItem
+    lancamento.lancamentoItens.forEach((lancamentoItem: any) => {
+      if (lancamentoItem.contrato_item_id === idItem) {
+        quantidadeUtilizada += Number.parseFloat(lancamentoItem.quantidade_itens || "0");
+      }
+    });
+  });
+
+  // Calcular quantidade restante
+  const quantidadeContratadaNumerica = Number.parseFloat(String(quantidadeContratada)) || 0;
+  const quantidadeRestante = quantidadeContratadaNumerica - quantidadeUtilizada;
+
+  // Retornar com três casas decimais
+  // return quantidadeRestante.toFixed(3);
+  return new Intl.NumberFormat("pt-BR", { minimumFractionDigits: 3, maximumFractionDigits: 3 }).format(quantidadeRestante);
+};
+
+
+const formatCurrencySemArrendondar = (value: any) => {
+  const [parteInteira, parteDecimal] = value.toString().split('.');
+  const inteiroFormatado = parteInteira.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const decimalFormatado = (parteDecimal || '00').substring(0, 2).padEnd(2, '0');
+  return `${inteiroFormatado},${decimalFormatado}`;
+};
