@@ -3,7 +3,6 @@
 /* eslint-disable prettier/prettier */
 import router from '@adonisjs/core/services/router'
 import { middleware } from './kernel.js'
-import Application from '@adonisjs/core/services/app'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url';
 
