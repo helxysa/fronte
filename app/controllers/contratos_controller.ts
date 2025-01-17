@@ -865,13 +865,13 @@ export default class ContratosController {
         .preload('projetos')
         .preload('lancamentos', (lancamentosQuery) => {
           lancamentosQuery
-            .preload('lancamentoItens', (lancamentoItensQuery) => {
-              lancamentoItensQuery.whereBetween('data_medicao', [dataInicioPeriodo, dataFimPeriodo]);
-            })
+            .whereBetween('data_medicao', [dataInicioPeriodo, dataFimPeriodo])
             .if(filtroProjetos.length > 0, (query) => {
               query.whereIn('projetos', filtroProjetos);
+            })
+            .preload('lancamentoItens', (lancamentoItensQuery) => {
+              lancamentoItensQuery.whereNull('deleted_at');
             });
-          // lancamentosQuery.whereBetween('data_medicao', [dataInicioPeriodo, dataFimPeriodo]);
         })
         .preload('faturamentos', (faturamentosQuery) => {
           faturamentosQuery
@@ -879,14 +879,14 @@ export default class ContratosController {
             .whereBetween('data_faturamento', [dataInicioPeriodo, dataFimPeriodo])
             .preload('faturamentoItens', (faturamentoItensQuery) => {
               faturamentoItensQuery.preload('lancamento', (lancamentoQuery) => {
-                lancamentoQuery.whereBetween('data_medicao', [dataInicioPeriodo, dataFimPeriodo]);
-                lancamentoQuery.preload('lancamentoItens', (lancamentoItensQuery) => {
-                  lancamentoItensQuery.whereBetween('data_medicao', [dataInicioPeriodo, dataFimPeriodo]);
-                });
+                // lancamentoQuery.whereBetween('created_at', [dataInicioPeriodo, dataFimPeriodo]);
+                lancamentoQuery.preload('lancamentoItens');
               });
             });
         })
         .firstOrFail();
+
+      console.log('contrato', contrato.toJSON())
 
       const projetos = contrato.projetos.map((projeto) => ({
         id: projeto.id,
