@@ -1198,9 +1198,9 @@ export default class ContratosController {
       let url = `http://localhost:3333/files/${filename}`;
 
       if (process.env.NODE_ENV === 'development') {
-        url = `https://boss.msbtec.dev/files/${filename}`;
+        url = `https://api-boss.msbtec.dev/files/${filename}`;
       } else {
-        url = `https://boss.msbtec.app/files/${filename}`;
+        url = `https://api-boss.msbtec.app/files/${filename}`;
       }
 
       return response.send({ url });
