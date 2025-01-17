@@ -850,31 +850,44 @@ export default class ContratosController {
     try {
       const contratoId = params.id;
       const filtroProjetos = request.input('projetos', []);
+      const dataInicio = request.input('dataInicio', null);
+      const dataFim = request.input('dataFim', null);
+
+      const hoje = DateTime.now().setLocale('pt-BR');
+      const dataFimPeriodo = dataFim || DateTime.now();
+      const dataInicioPeriodo = dataInicio || dataFimPeriodo.minus({ months: 6 });
 
       const contrato = await Contrato.query()
         .where('id', contratoId)
-        .preload('contratoItens')
+        .preload('contratoItens', (query) => {
+          query
+            .whereNull('deleted_at')
+            // .whereBetween('created_at', [dataInicioPeriodo, dataFimPeriodo]);
+        })
         .preload('projetos')
         .preload('lancamentos', (lancamentosQuery) => {
           lancamentosQuery
-            .preload('lancamentoItens')
+            .preload('lancamentoItens', (lancamentoItensQuery) => {
+              lancamentoItensQuery.whereBetween('created_at', [dataInicioPeriodo, dataFimPeriodo]);
+            })
             .if(filtroProjetos.length > 0, (query) => {
               query.whereIn('projetos', filtroProjetos);
             });
+
+          lancamentosQuery.whereBetween('data_medicao', [dataInicioPeriodo, dataFimPeriodo]);
         })
         .preload('faturamentos', (faturamentosQuery) => {
-          faturamentosQuery.preload('faturamentoItens', (faturamentoItensQuery) => {
-            faturamentoItensQuery.preload('lancamento').preload('lancamento', (lancamentoQuery) => {
-              lancamentoQuery
-                .whereNull('deleted_at')
-                .select(['id', 'status', 'projetos', 'data_medicao'])
-                .preload('lancamentoItens', (lancamentoItensQuery) => {
-                  lancamentoItensQuery
-                    .whereNull('deleted_at')
-                    .select(['id', 'unidade_medida', 'valor_unitario', 'quantidade_itens']);
+          faturamentosQuery
+            .whereNull('deleted_at')
+            .whereBetween('data_faturamento', [dataInicioPeriodo, dataFimPeriodo])
+            .preload('faturamentoItens', (faturamentoItensQuery) => {
+              faturamentoItensQuery.preload('lancamento', (lancamentoQuery) => {
+                lancamentoQuery.whereBetween('data_medicao', [dataInicioPeriodo, dataFimPeriodo]);
+                lancamentoQuery.preload('lancamentoItens', (lancamentoItensQuery) => {
+                  lancamentoItensQuery.whereBetween('created_at', [dataInicioPeriodo, dataFimPeriodo]);
                 });
+              });
             });
-          });
         })
         .firstOrFail();
 
@@ -894,7 +907,6 @@ export default class ContratosController {
       });
 
       // Série Histórica - Últimos 6 meses considerando apenas faturamentos com status "Pago"
-      const hoje = DateTime.now().setLocale('pt-BR');
       const meses = Array.from({ length: 6 }, (_, index) =>
         hoje.minus({ months: 5 - index }).toFormat("MMM yyyy")
       ).map((mes) => {
