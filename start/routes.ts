@@ -47,6 +47,15 @@ router.put('/users/:id/passwordChanged', [UsersController, 'updatePasswordChange
 router.delete('users/:id', [UsersController, 'destroy'])
 router.get('files/:filename', async ({ params, response }) => {
   try {
+    const filePath = path.join(__dirname, '..', 'tmpPublic', 'uploads', params.filename);
+    return response.attachment(filePath, params.filename);
+  } catch (error) {
+    console.error('Erro ao servir o arquivo:', error);
+    return response.status(500).send('Erro ao acessar o arquivo.');
+  }
+})
+router.get('files/relatorios/:filename', async ({ params, response }) => {
+  try {
     const filePath = path.join(__dirname, '..', 'tmpPublic', 'uploads', 'relatorios', params.filename);
     return response.attachment(filePath, params.filename);
   } catch (error) {

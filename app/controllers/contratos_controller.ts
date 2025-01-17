@@ -1195,12 +1195,12 @@ export default class ContratosController {
         margin: { top: 150, bottom: 50, left: 10, right: 10 },
       });
       await browser.close();
-      let url = `http://localhost:3333/files/${filename}`;
+      let url = `http://localhost:3333/files/relatorios/${filename}`;
 
       if (process.env.NODE_ENV === 'development') {
-        url = `https://api-boss.msbtec.dev/files/${filename}`;
+        url = `https://api-boss.msbtec.dev/files/relatorios/${filename}`;
       } else {
-        url = `https://api-boss.msbtec.app/files/${filename}`;
+        url = `https://api-boss.msbtec.app/files/relatorios/${filename}`;
       }
 
       return response.send({ url });
