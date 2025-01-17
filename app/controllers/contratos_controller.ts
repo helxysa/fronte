@@ -1164,7 +1164,7 @@ export default class ContratosController {
       const filename = `${Date.now()}.pdf`;
 
       //Salva o pdf na maquina local
-      const tmpFolder = path.resolve(__dirname, '..', '..', 'tmpPublic', 'uploads');
+      const tmpFolder = path.resolve(__dirname, '..', '..', 'tmpPublic', 'uploads', 'relatorios');
       const reportsFolder = path.resolve(tmpFolder, 'relatorios');
       const pathFile = `${reportsFolder}/${filename}`;
 
@@ -1206,7 +1206,7 @@ export default class ContratosController {
       return response.send({ url });
     } catch (error) {
       console.error('Erro ao gerar PDF:', error)
-      return response.status(500).send('Erro ao gerar o PDF.')
+      return response.status(500).send('Erro ao gerar o PDF.', error)
     }
   }
 
