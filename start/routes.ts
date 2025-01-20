@@ -1,9 +1,15 @@
+/* eslint-disable @typescript-eslint/naming-convention */
+/* eslint-disable unicorn/prefer-module */
 /* eslint-disable prettier/prettier */
 import router from '@adonisjs/core/services/router'
 import { middleware } from './kernel.js'
-import Application from '@adonisjs/core/services/app'
-const LogsController = () => import('#controllers/logs_controller')
+import path from 'node:path'
+import { fileURLToPath } from 'node:url';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const LogsController = () => import('#controllers/logs_controller')
 const UsersController = () => import('#controllers/users_controller')
 const AuthController = () => import('#controllers/auth_controller')
 const ProfilesController = () => import('#controllers/profiles_controller')
@@ -40,8 +46,24 @@ router.post('users/esqueci-minha-senha', [UsersController, 'resetPassword'])
 router.put('/users/:id/passwordChanged', [UsersController, 'updatePasswordChangedStatus']);
 router.delete('users/:id', [UsersController, 'destroy'])
 router.get('files/:filename', async ({ params, response }) => {
-  return response.attachment(Application.tmpPath('uploads', params.filename), params.filename)
+  try {
+    const filePath = path.join(__dirname, '..', 'tmpPublic', 'uploads', params.filename);
+    return response.attachment(filePath, params.filename);
+  } catch (error) {
+    console.error('Erro ao servir o arquivo:', error);
+    return response.status(500).send('Erro ao acessar o arquivo.');
+  }
 })
+router.get('files/relatorios/:filename', async ({ params, response }) => {
+  try {
+    const filePath = path.join(__dirname, '..', 'tmpPublic', 'uploads', 'relatorios', params.filename);
+    return response.attachment(filePath, params.filename);
+  } catch (error) {
+    console.error('Erro ao servir o arquivo:', error);
+    return response.status(500).send('Erro ao acessar o arquivo.');
+  }
+})
+router.post('upload/chart', [ContratosController, 'uploadChart'])
 // Perfis e Permissões
 router.group(() => {
   router.get('perfil', [ProfilesController, 'index'])
@@ -60,6 +82,8 @@ router.group(() => {
   router.get('/contratos-e-termos', [ContratosController, 'getContractAndAditiveTerms'])
   router.get('/contratos', [ContratosController, 'getContracts'])
   router.get('/contratos/:id', [ContratosController, 'getContractById'])
+  router.post('/contratos/:id/relatorio/', [ContratosController, 'getRelatorio'])
+  router.post('/contratos/:id/relatorio/pdf', [ContratosController, 'getRelatorioPdf'])
   router.put('/contratos/:id', [ContratosController, 'updateContract'])
   router.put('/contratos/restore/:id', [ContratosController, 'restoreContract'])
   router.delete('/contratos/:id', [ContratosController, 'deleteContract'])

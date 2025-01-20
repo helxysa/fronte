@@ -73,7 +73,7 @@ export default class LancamentosController {
 
       // Processamento dos itens
       const lancamentoComItens = await Promise.all(
-        itens.map(async (item: { id_item: number; quantidade_itens: string; }) => {
+        itens.map(async (item: { id_item: number; quantidade_itens: string; convertido: boolean }) => {
           if (!item.id_item) {
             throw new Error('Cada item deve conter id do item e a quantidade de itens.')
           }
@@ -93,6 +93,7 @@ export default class LancamentosController {
             valor_unitario: contratoItem.valor_unitario,
             saldo_quantidade_contratada: contratoItem.saldo_quantidade_contratada,
             quantidade_itens: item.quantidade_itens || '0',
+            convertido: item.convertido || false
           })
           return novoItem
         })
