@@ -886,8 +886,6 @@ export default class ContratosController {
         })
         .firstOrFail();
 
-      console.log('contrato', contrato.toJSON())
-
       const projetos = contrato.projetos.map((projeto) => ({
         id: projeto.id,
         nome: projeto.projeto,
@@ -1038,7 +1036,7 @@ export default class ContratosController {
     }
   }
 
-  async getRelatorioPdf({ params, request, response }: HttpContext) {
+  async getRelatorioPdf({ params, request, response, auth }: HttpContext) {
     try {
       // Recebe os gráficos enviados
       const graficoBase64 = request.input('grafico', null);
@@ -1048,6 +1046,12 @@ export default class ContratosController {
       if (graficoBase64) {
         graficoSrc = graficoBase64; // O base64 pode ser usado diretamente no HTML
       }
+
+      const usuarioAtual = auth.user || { nome: 'Usuário desconhecido' };
+      const nomeUsuario = usuarioAtual.nome || 'Usuário desconhecido';
+      const dataAtual = new Date();
+      const dataFormatada = dataAtual.toLocaleDateString('pt-BR');
+      const horaFormatada = dataAtual.toLocaleTimeString('pt-BR');
 
       //Lógica dos dados do PDF
       const contratoId = params.id;
@@ -1160,7 +1164,6 @@ export default class ContratosController {
         })),
         graficoSrc
       };
-      console.log('dataContext', dataContext)
 
       const html = parseTemplate(dataContext);
       const filename = `${Date.now()}.pdf`;
@@ -1195,7 +1198,7 @@ export default class ContratosController {
             <img src="data:image/png;base64, ${logoBase64Direito}" alt="Selo CMMI" style="width: 150px; height: auto;" />
           </div>
       `,
-        footerTemplate: '<footer style="text-align: center; font-size: 10px; color: #666; margin-left: 30px;"> Usuário: Nome completo do usuário Data: dd/mm/aaaa Hora: 00h00 </footer>',
+        footerTemplate: `<footer style="text-align: center; font-size: 10px; color: #666; margin-left: 30px;"> Usuário: ${nomeUsuario} Data: ${dataFormatada} Hora: ${horaFormatada} </footer>`,
         margin: { top: 150, bottom: 50, left: 10, right: 10 },
       });
       await browser.close();
