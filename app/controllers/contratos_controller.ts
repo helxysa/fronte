@@ -1202,9 +1202,16 @@ export default class ContratosController {
 
       return response.send({ url });
     } catch (error) {
-      console.error('Erro ao gerar PDF:', error)
-      console.log('erro', error)
-      return response.status(500).send('Erro ao gerar o PDF.', error.toJSON())
+      const errorDetails = error.toJSON ? error.toJSON() : {
+        message: error.message,
+        stack: error.stack,
+        name: error.name,
+      };
+      
+      return response.status(500).send({
+        message: 'Erro ao gerar o PDF.',
+        error: errorDetails,
+      });
     }
   }
 
