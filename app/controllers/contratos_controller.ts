@@ -1129,7 +1129,11 @@ export default class ContratosController {
       const parseTemplate = Handlebars.compile(templateFileContent);
 
       const dataContext = {
-        contrato: { ...contrato.toJSON() },
+        contrato: {
+          ...contrato.toJSON(),
+          data_inicio: contrato.data_inicio.toFormat('dd/MM/yyyy'),
+          data_fim: contrato.data_fim.toFormat('dd/MM/yyyy')
+        },
         saldoTotal: formatCurrencySemArrendondar(saldoTotal),
         saldoAtual: formatCurrencySemArrendondar(saldoAtual),
         totalProjetos: projetos.length,
@@ -1156,6 +1160,7 @@ export default class ContratosController {
         })),
         graficoSrc
       };
+      console.log('dataContext', dataContext)
 
       const html = parseTemplate(dataContext);
       const filename = `${Date.now()}.pdf`;
