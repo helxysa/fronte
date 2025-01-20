@@ -1165,6 +1165,8 @@ export default class ContratosController {
       const reportsFolder = path.resolve(tmpFolder, 'relatorios');
       const pathFile = `${reportsFolder}/${filename}`;
 
+      await fs.promises.mkdir(reportsFolder, { recursive: true });
+
       await pagina.setContent(html, {
         timeout: 0
       });
@@ -1207,7 +1209,7 @@ export default class ContratosController {
         stack: error.stack,
         name: error.name,
       };
-      
+
       return response.status(500).send({
         message: 'Erro ao gerar o PDF.',
         error: errorDetails,
