@@ -6,7 +6,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "start": "node bin/server.js",
-    "build": "mkdir -p tmpPublic && [ -d dist/public ] && cp -R dist/public/* tmpPublic/ || echo 'Pasta dist/public não encontrada, pulando cópia' && node ace build --ignore-ts-errors && mkdir -p dist/public && cp -R tmpPublic/* dist/public/ && mkdir -p dist/resources/views/logos && cp resources/views/teste.hbs dist/resources/views/teste.hbs && cp resources/views/logos/logoMSB.png dist/resources/views/logos/logoMSB.png && cp resources/views/logos/SeloCMMI.png dist/resources/views/logos/SeloCMMI.png && cd dist && npm ci --omit='dev' && cd .. && cp .env dist/.env && rm -rf tmpPublic",
+    "build": "mkdir -p tmpPublic && [ -d dist/public ] && cp -R dist/public/* tmpPublic/ || echo 'Pasta dist/public não encontrada, pulando cópia' && node ace build --ignore-ts-errors && mkdir -p dist/public && cp -R tmpPublic/* dist/public/ && mkdir -p dist/resources && cp -Rf resources/* dist/resources && cd dist && npm ci --omit='dev' && cd .. && cp .env dist/.env && rm -rf tmpPublic",
     "migrations": "node ace migration:run --force",
     "seed": "node ace db:seed",
     "dev": "node ace serve --hmr",
