@@ -36,7 +36,7 @@ export default class TermoAditivoAnexosController {
 
       const file = request.file('file', {
         size: '20mb',
-        extnames: ['pdf', 'docx', 'doc', 'xlsx', 'csv', 'jpg', 'png', 'rar', 'zip'],
+        // extnames: ['pdf', 'docx', 'doc', 'xlsx', 'csv', 'jpg', 'png', 'rar', 'zip'],
       })
 
       if (!file || !file.isValid) {
