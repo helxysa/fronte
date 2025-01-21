@@ -10,7 +10,7 @@ export default class MedicaoAnexosController {
 
       const files = request.files('file', {
         size: '20mb',
-        extnames: ['pdf', 'docx', 'doc', 'xlsx', 'csv', 'jpg', 'png', 'rar', 'zip'],
+        // extnames: ['pdf', 'docx', 'doc', 'xlsx', 'csv', 'jpg', 'png', 'rar', 'zip'],
       })
 
       if (!files || files.length === 0) {
