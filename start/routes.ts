@@ -26,6 +26,7 @@ const FaturamentoAnexosController = () => import('#controllers/faturamento_anexo
 // const TermoAditivosController = () => import('#controllers/termo_aditivos_controller')
 // const TermoAditivoItemsController = () => import('#controllers/termo_aditivo_items_controller')
 const TermoAditivoAnexosController = () => import('#controllers/termo_aditivo_anexos_controller')
+const ContratoPjController = () => import('#controllers/contrato_pjs_controller')
 
 // Registro, Login e Autenticação
 router.post('/register', [AuthController, 'register']).as('auth.register')
@@ -90,6 +91,12 @@ router.group(() => {
   // Contrato foto
   router.post('/contratos/:id/foto', [ContratosController, 'uploadFoto'])
 }).use(middleware.auth())
+
+// Contrato PJ ContratoPjController
+router.post('/contrato/pj', [ContratoPjController, 'index'])
+router.get('/contrato/pj', [ContratoPjController, 'createContractPJ'])
+router.put('/contrato/pj/:id', [ContratoPjController, 'updateContractPJ'])
+router.delete('/contrato/pj/:id', [ContratoPjController, 'deleteContractPJ'])
 
 // Contrato Anexos
 router.post('/contratos/:contrato_id/anexos', [ContratoAnexosController, 'store'])

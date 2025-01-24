@@ -1,7 +1,14 @@
 import { DateTime } from 'luxon'
-import { BaseModel, column, belongsTo, afterCreate, afterUpdate } from '@adonisjs/lucid/orm'
-import type { BelongsTo } from '@adonisjs/lucid/types/relations'
-
+import {
+  BaseModel,
+  column,
+  belongsTo,
+  afterCreate,
+  afterUpdate,
+  manyToMany,
+} from '@adonisjs/lucid/orm'
+import type { BelongsTo, ManyToMany } from '@adonisjs/lucid/types/relations'
+import ContratoPJ from './contrato_pj.js'
 import Contratos from './contratos.js'
 import CurrentUserService from '#services/current_user_service'
 import Logs from './log.js'
@@ -24,6 +31,12 @@ export default class Projeto extends BaseModel {
 
   @belongsTo(() => Contratos, { foreignKey: 'contrato_id' })
   declare contratos: BelongsTo<typeof Contratos>
+
+  @manyToMany(() => ContratoPJ, {
+    pivotTable: 'contrato_pj_projetos', // Nome da tabela intermediária
+    pivotColumns: ['servico_prestado', 'esforco_estimado', 'gestor_projeto'],
+  })
+  declare contratosPJ: ManyToMany<typeof ContratoPJ>
 
   static skipHooks = false
   @afterCreate()
