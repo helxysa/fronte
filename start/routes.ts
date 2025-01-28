@@ -26,6 +26,7 @@ const FaturamentoAnexosController = () => import('#controllers/faturamento_anexo
 // const TermoAditivosController = () => import('#controllers/termo_aditivos_controller')
 // const TermoAditivoItemsController = () => import('#controllers/termo_aditivo_items_controller')
 const TermoAditivoAnexosController = () => import('#controllers/termo_aditivo_anexos_controller')
+const ContratoPjController = () => import('#controllers/contrato_pjs_controller')
 
 // Registro, Login e Autenticação
 router.post('/register', [AuthController, 'register']).as('auth.register')
@@ -91,6 +92,12 @@ router.group(() => {
   router.post('/contratos/:id/foto', [ContratosController, 'uploadFoto'])
 }).use(middleware.auth())
 
+// Contrato PJ ContratoPjController
+router.post('/contrato/pj', [ContratoPjController, 'createContractPJ'])
+router.get('/contrato/pj', [ContratoPjController, 'index'])
+router.put('/contrato/pj/:id', [ContratoPjController, 'updateContractPJ'])
+router.delete('/contrato/pj/:id', [ContratoPjController, 'deleteContractPJ'])
+
 // Contrato Anexos
 router.post('/contratos/:contrato_id/anexos', [ContratoAnexosController, 'store'])
 router.get('/contratos/:contrato_id/anexos', [ContratoAnexosController, 'index'])
@@ -131,6 +138,7 @@ router.group(() => {
   router.post('/contratos/:contrato_id/projetos', [ProjetosController, 'store'])
   router.post('/contratos/:contrato_id/projetos/multiplos', [ProjetosController, 'storeMultiple'])
   router.get('/contratos/:contrato_id/projetos', [ProjetosController, 'index'])
+  router.get('/projetos', [ProjetosController, 'getAllProjects'])
   router.get('/projetos/:id', [ProjetosController, 'show'])
   router.put('/projetos/:id', [ProjetosController, 'update'])
   router.delete('/projetos/:id', [ProjetosController, 'destroy'])

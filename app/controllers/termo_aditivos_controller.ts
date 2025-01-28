@@ -13,7 +13,9 @@ export default class TermoAditivosController {
         .preload('contrato', (contratoQuery) => {
           contratoQuery
             .select(['nome_cliente', 'fiscal', 'ponto_focal', 'cidade', 'estado'])
-            .preload('projetos')
+            .preload('projetos', (query) => {
+              query.whereNull('deleted_at')
+            })
         })
 
       return response.json(termoAditivos)
@@ -64,7 +66,9 @@ export default class TermoAditivosController {
         .preload('contrato', (contratoQuery) => {
           contratoQuery
             .select(['nome_cliente', 'fiscal', 'ponto_focal', 'cidade', 'estado'])
-            .preload('projetos')
+            .preload('projetos', (query) => {
+              query.whereNull('deleted_at')
+            })
         })
         .firstOrFail()
 
