@@ -29,6 +29,9 @@ export default class Projeto extends BaseModel {
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
 
+  @column.dateTime()
+  declare deletedAt: DateTime | null
+
   @belongsTo(() => Contratos, { foreignKey: 'contrato_id' })
   declare contratos: BelongsTo<typeof Contratos>
 

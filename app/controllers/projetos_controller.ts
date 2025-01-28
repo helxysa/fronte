@@ -3,6 +3,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import Projeto from '#models/projetos'
 import CurrentUserService from '#services/current_user_service'
 import Logs from '#models/log'
+import { DateTime } from 'luxon'
 
 export default class ProjetosController {
   async index({ params, response }: HttpContext) {
@@ -10,6 +11,7 @@ export default class ProjetosController {
     try {
       const projetos = await Projeto.query()
         .where('contrato_id', contrato_id)
+        .whereNull('deleted_at')
         .orderBy('projeto', 'asc')
 
       if (projetos.length <= 0) {
@@ -28,6 +30,32 @@ export default class ProjetosController {
       return response.status(500).json({
         status: 'error',
         message: 'Ocorreu um erro ao recuperar os projetos',
+        error: error.message,
+      })
+    }
+  }
+
+  async getAllProjects({ response }: HttpContext) {
+    try {
+      const projetos = await Projeto.query().whereNull('deleted_at').orderBy('projeto', 'asc')
+
+      if (projetos.length === 0) {
+        return response.json({
+          status: 'success',
+          message: 'Nenhum projeto foi encontrado.',
+        })
+      }
+
+      return response.json({
+        status: 'success',
+        data: projetos,
+        message: 'Todos os projetos foram recuperados com sucesso!',
+      })
+    } catch (error) {
+      console.error('Erro ao buscar projetos:', error)
+      return response.status(500).json({
+        status: 'error',
+        message: 'Ocorreu um erro ao buscar os projetos.',
         error: error.message,
       })
     }
@@ -182,7 +210,10 @@ export default class ProjetosController {
         description: `${username} excluiu o projeto "${projeto.projeto}" com ID ${projeto.id}.`,
       })
 
-      await projeto.delete()
+      // await projeto.delete()
+      projeto.merge({ deletedAt: DateTime.local() })
+      await projeto.save()
+
       return response.json({
         status: 'success',
         message: 'Projeto deletado com sucesso!',

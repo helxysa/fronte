@@ -8,7 +8,9 @@ import { DateTime } from 'luxon'
 
 export default class ContratoPjsController {
   async index({ response }: HttpContext) {
-    const contratos = await ContratoPJ.query().preload('projetos') // Preload de projetos vinculados
+    const contratos = await ContratoPJ.query().preload('projetos', (query) => {
+      query.whereNull('deleted_at')
+    })
     return response.ok(contratos)
   }
 
@@ -128,8 +130,12 @@ export default class ContratoPjsController {
 
       response.status(201).json(novoContrato)
     } catch (error) {
-      console.log(error)
-      response.status(500).send('Erro ao criar o contrato PJ.')
+      console.error('[createContractPJ] Erro:', error)
+
+      return response.status(500).json({
+        message: 'Não foi possível criar o contrato PJ.',
+        error: error.message,
+      })
     }
   }
 

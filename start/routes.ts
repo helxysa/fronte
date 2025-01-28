@@ -93,8 +93,8 @@ router.group(() => {
 }).use(middleware.auth())
 
 // Contrato PJ ContratoPjController
-router.post('/contrato/pj', [ContratoPjController, 'index'])
-router.get('/contrato/pj', [ContratoPjController, 'createContractPJ'])
+router.post('/contrato/pj', [ContratoPjController, 'createContractPJ'])
+router.get('/contrato/pj', [ContratoPjController, 'index'])
 router.put('/contrato/pj/:id', [ContratoPjController, 'updateContractPJ'])
 router.delete('/contrato/pj/:id', [ContratoPjController, 'deleteContractPJ'])
 
@@ -138,6 +138,7 @@ router.group(() => {
   router.post('/contratos/:contrato_id/projetos', [ProjetosController, 'store'])
   router.post('/contratos/:contrato_id/projetos/multiplos', [ProjetosController, 'storeMultiple'])
   router.get('/contratos/:contrato_id/projetos', [ProjetosController, 'index'])
+  router.get('/projetos', [ProjetosController, 'getAllProjects'])
   router.get('/projetos/:id', [ProjetosController, 'show'])
   router.put('/projetos/:id', [ProjetosController, 'update'])
   router.delete('/projetos/:id', [ProjetosController, 'destroy'])

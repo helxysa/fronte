@@ -326,7 +326,9 @@ export default class ContratosController {
       const contrato = await Contrato.query()
         .where('id', params.id)
         .whereNull('deleted_at')
-        .preload('projetos')
+        .preload('projetos', (query) => {
+          query.whereNull('deleted_at')
+        })
         .preload('contratoItens', (query) => {
           query.whereNull('renovacao_id');
           query.whereNull('deleted_at');
@@ -386,7 +388,9 @@ export default class ContratosController {
             'cidade',
             'estado'
           ])
-          .preload('projetos')
+          .preload('projetos', (query) => {
+            query.whereNull('deleted_at')
+          })
           .first();
 
         if (contratoOriginal) {
@@ -568,7 +572,9 @@ export default class ContratosController {
           'cidade',
           'estado'
         ])
-        .preload('projetos')
+        .preload('projetos', (query) => {
+          query.whereNull('deleted_at')
+        })
         .first();
 
       if (!contratoOriginal) {
@@ -862,7 +868,9 @@ export default class ContratosController {
         .preload('contratoItens', (query) => {
           query.whereNull('deleted_at')
         })
-        .preload('projetos')
+        .preload('projetos', (query) => {
+          query.whereNull('deleted_at')
+        })
         .preload('lancamentos', (lancamentosQuery) => {
           lancamentosQuery
             .whereBetween('data_medicao', [dataInicioPeriodo, dataFimPeriodo])
@@ -1061,7 +1069,9 @@ export default class ContratosController {
       const contrato = await Contrato.query()
         .where('id', contratoId)
         .preload('contratoItens')
-        .preload('projetos')
+        .preload('projetos', (query) => {
+          query.whereNull('deleted_at')
+        })
         .preload('lancamentos', (lancamentosQuery) => {
           lancamentosQuery
             .preload('lancamentoItens')
