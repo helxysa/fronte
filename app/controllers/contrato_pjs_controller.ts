@@ -7,11 +7,67 @@ import { DateTime } from 'luxon'
 // import User from '#models/user'
 
 export default class ContratoPjsController {
-  async index({ response }: HttpContext) {
-    const contratos = await ContratoPJ.query().preload('projetos', (query) => {
-      query.whereNull('deleted_at')
-    })
-    return response.ok(contratos)
+  async index({ request, response }: HttpContext) {
+    try {
+      const { search, dataInicio, dataFim } = request.qs()
+
+      const contratosQuery = ContratoPJ.query().whereNull('deleted_at').preload('projetos')
+
+      if (search) {
+        contratosQuery.where((query) => {
+          query
+            // .where('cnpj', 'like', `%${search}%`)
+            .orWhere('razao_social', 'ilike', `%${search}%`)
+            .orWhere('nome_fantasia', 'ilike', `%${search}%`)
+            .orWhere('representante_legal', 'ilike', `%${search}%`)
+            .orWhere('servico_prestado', 'ilike', `%${search}%`)
+        })
+      }
+
+      if (dataInicio) {
+        contratosQuery.where('dataInicio', '>=', dataInicio)
+      }
+
+      if (dataFim) {
+        contratosQuery.where('dataFim', '<=', dataFim)
+      }
+
+      const contratos = await contratosQuery.exec()
+      return response.ok(contratos)
+    } catch (error) {
+      console.error('[index] Erro:', error)
+      return response.status(500).json({ message: 'Erro ao buscar contratos.' })
+    }
+  }
+
+  async showContractPJ({ params, response }: HttpContext) {
+    try {
+      const contrato = await ContratoPJ.query()
+        .where('id', params.id)
+        .whereNull('deleted_at')
+        .preload('projetos', (query) => {
+          query.pivotColumns(['servico_prestado', 'esforco_estimado', 'gestor_projeto'])
+        })
+        .firstOrFail()
+
+      // Os campos da tabela contrato_pj_projeto(pivot) vieram dentro do $extras
+      // Aparentemente, o Adonis 6 não traz os dados da coluna intermediária automaticamente.
+      // Portanto precisei serializar o contrato e incluir os campos da tabela intermediária
+      const contratoSerializado = {
+        ...contrato.serialize(), // Serializa o contrato
+        projetos: contrato.projetos.map((projeto) => ({
+          ...projeto.serialize(),
+          servico_prestado: projeto.$extras.pivot_servico_prestado,
+          esforco_estimado: projeto.$extras.pivot_esforco_estimado,
+          gestor_projeto: projeto.$extras.pivot_gestor_projeto,
+        })),
+      }
+
+      return response.json(contratoSerializado)
+    } catch (error) {
+      console.error('[showContractPJ] Erro:', error)
+      return response.status(404).json({ message: 'Contrato não encontrado.' })
+    }
   }
 
   async createContractPJ({ request, response }: HttpContext) {
@@ -284,7 +340,7 @@ export default class ContratoPjsController {
       // Soft delete nos projetos relacionados
       await ContratoPJProjeto.query()
         .where('contrato_pj_id', contratoId)
-        .update({ deletedAt: DateTime.local() })
+        .update({ deleted_at: DateTime.local() })
 
       // Soft delete no contrato
       await contrato.merge({ deletedAt: DateTime.local() }).save()
@@ -312,6 +368,49 @@ export default class ContratoPjsController {
     } finally {
       // Garantir que a flag seja desativada
       ContratoPJ.skipHooks = false
+    }
+  }
+
+  async restoreContractPJ({ params, response }: HttpContext) {
+    try {
+      const contratoId = params.id
+
+      const contrato = await ContratoPJ.query()
+        .where('id', contratoId)
+        .whereNotNull('deletedAt')
+        .first()
+
+      if (!contrato) {
+        return response.status(404).json({ message: 'Contrato excluído não encontrado.' })
+      }
+
+      await contrato.merge({ deletedAt: null }).save()
+
+      await ContratoPJProjeto.query()
+        .where('contrato_pj_id', contratoId)
+        .whereNotNull('deleted_at')
+        .update({ deleted_at: null })
+
+      // Log de restauração
+      try {
+        const userId = CurrentUserService.getCurrentUserId()
+        const username = CurrentUserService.getCurrentUsername()
+        await Logs.create({
+          userId: userId || 0,
+          name: username || 'Usuário',
+          action: 'Restaurar',
+          model: 'ContratoPJ',
+          modelId: contrato.id,
+          description: `Usuário ${username} restaurou o contrato PJ "${contrato.razaoSocial}" com ID ${contrato.id}.`,
+        })
+      } catch (logError) {
+        console.error('Erro ao criar o log de restauração:', logError)
+      }
+
+      return response.status(200).json({ message: 'Contrato restaurado com sucesso.' })
+    } catch (error) {
+      console.error('Erro ao restaurar contrato:', error)
+      return response.status(500).send('Erro no servidor.')
     }
   }
 }

@@ -103,6 +103,8 @@ export default class ContratoPJ extends BaseModel {
 
   @manyToMany(() => Projeto, {
     pivotTable: 'contrato_pj_projetos', // Nome da tabela intermediária
+    pivotForeignKey: 'contrato_pj_id',
+    pivotRelatedForeignKey: 'projeto_id',
     pivotColumns: ['servico_prestado', 'esforco_estimado', 'gestor_projeto'],
   })
   declare projetos: ManyToMany<typeof Projeto>
