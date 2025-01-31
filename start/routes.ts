@@ -95,7 +95,9 @@ router.group(() => {
 // Contrato PJ ContratoPjController
 router.post('/contrato/pj', [ContratoPjController, 'createContractPJ'])
 router.get('/contrato/pj', [ContratoPjController, 'index'])
+router.get('/contrato/pj/:id', [ContratoPjController, 'showContractPJ'])
 router.put('/contrato/pj/:id', [ContratoPjController, 'updateContractPJ'])
+router.put('/contrato/pj/:id/restore', [ContratoPjController, 'restoreContractPJ'])
 router.delete('/contrato/pj/:id', [ContratoPjController, 'deleteContractPJ'])
 
 // Contrato Anexos
