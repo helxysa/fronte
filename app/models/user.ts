@@ -8,6 +8,7 @@ import { DbAccessTokensProvider } from '@adonisjs/auth/access_tokens'
 import Profile from './profile.js'
 import Logs from './log.js'
 import CurrentUserService from '#services/current_user_service'
+import ContratoPJ from './contrato_pj.js'
 
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['email'],
@@ -42,6 +43,12 @@ export default class User extends compose(BaseModel, AuthFinder) {
   @column()
   declare passwordChanged: boolean
 
+  @column()
+  declare prestador_servicos: boolean
+
+  @column()
+  declare contrato_pj_id: number | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 
@@ -53,6 +60,12 @@ export default class User extends compose(BaseModel, AuthFinder) {
 
   @belongsTo(() => Profile)
   declare profile: BelongsTo<typeof Profile>
+
+  // Relacionamento opcional com ContratoPJ
+  @belongsTo(() => ContratoPJ, {
+    foreignKey: 'contrato_pj_id',
+  })
+  declare contratoPJ: BelongsTo<typeof ContratoPJ>
 
   static accessTokens = DbAccessTokensProvider.forModel(User, {
     expiresIn: '1 Day',
