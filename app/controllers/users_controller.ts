@@ -5,6 +5,7 @@ import crypto from 'node:crypto'
 import hash from '@adonisjs/core/services/hash'
 import env from '#start/env'
 import Profile from '#models/profile'
+import db from '@adonisjs/lucid/services/db'
 
 const DEFAULT_PASSWORD = 'Boss1234'
 
@@ -87,52 +88,49 @@ export default class UsersController {
 
   async updatePassword({ params, request, response }: HttpContext) {
     const user = await User.find(params.id)
-
     if (!user) {
       return response.status(404).json('Usuário não encontrado.')
     }
 
     const { newPassword } = request.only(['newPassword'])
+    const isDefaultPassword = await hash.verify(user.password, DEFAULT_PASSWORD)
 
-    if (await hash.verify(user.password, DEFAULT_PASSWORD)) {
+    // Atualizar dados do usuário em uma transação
+    const trx = await db.transaction()
+    try {
+      user.useTransaction(trx)
       user.password = newPassword
       user.passwordChanged = true
       user.passwordExpiredAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
       await user.save()
+
+      // Tentar enviar email de confirmação
       try {
         await mail.send((message) => {
           message
             .to(user.email)
             .from(env.get('SMTP_USERNAME'))
-            // .from('monitoramento.msb@gmail.com')
             .subject('Senha Alterada com Sucesso')
-            .text('Sua senha de primeiro acesso foi alterada com sucesso.')
+            .text(
+              isDefaultPassword
+                ? 'Sua senha de primeiro acesso foi alterada com sucesso.'
+                : 'Sua senha foi alterada com sucesso.'
+            )
         })
       } catch (error) {
-        return response.status(500).json('Erro ao enviar e-mail de confirmação.')
+        console.error('Erro ao enviar email de confirmação:', error)
       }
 
-      return response.json({ message: 'Senha alterada com sucesso.' })
-    }
-    user.password = newPassword
-    user.passwordChanged = true
-    user.passwordExpiredAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
-    await user.save()
-
-    try {
-      await mail.send((message) => {
-        message
-          .to(user.email)
-          .from(env.get('SMTP_USERNAME'))
-          // .from('monitoramento.msb@gmail.com')
-          .subject('Senha Alterada com Sucesso')
-          .text('Sua senha foi alterada com sucesso.')
+      await trx.commit()
+      return response.json({
+        message: 'Senha alterada com sucesso.',
+        emailError: false,
       })
     } catch (error) {
-      return response.status(500).json('Erro ao enviar e-mail de confirmação.')
+      await trx.rollback()
+      console.error('Erro ao atualizar senha:', error)
+      return response.status(500).json('Erro ao atualizar senha.')
     }
-
-    return response.json({ message: 'Senha alterada com sucesso.' })
   }
 
   async destroy({ params, response }: HttpContext) {
