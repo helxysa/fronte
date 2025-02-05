@@ -148,6 +148,22 @@ export default class ContratoPjsController {
         ajustadoDataFim = null
       }
 
+      // Verificar se já existe um contrato com o mesmo CNPJ
+      const contratoExistente = await ContratoPJ.query().where('cnpj', cnpj).first();
+      if (contratoExistente) {
+        return response.status(400).json({
+          message: 'Já existe um contrato com esse CNPJ.',
+        });
+      }
+
+      // Verificar se já existe um contrato com o mesmo e-mail
+      const contratoPorEmail = await ContratoPJ.query().where('emailEmpresa', emailEmpresa).first();
+      if (contratoPorEmail) {
+        return response.status(400).json({
+          message: 'Já existe um contrato com esse e-mail.',
+        });
+      }
+
       // Criar o contrato PJ
       const novoContrato = await ContratoPJ.create(
         {
