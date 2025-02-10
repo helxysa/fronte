@@ -1359,7 +1359,7 @@ export default class ContratosController {
           contrato.faturamentos
             .filter((faturamento: any) => faturamento.status === status)
             .flatMap((faturamento: any) => faturamento.faturamentoItens)
-            .flatMap((faturamentoItem: any) => faturamentoItem.lancamento.lancamentoItens)
+            .flatMap((faturamentoItem: any) => faturamentoItem.lancamento?.lancamentoItens || [])
             .reduce((sum: any, itemLancamento: any) => {
               const quantidadeItens = Number.parseFloat(itemLancamento.quantidade_itens) || 0
               const valorUnitario = Number.parseFloat(itemLancamento.valor_unitario) || 0
