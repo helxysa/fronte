@@ -22,6 +22,7 @@ import Logs from '#models/log'
 import puppeteer from 'puppeteer';
 import { Edge } from 'edge.js';
 import Handlebars from 'handlebars';
+import Projeto from '#models/projetos'
 
 const edge = new Edge();
 const __filename = fileURLToPath(import.meta.url)
@@ -61,7 +62,8 @@ export default class ContratosController {
     ])
 
     const items = request.input('items');
-
+    const rawProjetos = request.input('projetos');
+    const projetos = JSON.parse(rawProjetos);
     try {
       const foto = request.file('foto', {
         size: '2mb',
@@ -98,6 +100,31 @@ export default class ContratosController {
         objeto_contrato,
         foto: fotoFilePath,
       })
+
+      // Vincular projetos ao contrato
+      if (Array.isArray(projetos)) {
+        console.log('Array de projetos válido:', projetos);
+        await Promise.all(
+          projetos.map(async (projeto) => {
+            await Projeto.create(
+              {
+                contrato_id: novoContrato.id,
+                projeto: projeto.projeto,
+                situacao: projeto.situacao,
+                data_inicio: projeto.data_inicio,
+                data_prevista: projeto.data_prevista,
+                nome_dono_regra: projeto.nome_dono_regra,
+                nome_gestor: projeto.nome_gestor,
+                analista_responsavel: projeto.analista_responsavel,
+              }
+            )
+          })
+        )
+      } else {
+        console.log('Projetos não é um array:', projetos);
+      }
+
+      await novoContrato.load('projetos')
 
       let itemsArray = Array.isArray(items) ? items : [];
 

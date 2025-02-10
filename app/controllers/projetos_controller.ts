@@ -63,7 +63,23 @@ export default class ProjetosController {
 
   async store({ params, request, response }: HttpContext) {
     const { contrato_id } = params
-    const { projeto } = request.only(['projeto'])
+    const {
+      projeto,
+      situacao,
+      data_inicio,
+      data_prevista,
+      nome_dono_regra,
+      nome_gestor,
+      analista_responsavel,
+    } = request.only([
+      'projeto',
+      'situacao',
+      'data_inicio',
+      'data_prevista',
+      'nome_dono_regra',
+      'nome_gestor',
+      'analista_responsavel',
+    ])
 
     const projetoExistente = await Projeto.query()
       .where('contrato_id', contrato_id)
@@ -78,7 +94,16 @@ export default class ProjetosController {
     }
 
     try {
-      const novoProjeto = await Projeto.create({ projeto, contrato_id })
+      const novoProjeto = await Projeto.create({
+        projeto,
+        situacao,
+        data_inicio,
+        data_prevista,
+        nome_dono_regra,
+        nome_gestor,
+        analista_responsavel,
+        contrato_id,
+      })
       return response.status(201).json({
         status: 'success',
         data: novoProjeto,
@@ -160,12 +185,29 @@ export default class ProjetosController {
   }
 
   async update({ params, request, response }: HttpContext) {
+    const {
+      projeto: projetoData,
+      situacao,
+      data_inicio,
+      data_prevista,
+      nome_dono_regra,
+      nome_gestor,
+      analista_responsavel,
+    } = request.only([
+      'projeto',
+      'situacao',
+      'data_inicio',
+      'data_prevista',
+      'nome_dono_regra',
+      'nome_gestor',
+      'analista_responsavel',
+    ])
+
     try {
       const projeto = await Projeto.findOrFail(params.id)
-      const { projeto: projetoData, contrato_id } = request.only(['projeto', 'contrato_id'])
 
       const projetoExistente = await Projeto.query()
-        .where('contrato_id', contrato_id)
+        .where('contrato_id', params.id)
         .where('projeto', projetoData)
         .whereNot('id', params.id)
         .first()
@@ -177,20 +219,22 @@ export default class ProjetosController {
         })
       }
 
-      projeto.merge({ projeto: projetoData, contrato_id })
+      // Atualizar os dados do projeto
+      projeto.merge({
+        projeto: projetoData,
+        situacao,
+        data_inicio,
+        data_prevista,
+        nome_dono_regra,
+        nome_gestor,
+        analista_responsavel,
+      })
+
       await projeto.save()
 
-      return response.json({
-        status: 'success',
-        data: projeto,
-        message: 'Projeto atualizado com sucesso!',
-      })
+      return response.status(200).json({ message: 'Projeto atualizado com sucesso!', projeto })
     } catch (error) {
-      return response.status(500).json({
-        status: 'error',
-        message: 'Ocorreu um erro ao atualizar o projeto',
-        error: error.message,
-      })
+      return response.status(400).json({ message: error.message })
     }
   }
 
