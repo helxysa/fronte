@@ -196,6 +196,62 @@ export default class FaturamentosController {
     }
   }
 
+  async getFinancialSummaryByContratoId({ params, response }: HttpContext) {
+    const { id } = params;
+
+    try {
+        const exists = await Faturamentos.query()
+            .where('contrato_id', id)
+            .first();
+
+        if (!exists) {
+            return response.status(404).json({
+                message: 'Nenhum valor foi encontrado para o contrato fornecido.'
+            });
+        }
+
+        const query = Faturamentos.query()
+            .where('contrato_id', id)
+            .select([
+                'id',
+                'contrato_id',
+                'nota_fiscal',
+                'data_faturamento',
+                'status',
+                'observacoes',
+                'competencia',
+                'created_at',
+                'updated_at',
+            ])
+            .preload('faturamentoItens', (faturamentoItensQuery) => {
+                faturamentoItensQuery.preload('lancamento', (lancamentoQuery) => {
+                    lancamentoQuery
+                        .select(['id', 'status', 'projetos', 'data_medicao', 'competencia', 'dias'])
+                        .preload('lancamentoItens', (lancamentoItensQuery) => {
+                            lancamentoItensQuery.select([
+                                'id',
+                                'titulo',
+                                'unidade_medida',
+                                'valor_unitario',
+                                'quantidade_itens',
+                                'convertido'
+                            ]);
+                        });
+                });
+            });
+
+        const result = await query;
+        return response.status(200).json(result);
+    } catch (error) {
+        console.error(error);
+        return response
+            .status(500)
+            .json({
+                message: 'Erro ao buscar resumo financeiro',
+                error: error.message
+            });
+    }
+}
   async deleteFaturamento({ params, response }: HttpContext) {
     const faturamentoId = Number(params.id)
 
