@@ -154,6 +154,7 @@ router.group(() => {
   router.post('/contratos/:id/faturamentos', [FaturamentosController, 'createFaturamentos'])
   router.put('/faturamentos/:id', [FaturamentosController, 'updateFaturamento'])
   router.get('/contratos/:id/faturamentos', [FaturamentosController, 'getFaturamentosByContratoId'])
+  router.get('/contratos/:id/resumo', [FaturamentosController, 'getFinancialSummaryByContratoId'])
   router.delete('/faturamentos/:id', [FaturamentosController, 'deleteFaturamento'])
   router.put('/faturamentos/restore/:id', [FaturamentosController, 'restoreFaturamento'])
 }).use(middleware.auth())
