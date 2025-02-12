@@ -3,6 +3,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import Projeto from '#models/projetos'
 import CurrentUserService from '#services/current_user_service'
 import Logs from '#models/log'
+import Lancamentos from '#models/lancamentos'
 import { DateTime } from 'luxon'
 
 export default class ProjetosController {
@@ -241,6 +242,19 @@ export default class ProjetosController {
   async destroy({ params, response }: HttpContext) {
     try {
       const projeto = await Projeto.findOrFail(params.id)
+
+      // Verificar se existem medições vinculadas ao projeto
+      const medicaoVinculada = await Lancamentos.query()
+        .where('projetos', projeto.projeto)
+        .whereNull('deleted_at')
+        .first()
+
+      if (medicaoVinculada) {
+        return response.status(400).json({
+          status: 'error',
+          message: 'Não é possível excluir o projeto pois existem medições vinculadas a ele.',
+        })
+      }
 
       const userId = CurrentUserService.getCurrentUserId()
       const username = CurrentUserService.getCurrentUsername()
