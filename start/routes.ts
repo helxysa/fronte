@@ -23,6 +23,7 @@ const ProjetosController = () => import('#controllers/projetos_controller')
 const ContratoAnexosController = () => import('#controllers/contrato_anexos_controller')
 const MedicaoAnexosController = () => import('#controllers/medicao_anexos_controller')
 const FaturamentoAnexosController = () => import('#controllers/faturamento_anexos_controller')
+const ContratoPjAnexosController = () => import('#controllers/contrato_pj_anexos_controller')
 // const TermoAditivosController = () => import('#controllers/termo_aditivos_controller')
 // const TermoAditivoItemsController = () => import('#controllers/termo_aditivo_items_controller')
 const TermoAditivoAnexosController = () => import('#controllers/termo_aditivo_anexos_controller')
@@ -127,6 +128,12 @@ router.get('/faturamento/:faturamento_id/anexos', [FaturamentoAnexosController, 
 router.get('/faturamento/anexos/:id', [FaturamentoAnexosController, 'show'])
 router.put('/faturamento/:faturamento_id/anexos/:id', [FaturamentoAnexosController, 'update'])
 router.delete('/faturamento/anexos/:id', [FaturamentoAnexosController, 'destroy'])
+// Contrato PJ Anexos
+router.post('/pj/:contrato_pj_id/anexos', [ContratoPjAnexosController, 'store'])
+router.get('/pj/:contrato_pj_id/anexos', [ContratoPjAnexosController, 'index'])
+router.get('/pj/anexos/:id', [ContratoPjAnexosController, 'show'])
+router.put('/pj/:contrato_pj_id/anexos/:id', [ContratoPjAnexosController, 'update'])
+router.delete('/pj/anexos/:id', [ContratoPjAnexosController, 'destroy'])
 // Itens de contratos
 router.group(() => {
   router.post('/contratos/:id/items', [ContratoItemController, 'createContractItem'])

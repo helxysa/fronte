@@ -1,10 +1,15 @@
+/* eslint-disable prettier/prettier */
 import type { HttpContext } from '@adonisjs/core/http'
 import ContratoPJProjeto from '#models/contrato_pj_projeto'
 import ContratoPJ from '#models/contrato_pj'
 import Logs from '#models/log'
 import CurrentUserService from '#services/current_user_service'
 import { DateTime } from 'luxon'
-// import User from '#models/user'
+import User from '#models/user'
+import mail from '@adonisjs/mail/services/main'
+import env from '#start/env'
+import Profile from '#models/profile'
+import db from '@adonisjs/lucid/services/db'
 
 export default class ContratoPjsController {
   async index({ request, response }: HttpContext) {
@@ -127,7 +132,14 @@ export default class ContratoPjsController {
       'observacao',
     ])
 
+    const trx = await db.transaction()
     const projetos = request.input('projetos') // Array de projetos
+    const DEFAULT_PASSWORD = 'Boss1234'
+    let textoUrl = process.env.NODE_ENV === 'development' ? 'https://boss.msbtec.dev' : 'https://boss.msbtec.app'
+    const perfilPrestador = await Profile.findBy('name', 'Prestador de Serviços', { client: trx }) //Busca Perfil
+    if (!perfilPrestador) {
+      throw new Error('Perfil "Prestador de Serviços" não encontrado no sistema')
+    }
 
     try {
       // Ajustar data de fim para contratos indeterminados
@@ -136,47 +148,69 @@ export default class ContratoPjsController {
         ajustadoDataFim = null
       }
 
+      // Verificar se já existe um contrato com o mesmo CNPJ
+      const contratoExistente = await ContratoPJ.query().where('cnpj', cnpj).first();
+      if (contratoExistente) {
+        return response.status(400).json({
+          message: 'Já existe um contrato com esse CNPJ.',
+        });
+      }
+
+      // Verificar se já existe um contrato com o mesmo e-mail
+      const contratoPorEmail = await ContratoPJ.query().where('emailEmpresa', emailEmpresa).first();
+      if (contratoPorEmail) {
+        return response.status(400).json({
+          message: 'Já existe um contrato com esse e-mail.',
+        });
+      }
+
       // Criar o contrato PJ
-      const novoContrato = await ContratoPJ.create({
-        razaoSocial,
-        nomeFantasia,
-        cnpj,
-        enderecoCompleto,
-        cidade,
-        estado,
-        telefoneEmpresa,
-        emailEmpresa,
-        representanteLegal,
-        telefoneRepresentante,
-        emailRepresentante,
-        tipoContrato,
-        dataInicio,
-        dataFim: ajustadoDataFim,
-        valorMensal,
-        valorHora,
-        formaPagamento,
-        chavePix,
-        banco,
-        agencia,
-        numeroConta,
-        tipoConta,
-        nomeTitular,
-        servicoPrestado,
-        escopoTrabalho,
-        observacao,
-      })
+      const novoContrato = await ContratoPJ.create(
+        {
+          razaoSocial,
+          nomeFantasia,
+          cnpj,
+          enderecoCompleto,
+          cidade,
+          estado,
+          telefoneEmpresa,
+          emailEmpresa,
+          representanteLegal,
+          telefoneRepresentante,
+          emailRepresentante,
+          tipoContrato,
+          dataInicio,
+          dataFim: ajustadoDataFim,
+          valorMensal,
+          valorHora,
+          formaPagamento,
+          chavePix,
+          banco,
+          agencia,
+          numeroConta,
+          tipoConta,
+          nomeTitular,
+          servicoPrestado,
+          escopoTrabalho,
+          observacao,
+        },
+        { client: trx }
+      )
 
       // Vincular projetos ao contrato
       if (Array.isArray(projetos)) {
         await Promise.all(
           projetos.map(async (projeto) => {
-            await ContratoPJProjeto.create({
-              contratoPjId: novoContrato.id,
-              projetoId: projeto.projetoId,
-              servicoPrestado: projeto.servicoPrestado,
-              esforcoEstimado: projeto.esforcoEstimado,
-              gestorProjeto: projeto.gestorProjeto,
-            })
+            await ContratoPJProjeto.create(
+              {
+                contratoPjId: novoContrato.id,
+                projetoId: projeto.projetoId,
+                servicoPrestado: projeto.servicoPrestado,
+                esforcoEstimado: projeto.esforcoEstimado,
+                gestorProjeto: projeto.gestorProjeto,
+              },
+              { client: trx }
+            )
           })
         )
       }
@@ -184,8 +218,50 @@ export default class ContratoPjsController {
       // Preload dos projetos vinculados
       await novoContrato.load('projetos')
 
-      response.status(201).json(novoContrato)
+      // Cria usuário
+      const novoUsuario = await User.create(
+        {
+          email: emailEmpresa,
+          nome: razaoSocial,
+          password: DEFAULT_PASSWORD,
+          prestador_servicos: true, // <-- define a flag
+          contrato_pj_id: novoContrato.id, // <-- vincula ao contrato
+          //Se perfil existir, adiciona ao usuário
+          ...(perfilPrestador ? { profileId: perfilPrestador.id } : {}),
+        },
+        { client: trx }
+      )
+
+      await mail
+        .send((message) => {
+          message
+            .to(novoUsuario.email)
+            .from(env.get('SMTP_USERNAME'))
+            .subject('Acesso ao Sistema - Credenciais de Acesso').html(`
+              <h1>Olá, ${novoUsuario.nome}!</h1>
+              <p>Sua conta foi criada com sucesso.</p>
+              <p><strong>Senha Padrão:</strong> ${DEFAULT_PASSWORD}</p>
+              <p><a href="${textoUrl}">Clique aqui</a> para acessar o sistema.</p>
+              <p>Recomendamos alterar sua senha após o primeiro acesso.</p>
+              <br />
+              <p>Atenciosamente,</p>
+              <p>Equipe Boss.</p>
+            `)
+        })
+        .catch((error) => {
+          console.error('Erro ao enviar e-mail:', error)
+        })
+
+      // Commit da transação
+      await trx.commit()
+
+      return response.status(201).json({
+        message: 'Contrato e usuário criados com sucesso!',
+        contrato: novoContrato,
+        usuarioCriado: novoUsuario,
+      })
     } catch (error) {
+      await trx.rollback()
       console.error('[createContractPJ] Erro:', error)
 
       return response.status(500).json({

@@ -21,6 +21,29 @@ export default class Projeto extends BaseModel {
   declare projeto: string
 
   @column()
+  declare situacao:
+    | 'Aguardando Autorização'
+    | 'Em Desenvolvimento'
+    | 'Em Sustentação'
+    | 'Parado'
+    | 'Finalizado'
+
+  @column.date()
+  declare data_inicio: DateTime
+
+  @column.date()
+  declare data_prevista: DateTime | null
+
+  @column()
+  declare nome_dono_regra: string
+
+  @column()
+  declare nome_gestor: string
+
+  @column()
+  declare analista_responsavel: string
+
+  @column()
   declare contrato_id: number
 
   @column.dateTime({ autoCreate: true })
@@ -42,6 +65,18 @@ export default class Projeto extends BaseModel {
     pivotColumns: ['servico_prestado', 'esforco_estimado', 'gestor_projeto'],
   })
   declare contratoPJ: ManyToMany<typeof ContratoPJ>
+
+  // // Validação para garantir que o nome do projeto seja único por contrato
+  // static async validateUniqueNome(nomeProjeto: string, contratoId: number, projetoId?: number) {
+  //   const query = Projeto.query().where('projeto', nomeProjeto).where('contrato_id', contratoId)
+  //   if (projetoId) {
+  //     query.whereNot('id', projetoId)
+  //   }
+  //   const existingProject = await query.first()
+  //   if (existingProject) {
+  //     throw new Error('Já existe um projeto com esse nome para este contrato.')
+  //   }
+  // }
 
   static skipHooks = false
   @afterCreate()
