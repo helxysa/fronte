@@ -28,6 +28,7 @@ const ContratoPjAnexosController = () => import('#controllers/contrato_pj_anexos
 // const TermoAditivoItemsController = () => import('#controllers/termo_aditivo_items_controller')
 const TermoAditivoAnexosController = () => import('#controllers/termo_aditivo_anexos_controller')
 const ContratoPjController = () => import('#controllers/contrato_pjs_controller')
+const RelatorioMensaisController = () => import('#controllers/relatorio_mensais_controller')
 
 // Registro, Login e Autenticação
 router.post('/register', [AuthController, 'register']).as('auth.register')
@@ -211,4 +212,14 @@ router.group(() => {
 // router.delete('/termo-aditivo/itens/:id', [TermoAditivoItemsController, 'delete'])
 router.group(() => {
   router.get('/logs', [LogsController, 'index'])
+}).use(middleware.auth())
+//Relatórios Mensais
+router.group(() => {
+  router.post('/relatorios-mensais', [RelatorioMensaisController, 'store'])
+  router.get('/relatorios-mensais', [RelatorioMensaisController, 'index'])
+  router.get('/relatorios-mensais/:id', [RelatorioMensaisController, 'show'])
+  router.put('/relatorios-mensais/:id', [RelatorioMensaisController, 'update'])
+  router.delete('/relatorios-mensais/:id', [RelatorioMensaisController, 'destroy'])
+  router.get('/relatorios-mensais/:id/anexos', [RelatorioMensaisController, 'listarAnexos'])
+  router.delete('/relatorios-mensais/anexos/:anexoId', [RelatorioMensaisController, 'excluirAnexo'])
 }).use(middleware.auth())
