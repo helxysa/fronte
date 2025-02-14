@@ -222,4 +222,5 @@ router.group(() => {
   router.delete('/relatorios-mensais/:id', [RelatorioMensaisController, 'destroy'])
   router.get('/relatorios-mensais/:id/anexos', [RelatorioMensaisController, 'listarAnexos'])
   router.delete('/relatorios-mensais/anexos/:anexoId', [RelatorioMensaisController, 'excluirAnexo'])
+  router.put('/relatorios-mensais/anexos/:anexoId', [RelatorioMensaisController, 'renomearAnexo'])
 }).use(middleware.auth())

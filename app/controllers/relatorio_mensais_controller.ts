@@ -24,13 +24,24 @@ export default class RelatorioMensaisController {
 
       const relatorios = await query.exec()
 
+      let prefixUrl = ''
+      if (process.env.NODE_ENV === 'development') {
+        // Você pode escolher qual URL usar em desenvolvimento
+        // prefixUrl = 'http://localhost:3333/'
+        prefixUrl = 'https://api-boss.msbtec.dev/'
+      } else if (process.env.NODE_ENV === 'production') {
+        prefixUrl = 'https://api-boss.msbtec.app/'
+      }
+
       // Atualizar os campos relatorioAssinado e notaFiscal com os anexos mais recentes
       for (const relatorio of relatorios) {
         const relatorioAssinado = relatorio.anexos.find((a) => a.tipoAnexo === 'relatorio_assinado')
         const notaFiscal = relatorio.anexos.find((a) => a.tipoAnexo === 'nota_fiscal')
 
-        relatorio.relatorioAssinado = relatorioAssinado ? relatorioAssinado.filePath : null
-        relatorio.notaFiscal = notaFiscal ? notaFiscal.filePath : null
+        relatorio.relatorioAssinado = relatorioAssinado
+          ? `${prefixUrl}${relatorioAssinado.filePath}`
+          : null
+        relatorio.notaFiscal = notaFiscal ? `${prefixUrl}${notaFiscal.filePath}` : null
 
         // Remover a propriedade anexos para manter o formato original da resposta
         delete (relatorio as any).anexos
@@ -116,22 +127,17 @@ export default class RelatorioMensaisController {
       throw new Error(`Arquivo inválido: ${file.clientName}`)
     }
 
-    // Pegar a extensão original do arquivo
-    const extensao = file.extname || file.clientName.split('.').pop()
-
-    // Criar nome do arquivo mantendo a extensão original
     const fileName = `${new Date().getTime()}-${file.clientName}`
 
     await file.move(app.publicPath('uploads/relatoriosMensais'), {
       name: fileName,
-      overwrite: true, // Sobrescreve se já existir um arquivo com mesmo nome
     })
 
     return await RelatorioMensalAnexo.create({
       relatorioMensalId: relatorioId,
-      fileName: file.clientName, // Nome original do arquivo
-      filePath: `/uploads/relatoriosMensais/${fileName}`,
-      fileType: extensao,
+      fileName: file.clientName,
+      filePath: `uploads/relatoriosMensais/${fileName}`,
+      fileType: file.extname,
       tipoAnexo,
     })
   }
@@ -298,10 +304,34 @@ export default class RelatorioMensaisController {
 
       await anexo.delete()
 
-      return response.ok({ message: 'Anexo excluído com sucesso.' })
+      return response.ok({ message: 'Anexo excluído com sucesso!' })
     } catch (error) {
-      return response.status(500).json({
-        message: 'Erro ao excluir anexo.',
+      return response.status(500).send({
+        message: 'Erro ao tentar excluir o anexo.',
+        details: error.message,
+      })
+    }
+  }
+
+  // Renomear arquivo
+  async renomearAnexo({ request, params, response }: HttpContext) {
+    try {
+      const anexo = await RelatorioMensalAnexo.findOrFail(params.anexoId)
+
+      const newFileName = request.input('fileName')
+
+      if (newFileName) {
+        anexo.fileName = newFileName
+      } else {
+        return response.badRequest({ message: 'Nome do arquivo não fornecido.' })
+      }
+
+      await anexo.save()
+
+      return response.ok({ message: 'Nome do anexo atualizado com sucesso!', anexo })
+    } catch (error) {
+      return response.status(500).send({
+        message: 'Erro ao tentar atualizar o nome do anexo.',
         details: error.message,
       })
     }
