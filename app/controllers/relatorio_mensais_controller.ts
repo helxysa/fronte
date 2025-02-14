@@ -14,12 +14,28 @@ export default class RelatorioMensaisController {
         .whereNull('deleted_at')
         .preload('projetos')
         .preload('contratoPj')
+        .preload('anexos', (q) => {
+          q.orderBy('created_at', 'desc')
+        })
 
       if (contratoPjId) {
         query.where('contrato_pj_id', contratoPjId)
       }
 
       const relatorios = await query.exec()
+
+      // Atualizar os campos relatorioAssinado e notaFiscal com os anexos mais recentes
+      for (const relatorio of relatorios) {
+        const relatorioAssinado = relatorio.anexos.find((a) => a.tipoAnexo === 'relatorio_assinado')
+        const notaFiscal = relatorio.anexos.find((a) => a.tipoAnexo === 'nota_fiscal')
+
+        relatorio.relatorioAssinado = relatorioAssinado ? relatorioAssinado.filePath : null
+        relatorio.notaFiscal = notaFiscal ? notaFiscal.filePath : null
+
+        // Remover a propriedade anexos para manter o formato original da resposta
+        delete (relatorio as any).anexos
+      }
+
       return response.ok(relatorios)
     } catch (error) {
       console.error('[index] Erro:', error)
@@ -32,10 +48,13 @@ export default class RelatorioMensaisController {
       const contratoPjId = request.input('contratoPjId')
       const contrato = await ContratoPJ.findOrFail(contratoPjId)
 
-      // Criar o relatório primeiro
+      // Formatar o periodoPrestacao para garantir uma data válida
+      const periodoPrestacao = request.input('periodoPrestacao')
+
+      // Criar o relatório com o período formatado
       const relatorio = await RelatorioMensal.create({
         contratoPjId,
-        periodoPrestacao: request.input('periodoPrestacao'),
+        periodoPrestacao: periodoPrestacao,
         tipoExecucao: request.input('tipoExecucao'),
         horasExecutadas: request.input('horasExecutadas'),
         descricaoTarefas: request.input('descricaoTarefas'),
@@ -97,17 +116,22 @@ export default class RelatorioMensaisController {
       throw new Error(`Arquivo inválido: ${file.clientName}`)
     }
 
+    // Pegar a extensão original do arquivo
+    const extensao = file.extname || file.clientName.split('.').pop()
+
+    // Criar nome do arquivo mantendo a extensão original
     const fileName = `${new Date().getTime()}-${file.clientName}`
 
     await file.move(app.publicPath('uploads/relatoriosMensais'), {
       name: fileName,
+      overwrite: true, // Sobrescreve se já existir um arquivo com mesmo nome
     })
 
     return await RelatorioMensalAnexo.create({
       relatorioMensalId: relatorioId,
-      fileName: file.clientName,
+      fileName: file.clientName, // Nome original do arquivo
       filePath: `/uploads/relatoriosMensais/${fileName}`,
-      fileType: file.extname,
+      fileType: extensao,
       tipoAnexo,
     })
   }

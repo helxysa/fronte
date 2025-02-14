@@ -1,17 +1,20 @@
 import { DateTime } from 'luxon'
-import { BaseModel, belongsTo, column, manyToMany } from '@adonisjs/lucid/orm'
-import type { BelongsTo, ManyToMany } from '@adonisjs/lucid/types/relations'
+import { BaseModel, belongsTo, column, manyToMany, hasMany } from '@adonisjs/lucid/orm'
+import type { BelongsTo, ManyToMany, HasMany } from '@adonisjs/lucid/types/relations'
 import ContratoPJ from './contrato_pj.js'
 import Projeto from './projetos.js'
+import RelatorioMensalAnexo from './relatorio_mensal_anexo.js'
 
 export default class RelatorioMensal extends BaseModel {
+  static table = 'relatorio_mensais'
+
   @column({ isPrimary: true })
   declare id: number
 
   @column()
   declare contratoPjId: number
 
-  @column.date()
+  @column()
   declare periodoPrestacao: DateTime
 
   @column()
@@ -44,6 +47,11 @@ export default class RelatorioMensal extends BaseModel {
   @belongsTo(() => ContratoPJ)
   declare contratoPj: BelongsTo<typeof ContratoPJ>
 
-  @manyToMany(() => Projeto)
+  @manyToMany(() => Projeto, {
+    pivotTable: 'relatorios_mensal_projetos',
+  })
   declare projetos: ManyToMany<typeof Projeto>
+
+  @hasMany(() => RelatorioMensalAnexo)
+  declare anexos: HasMany<typeof RelatorioMensalAnexo>
 }
