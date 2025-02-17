@@ -4,12 +4,12 @@ import ContratoPJProjeto from '#models/contrato_pj_projeto'
 import ContratoPJ from '#models/contrato_pj'
 import Logs from '#models/log'
 import CurrentUserService from '#services/current_user_service'
-import { DateTime } from 'luxon'
 import User from '#models/user'
 import mail from '@adonisjs/mail/services/main'
 import env from '#start/env'
 import Profile from '#models/profile'
 import db from '@adonisjs/lucid/services/db'
+import UserContratoPJ from '#models/user_contrato_pj'
 
 export default class ContratoPjsController {
   async index({ request, response }: HttpContext) {
@@ -148,20 +148,28 @@ export default class ContratoPjsController {
         ajustadoDataFim = null
       }
 
-      // Verificar se já existe um contrato com o mesmo CNPJ
-      const contratoExistente = await ContratoPJ.query().where('cnpj', cnpj).first();
+      // Verificar se já existe um contrato ativo com o mesmo CNPJ
+      const contratoExistente = await ContratoPJ.query().where('cnpj', cnpj).where('status', 'ativo').first();
       if (contratoExistente) {
         return response.status(400).json({
-          message: 'Já existe um contrato com esse CNPJ.',
+          message: 'Já existe um contrato ativo com este CNPJ.',
         });
       }
 
-      // Verificar se já existe um contrato com o mesmo e-mail
-      const contratoPorEmail = await ContratoPJ.query().where('emailEmpresa', emailEmpresa).first();
-      if (contratoPorEmail) {
+      // Verificar se já existe um usuário com este email
+      const usuarioExistente = await User.query()
+        .where('email', emailEmpresa)
+        .preload('contratosPj', (query) => {
+          query.pivotColumns(['situacao'])
+            .where('situacao', 'ativo')
+        })
+        .first()
+
+      // Verificar se tem contrato ativo
+      if (usuarioExistente && usuarioExistente.contratosPj?.length > 0) {
         return response.status(400).json({
-          message: 'Já existe um contrato com esse e-mail.',
-        });
+          message: 'Este usuário já possui um contrato ativo.',
+        })
       }
 
       // Criar o contrato PJ
@@ -193,6 +201,7 @@ export default class ContratoPjsController {
           servicoPrestado,
           escopoTrabalho,
           observacao,
+          status: 'ativo',
         },
         { client: trx }
       )
@@ -218,47 +227,72 @@ export default class ContratoPjsController {
       // Preload dos projetos vinculados
       await novoContrato.load('projetos')
 
-      // Cria usuário
-      const novoUsuario = await User.create(
-        {
-          email: emailEmpresa,
+      let novoUsuario: User
+
+      if (usuarioExistente) {
+        // Se o usuário já existe, apenas atualiza os campos necessários
+        novoUsuario = await usuarioExistente.merge({
           nome: razaoSocial,
-          password: DEFAULT_PASSWORD,
-          prestador_servicos: true, // <-- define a flag
-          contrato_pj_id: novoContrato.id, // <-- vincula ao contrato
-          //Se perfil existir, adiciona ao usuário
+          prestador_servicos: true,
+          cnpj: cnpj,
           ...(perfilPrestador ? { profileId: perfilPrestador.id } : {}),
+        }).save()
+
+        // Não envia email pois o usuário já existe
+      } else {
+        // Se é um novo usuário, cria com senha padrão
+        novoUsuario = await User.create(
+          {
+            email: emailEmpresa,
+            nome: razaoSocial,
+            password: DEFAULT_PASSWORD,
+            prestador_servicos: true,
+            cnpj: cnpj,
+            ...(perfilPrestador ? { profileId: perfilPrestador.id } : {}),
+          },
+          { client: trx }
+        )
+
+        // Envia email apenas para novos usuários
+        await mail
+          .send((message) => {
+            message
+              .to(novoUsuario.email)
+              .from(env.get('SMTP_USERNAME'))
+              .subject('Acesso ao Sistema - Credenciais de Acesso').html(`
+                <h1>Olá, ${novoUsuario.nome}!</h1>
+                <p>Sua conta foi criada com sucesso.</p>
+                <p><strong>Senha Padrão:</strong> ${DEFAULT_PASSWORD}</p>
+                <p><a href="${textoUrl}">Clique aqui</a> para acessar o sistema.</p>
+                <p>Recomendamos alterar sua senha após o primeiro acesso.</p>
+                <br />
+                <p>Atenciosamente,</p>
+                <p>Equipe Boss.</p>
+              `)
+          })
+          .catch((error) => {
+            console.error('Erro ao enviar e-mail:', error)
+          })
+      }
+
+      // Criar vínculo na tabela intermediária
+      await UserContratoPJ.create(
+        {
+          userId: novoUsuario.id,
+          contratoPjId: novoContrato.id,
+          situacao: 'ativo',
         },
         { client: trx }
       )
 
-      await mail
-        .send((message) => {
-          message
-            .to(novoUsuario.email)
-            .from(env.get('SMTP_USERNAME'))
-            .subject('Acesso ao Sistema - Credenciais de Acesso').html(`
-              <h1>Olá, ${novoUsuario.nome}!</h1>
-              <p>Sua conta foi criada com sucesso.</p>
-              <p><strong>Senha Padrão:</strong> ${DEFAULT_PASSWORD}</p>
-              <p><a href="${textoUrl}">Clique aqui</a> para acessar o sistema.</p>
-              <p>Recomendamos alterar sua senha após o primeiro acesso.</p>
-              <br />
-              <p>Atenciosamente,</p>
-              <p>Equipe Boss.</p>
-            `)
-        })
-        .catch((error) => {
-          console.error('Erro ao enviar e-mail:', error)
-        })
-
-      // Commit da transação
       await trx.commit()
 
       return response.status(201).json({
-        message: 'Contrato e usuário criados com sucesso!',
+        message: usuarioExistente
+          ? 'Contrato criado e vinculado ao usuário existente com sucesso!'
+          : 'Contrato e novo usuário criados com sucesso!',
         contrato: novoContrato,
-        usuarioCriado: novoUsuario,
+        usuario: novoUsuario,
       })
     } catch (error) {
       await trx.rollback()
@@ -411,39 +445,34 @@ export default class ContratoPjsController {
         return response.status(404).json({ message: 'Contrato não encontrado.' })
       }
 
-      ContratoPJ.skipHooks = true
+      // Atualizar status do contrato para inativo
+      await contrato.merge({ status: 'inativo' }).save()
 
-      // Soft delete nos projetos relacionados
-      await ContratoPJProjeto.query()
+      // Atualizar situacao na tabela intermediária
+      await UserContratoPJ.query()
         .where('contrato_pj_id', contratoId)
-        .update({ deleted_at: DateTime.local() })
+        .update({ situacao: 'inativo' })
 
-      // Soft delete no contrato
-      await contrato.merge({ deletedAt: DateTime.local() }).save()
-
-      // Log de exclusão
+      // Log de inativação
       try {
         const userId = CurrentUserService.getCurrentUserId()
         const username = CurrentUserService.getCurrentUsername()
         await Logs.create({
           userId: userId || 0,
           name: username || 'Usuário',
-          action: 'Deletar',
+          action: 'Inativar',
           model: 'ContratoPJ',
           modelId: contrato.id,
-          description: `Usuário ${username} excluiu o contrato PJ "${contrato.razaoSocial}" com ID ${contrato.id}.`,
+          description: `Usuário ${username} inativou o contrato PJ "${contrato.razaoSocial}" com ID ${contrato.id}.`,
         })
       } catch (logError) {
-        console.error('Erro ao criar o log de exclusão:', logError)
+        console.error('Erro ao criar o log de inativação:', logError)
       }
 
-      return response.status(202).json({ message: 'Contrato deletado com sucesso.' })
+      return response.status(200).json({ message: 'Contrato inativado com sucesso.' })
     } catch (error) {
-      console.error('Erro ao excluir contrato:', error)
+      console.error('Erro ao inativar contrato:', error)
       return response.status(500).send('Erro no servidor.')
-    } finally {
-      // Garantir que a flag seja desativada
-      ContratoPJ.skipHooks = false
     }
   }
 
@@ -487,6 +516,36 @@ export default class ContratoPjsController {
     } catch (error) {
       console.error('Erro ao restaurar contrato:', error)
       return response.status(500).send('Erro no servidor.')
+    }
+  }
+
+  async getActiveContractByUser({ response }: HttpContext) {
+    try {
+      const userId = CurrentUserService.getCurrentUserId();
+
+      if (userId === null) {
+        return response.status(400).json({ message: 'Usuário não encontrado.' });
+      }
+
+      const user = await User.query()
+        .where('id', userId)
+        .preload('contratosPj', (query) => {
+          query.where('situacao', 'ativo');
+        })
+        .firstOrFail();
+
+      const contratoAtivo = user.contratosPj[0] // Pega o primeiro (e único) contrato ativo
+
+      if (!contratoAtivo) {
+        return response.status(404).json({
+          message: 'Nenhum contrato ativo encontrado para este usuário.',
+        })
+      }
+
+      return response.json({ contratoAtivo })
+    } catch (error) {
+      console.error('[getActiveContractByUser] Erro:', error)
+      return response.status(500).json({ message: 'Erro ao buscar contrato ativo do usuário.' })
     }
   }
 }
