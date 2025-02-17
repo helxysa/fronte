@@ -101,6 +101,7 @@ router.get('/contrato/pj/:id', [ContratoPjController, 'showContractPJ'])
 router.put('/contrato/pj/:id', [ContratoPjController, 'updateContractPJ'])
 router.put('/contrato/pj/:id/restore', [ContratoPjController, 'restoreContractPJ'])
 router.delete('/contrato/pj/:id', [ContratoPjController, 'deleteContractPJ'])
+router.get('/contrato-pj/ativo', [ContratoPjController, 'getActiveContractByUser']).use(middleware.auth())
 
 // Contrato Anexos
 router.post('/contratos/:contrato_id/anexos', [ContratoAnexosController, 'store'])

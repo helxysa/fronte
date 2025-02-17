@@ -1,8 +1,8 @@
 import { DateTime } from 'luxon'
 import hash from '@adonisjs/core/services/hash'
 import { compose } from '@adonisjs/core/helpers'
-import { BaseModel, column, belongsTo, afterCreate } from '@adonisjs/lucid/orm'
-import type { BelongsTo } from '@adonisjs/lucid/types/relations'
+import { BaseModel, column, belongsTo, afterCreate, manyToMany } from '@adonisjs/lucid/orm'
+import type { BelongsTo, ManyToMany } from '@adonisjs/lucid/types/relations'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
 import { DbAccessTokensProvider } from '@adonisjs/auth/access_tokens'
 import Profile from './profile.js'
@@ -47,7 +47,7 @@ export default class User extends compose(BaseModel, AuthFinder) {
   declare prestador_servicos: boolean
 
   @column()
-  declare contrato_pj_id: number | null
+  declare cnpj: string | null
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -61,11 +61,11 @@ export default class User extends compose(BaseModel, AuthFinder) {
   @belongsTo(() => Profile)
   declare profile: BelongsTo<typeof Profile>
 
-  // Relacionamento opcional com ContratoPJ
-  @belongsTo(() => ContratoPJ, {
-    foreignKey: 'contrato_pj_id',
+  @manyToMany(() => ContratoPJ, {
+    pivotTable: 'user_contrato_pjs',
+    pivotColumns: ['situacao'],
   })
-  declare contratoPJ: BelongsTo<typeof ContratoPJ>
+  declare contratosPj: ManyToMany<typeof ContratoPJ>
 
   static accessTokens = DbAccessTokensProvider.forModel(User, {
     expiresIn: '1 Day',

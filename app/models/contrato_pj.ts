@@ -2,6 +2,7 @@ import { DateTime } from 'luxon'
 import { BaseModel, column, manyToMany } from '@adonisjs/lucid/orm'
 import type { ManyToMany } from '@adonisjs/lucid/types/relations'
 import Projeto from './projetos.js'
+import User from './user.js'
 
 export default class ContratoPJ extends BaseModel {
   @column({ isPrimary: true })
@@ -92,6 +93,9 @@ export default class ContratoPJ extends BaseModel {
   @column()
   declare observacao: string | null
 
+  @column()
+  declare status: 'ativo' | 'inativo'
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 
@@ -108,6 +112,12 @@ export default class ContratoPJ extends BaseModel {
     pivotColumns: ['servico_prestado', 'esforco_estimado', 'gestor_projeto'],
   })
   declare projetos: ManyToMany<typeof Projeto>
+
+  @manyToMany(() => User, {
+    pivotTable: 'user_contrato_pjs',
+    pivotColumns: ['situacao'],
+  })
+  declare users: ManyToMany<typeof User>
 
   static skipHooks = false
 }
