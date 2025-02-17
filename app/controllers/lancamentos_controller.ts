@@ -12,6 +12,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import CurrentUserService from '#services/current_user_service'
 import Logs from '#models/log'
+import Projeto from '#models/projetos'
 
 export default class LancamentosController {
   async createLancamento({ request, response, params }: HttpContext) {
@@ -37,6 +38,19 @@ export default class LancamentosController {
     }
 
     try {
+      // Verificar se o projeto está parado
+      const projeto = await Projeto.query()
+        .where('projeto', projetos)
+        .whereNull('deleted_at')
+        .first()
+
+      if (projeto && projeto.situacao === 'Parado') {
+        return response.status(400).json({
+          status: 'error',
+          message: 'Não é possível criar medições para projetos que estão na situação "Parado".',
+        })
+      }
+
       // Verificação se já existe um lançamento com a mesma tarefa para o contrato
       let existeLancamento: any = null;
 
