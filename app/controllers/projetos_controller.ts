@@ -7,26 +7,26 @@ import Lancamentos from '#models/lancamentos'
 import { DateTime } from 'luxon'
 
 export default class ProjetosController {
-  async index({ params, response }: HttpContext) {
+  async index({ params, request, response }: HttpContext) {
     const { contrato_id } = params
+    const page = request.input('page', 1)
+    const limit = request.input('limit', 10)
+
     try {
       const projetos = await Projeto.query()
         .where('contrato_id', contrato_id)
         .whereNull('deleted_at')
         .orderBy('projeto', 'asc')
+        .paginate(page, limit)
 
-      if (projetos.length <= 0) {
+      if (projetos.total <= 0) {
         return response.json({
           status: 'success',
           message: 'Não foi possível encontrar projetos cadastrados.',
         })
       }
 
-      return response.json({
-        status: 'success',
-        data: projetos,
-        message: 'Projetos recuperados com sucesso',
-      })
+      return response.json(projetos)
     } catch (error) {
       return response.status(500).json({
         status: 'error',
