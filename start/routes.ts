@@ -29,6 +29,7 @@ const ContratoPjAnexosController = () => import('#controllers/contrato_pj_anexos
 const TermoAditivoAnexosController = () => import('#controllers/termo_aditivo_anexos_controller')
 const ContratoPjController = () => import('#controllers/contrato_pjs_controller')
 const RelatorioMensaisController = () => import('#controllers/relatorio_mensais_controller')
+const PagamentosController = () => import('#controllers/pagamentos_controller')
 
 // Registro, Login e Autenticação
 router.post('/register', [AuthController, 'register']).as('auth.register')
@@ -224,4 +225,16 @@ router.group(() => {
   router.get('/relatorios-mensais/:id/anexos', [RelatorioMensaisController, 'listarAnexos'])
   router.delete('/relatorios-mensais/anexos/:anexoId', [RelatorioMensaisController, 'excluirAnexo'])
   router.put('/relatorios-mensais/anexos/:anexoId', [RelatorioMensaisController, 'renomearAnexo'])
+}).use(middleware.auth())
+
+//Pagamentos
+router.group(() => {
+  router.post('/pagamentos', [PagamentosController, 'store'])
+  router.get('/pagamentos', [PagamentosController, 'index'])
+  router.get('/pagamentos/:id', [PagamentosController, 'show'])
+  router.put('/pagamentos/:id', [PagamentosController, 'update'])
+  router.delete('/pagamentos/:id', [PagamentosController, 'destroy'])
+  router.get('/pagamentos/:id/anexos', [PagamentosController, 'listarAnexos'])
+  router.delete('/pagamentos/anexos/:anexoId', [PagamentosController, 'excluirAnexo'])
+  router.put('/pagamentos/anexos/:anexoId', [PagamentosController, 'renomearAnexo'])
 }).use(middleware.auth())

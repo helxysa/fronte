@@ -4,6 +4,7 @@ import type { BelongsTo, ManyToMany, HasMany } from '@adonisjs/lucid/types/relat
 import ContratoPJ from './contrato_pj.js'
 import Projeto from './projetos.js'
 import RelatorioMensalAnexo from './relatorio_mensal_anexo.js'
+import Pagamento from './pagamento.js'
 
 export default class RelatorioMensal extends BaseModel {
   static table = 'relatorio_mensais'
@@ -54,4 +55,7 @@ export default class RelatorioMensal extends BaseModel {
 
   @hasMany(() => RelatorioMensalAnexo)
   declare anexos: HasMany<typeof RelatorioMensalAnexo>
+
+  @hasMany(() => Pagamento)
+  declare pagamentos: HasMany<typeof Pagamento>
 }
