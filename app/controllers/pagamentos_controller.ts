@@ -59,7 +59,7 @@ export default class PagamentosController {
 
       // Verificar se o relatório está disponível para pagamento ou já está pago
       // (permitir status "pago" para uma melhor experiência do usuário)
-      if (relatorioMensal.status !== 'disponivel_pagamento' && relatorioMensal.status !== 'pago') {
+      if (relatorioMensal.status !== 'disponivel_pagamento' && relatorioMensal.status !== 'pago' && relatorioMensal.status !== 'aguardando_pagamento') {
         await trx.rollback()
         return response.status(400).json({
           message: 'Relatório mensal não está disponível para pagamento.',
@@ -92,7 +92,13 @@ export default class PagamentosController {
 
       // Atualizar o status do relatório mensal de acordo com o status do pagamento
       relatorioMensal.useTransaction(trx)
-      relatorioMensal.status = pagamento.statusPagamento === 'pago' ? 'pago' : 'disponivel_pagamento'
+      if (pagamento.statusPagamento === 'pago') {
+        relatorioMensal.status = 'pago'
+      } else if (pagamento.statusPagamento === 'aguardando_pagamento') {
+        relatorioMensal.status = 'aguardando_pagamento'
+      } else {
+        relatorioMensal.status = 'disponivel_pagamento'
+      }
       await relatorioMensal.save()
 
       // Processar anexos
@@ -173,7 +179,7 @@ export default class PagamentosController {
         const novoRelatorio = await RelatorioMensal.findOrFail(novoRelatorioMensalId)
 
         // Verificar se o relatório está disponível para pagamento ou já está com status pago
-        if (novoRelatorio.status !== 'disponivel_pagamento' && novoRelatorio.status !== 'pago') {
+        if (novoRelatorio.status !== 'disponivel_pagamento' && novoRelatorio.status !== 'pago' && novoRelatorio.status !== 'aguardando_pagamento') {
           await trx.rollback()
           return response.status(400).json({
             message: 'O novo relatório mensal não está disponível para pagamento.',
@@ -201,7 +207,13 @@ export default class PagamentosController {
 
         // Atualizar o status do novo relatório com base no status do pagamento
         novoRelatorio.useTransaction(trx)
-        novoRelatorio.status = pagamento.statusPagamento === 'pago' ? 'pago' : 'disponivel_pagamento'
+        if (pagamento.statusPagamento === 'pago') {
+          novoRelatorio.status = 'pago'
+        } else if (pagamento.statusPagamento === 'aguardando_pagamento') {
+          novoRelatorio.status = 'aguardando_pagamento'
+        } else {
+          novoRelatorio.status = 'disponivel_pagamento'
+        }
         await novoRelatorio.save()
 
         // Se tudo estiver ok, permitir a mudança
@@ -223,7 +235,13 @@ export default class PagamentosController {
         // Buscar relatório atual (caso tenha sido alterado durante a execução)
         const relatorioParaAtualizar = await RelatorioMensal.findOrFail(pagamento.relatorioMensalId)
         relatorioParaAtualizar.useTransaction(trx)
-        relatorioParaAtualizar.status = pagamento.statusPagamento === 'pago' ? 'pago' : 'disponivel_pagamento'
+        if (pagamento.statusPagamento === 'pago') {
+          relatorioParaAtualizar.status = 'pago'
+        } else if (pagamento.statusPagamento === 'aguardando_pagamento') {
+          relatorioParaAtualizar.status = 'aguardando_pagamento'
+        } else {
+          relatorioParaAtualizar.status = 'disponivel_pagamento'
+        }
         await relatorioParaAtualizar.save()
       }
 
@@ -288,9 +306,20 @@ export default class PagamentosController {
 
       // Buscar o relatório mensal e restaurar seu status
       const relatorioMensal = await RelatorioMensal.findOrFail(pagamento.relatorioMensalId)
-      relatorioMensal.useTransaction(trx)
-      relatorioMensal.status = 'disponivel_pagamento'
-      await relatorioMensal.save()
+
+      // Verificar se existe outro pagamento para este relatório
+      const outroPagamento = await Pagamento.query()
+        .where('relatorio_mensal_id', pagamento.relatorioMensalId)
+        .where('id', '!=', pagamento.id)
+        .whereNull('deleted_at')
+        .first()
+
+      // Se não existir outro pagamento, restaurar o status para disponível para pagamento
+      if (!outroPagamento) {
+        relatorioMensal.useTransaction(trx)
+        relatorioMensal.status = 'disponivel_pagamento'
+        await relatorioMensal.save()
+      }
 
       // Buscar e excluir anexos
       const anexos = await PagamentoAnexo.query().where('pagamento_id', pagamento.id)

@@ -34,7 +34,7 @@ export default class RelatorioMensal extends BaseModel {
   declare notaFiscal: string | null
 
   @column()
-  declare status: 'pendente' | 'disponivel_pagamento' | 'pago'
+  declare status: 'pendente' | 'disponivel_pagamento' | 'aguardando_pagamento' | 'pago'
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

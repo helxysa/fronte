@@ -144,9 +144,9 @@ export default class RelatorioMensaisController {
   }
 
   private verificarStatus(dados: any) {
-    // Se o relatório já tiver um pagamento, manter como 'pago'
-    if (dados.status === 'pago') {
-      return 'pago'
+    // Se o relatório já tiver um pagamento, manter seu status especial
+    if (dados.status === 'pago' || dados.status === 'aguardando_pagamento') {
+      return dados.status
     }
 
     const camposObrigatorios = [
