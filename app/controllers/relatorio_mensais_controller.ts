@@ -144,6 +144,11 @@ export default class RelatorioMensaisController {
   }
 
   private verificarStatus(dados: any) {
+    // Se o relatório já tiver um pagamento, manter como 'pago'
+    if (dados.status === 'pago') {
+      return 'pago'
+    }
+
     const camposObrigatorios = [
       'periodoPrestacao',
       'tipoExecucao',
@@ -169,7 +174,7 @@ export default class RelatorioMensaisController {
 
       if (pagamentosRelacionados) {
         return response.status(403).json({
-          message: 'Não é possível excluir o relatório pois existem pagamentos relacionados a ele.'
+          message: 'Não é possível excluir o relatório pois existem pagamentos relacionados a ele.',
         })
       }
 
