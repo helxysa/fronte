@@ -4,6 +4,7 @@ import ContratoPJ from '#models/contrato_pj'
 import app from '@adonisjs/core/services/app'
 import fs from 'node:fs'
 import RelatorioMensalAnexo from '#models/relatorio_mensal_anexo'
+import Pagamento from '#models/pagamento'
 
 export default class RelatorioMensaisController {
   async index({ request, response }: HttpContext) {
@@ -143,6 +144,11 @@ export default class RelatorioMensaisController {
   }
 
   private verificarStatus(dados: any) {
+    // Se o relatório já tiver um pagamento, manter seu status especial
+    if (dados.status === 'pago' || dados.status === 'aguardando_pagamento') {
+      return dados.status
+    }
+
     const camposObrigatorios = [
       'periodoPrestacao',
       'tipoExecucao',
@@ -159,6 +165,18 @@ export default class RelatorioMensaisController {
   async destroy({ params, response }: HttpContext) {
     try {
       const relatorio = await RelatorioMensal.findOrFail(params.id)
+
+      // Verificar se existem pagamentos relacionados
+      const pagamentosRelacionados = await Pagamento.query()
+        .where('relatorio_mensal_id', relatorio.id)
+        .whereNull('deleted_at')
+        .first()
+
+      if (pagamentosRelacionados) {
+        return response.status(403).json({
+          message: 'Não é possível excluir o relatório pois existem pagamentos relacionados a ele.',
+        })
+      }
 
       // Buscar e excluir anexos
       const anexos = await RelatorioMensalAnexo.query().where('relatorio_mensal_id', relatorio.id)
