@@ -63,7 +63,8 @@ export default class ContratosController {
 
     const items = request.input('items');
     const rawProjetos = request.input('projetos');
-    const projetos = JSON.parse(rawProjetos);
+    const projetos = rawProjetos ? JSON.parse(rawProjetos) : []; // Verifica se rawProjetos é válido
+   
     try {
       const foto = request.file('foto', {
         size: '2mb',
