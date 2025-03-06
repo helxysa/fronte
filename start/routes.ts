@@ -4,10 +4,11 @@
 import router from '@adonisjs/core/services/router'
 import { middleware } from './kernel.js'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath } from 'node:url'
+import { json } from 'node:stream/consumers'
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 const LogsController = () => import('#controllers/logs_controller')
 const UsersController = () => import('#controllers/users_controller')
@@ -29,6 +30,7 @@ const ContratoPjAnexosController = () => import('#controllers/contrato_pj_anexos
 const TermoAditivoAnexosController = () => import('#controllers/termo_aditivo_anexos_controller')
 const ContratoPjController = () => import('#controllers/contrato_pjs_controller')
 const RelatorioMensaisController = () => import('#controllers/relatorio_mensais_controller')
+const ContratoCltsController = () => import('#controllers/contrato_clts_controller')
 
 // Registro, Login e Autenticação
 router.post('/register', [AuthController, 'register']).as('auth.register')
@@ -46,53 +48,66 @@ router.put('users/alterar-senha/:id', [UsersController, 'updatePassword'])
 router.put('users/esqueci-minha-senha', [UsersController, 'forgotPassword'])
 router.put('users/:id/perfil', [UsersController, 'setUserProfile'])
 router.post('users/esqueci-minha-senha', [UsersController, 'resetPassword'])
-router.put('/users/:id/passwordChanged', [UsersController, 'updatePasswordChangedStatus']);
+router.put('/users/:id/passwordChanged', [UsersController, 'updatePasswordChangedStatus'])
 router.delete('users/:id', [UsersController, 'destroy'])
 router.get('files/:filename', async ({ params, response }) => {
   try {
-    const filePath = path.join(__dirname, '..', 'tmpPublic', 'uploads', params.filename);
-    return response.attachment(filePath, params.filename);
+    const filePath = path.join(__dirname, '..', 'tmpPublic', 'uploads', params.filename)
+    return response.attachment(filePath, params.filename)
   } catch (error) {
-    console.error('Erro ao servir o arquivo:', error);
-    return response.status(500).send('Erro ao acessar o arquivo.');
+    console.error('Erro ao servir o arquivo:', error)
+    return response.status(500).send('Erro ao acessar o arquivo.')
   }
 })
 router.get('files/relatorios/:filename', async ({ params, response }) => {
   try {
-    const filePath = path.join(__dirname, '..', 'tmpPublic', 'uploads', 'relatorios', params.filename);
-    return response.attachment(filePath, params.filename);
+    const filePath = path.join(
+      __dirname,
+      '..',
+      'tmpPublic',
+      'uploads',
+      'relatorios',
+      params.filename
+    )
+    return response.attachment(filePath, params.filename)
   } catch (error) {
-    console.error('Erro ao servir o arquivo:', error);
-    return response.status(500).send('Erro ao acessar o arquivo.');
+    console.error('Erro ao servir o arquivo:', error)
+    return response.status(500).send('Erro ao acessar o arquivo.')
   }
 })
 router.post('upload/chart', [ContratosController, 'uploadChart'])
 // Perfis e Permissões
-router.group(() => {
-  router.get('perfil', [ProfilesController, 'index'])
-  router.get('perfil/:id', [ProfilesController, 'show'])
-  router.post('perfil', [ProfilesController, 'store'])
-  router.put('perfil/:id', [ProfilesController, 'update'])
-  router.delete('perfil/:id', [ProfilesController, 'destroy'])
-}).use(middleware.auth())
+router
+  .group(() => {
+    router.get('perfil', [ProfilesController, 'index'])
+    router.get('perfil/:id', [ProfilesController, 'show'])
+    router.post('perfil', [ProfilesController, 'store'])
+    router.put('perfil/:id', [ProfilesController, 'update'])
+    router.delete('perfil/:id', [ProfilesController, 'destroy'])
+  })
+  .use(middleware.auth())
 // Dashboard
-router.group(() => {
-  router.get('/dashboard', [ContratosController, 'getDashboard'])
-}).use(middleware.auth())
+router
+  .group(() => {
+    router.get('/dashboard', [ContratosController, 'getDashboard'])
+  })
+  .use(middleware.auth())
 // Contratos
-router.group(() => {
-  router.post('/contratos', [ContratosController, 'createContract'])
-  router.get('/contratos-e-termos', [ContratosController, 'getContractAndAditiveTerms'])
-  router.get('/contratos', [ContratosController, 'getContracts'])
-  router.get('/contratos/:id', [ContratosController, 'getContractById'])
-  router.post('/contratos/:id/relatorio/', [ContratosController, 'getRelatorio'])
-  router.post('/contratos/:id/relatorio/pdf', [ContratosController, 'getRelatorioPdf'])
-  router.put('/contratos/:id', [ContratosController, 'updateContract'])
-  router.put('/contratos/restore/:id', [ContratosController, 'restoreContract'])
-  router.delete('/contratos/:id', [ContratosController, 'deleteContract'])
-  // Contrato foto
-  router.post('/contratos/:id/foto', [ContratosController, 'uploadFoto'])
-}).use(middleware.auth())
+router
+  .group(() => {
+    router.post('/contratos', [ContratosController, 'createContract'])
+    router.get('/contratos-e-termos', [ContratosController, 'getContractAndAditiveTerms'])
+    router.get('/contratos', [ContratosController, 'getContracts'])
+    router.get('/contratos/:id', [ContratosController, 'getContractById'])
+    router.post('/contratos/:id/relatorio/', [ContratosController, 'getRelatorio'])
+    router.post('/contratos/:id/relatorio/pdf', [ContratosController, 'getRelatorioPdf'])
+    router.put('/contratos/:id', [ContratosController, 'updateContract'])
+    router.put('/contratos/restore/:id', [ContratosController, 'restoreContract'])
+    router.delete('/contratos/:id', [ContratosController, 'deleteContract'])
+    // Contrato foto
+    router.post('/contratos/:id/foto', [ContratosController, 'uploadFoto'])
+  })
+  .use(middleware.auth())
 
 // Contrato PJ ContratoPjController
 router.post('/contrato/pj', [ContratoPjController, 'createContractPJ'])
@@ -101,7 +116,9 @@ router.get('/contrato/pj/:id', [ContratoPjController, 'showContractPJ'])
 router.put('/contrato/pj/:id', [ContratoPjController, 'updateContractPJ'])
 router.put('/contrato/pj/:id/restore', [ContratoPjController, 'restoreContractPJ'])
 router.delete('/contrato/pj/:id', [ContratoPjController, 'deleteContractPJ'])
-router.get('/contrato-pj/ativo', [ContratoPjController, 'getActiveContractByUser']).use(middleware.auth())
+router
+  .get('/contrato-pj/ativo', [ContratoPjController, 'getActiveContractByUser'])
+  .use(middleware.auth())
 
 // Contrato Anexos
 router.post('/contratos/:contrato_id/anexos', [ContratoAnexosController, 'store'])
@@ -116,7 +133,10 @@ router.get('/aditivo/:termo_aditivo_id/anexos/:id', [TermoAditivoAnexosControlle
 router.put('/aditivo/:termo_aditivo_id/anexos/:id', [TermoAditivoAnexosController, 'update'])
 router.delete('/aditivo/anexos/:id', [TermoAditivoAnexosController, 'destroy'])
 // Download Anexos do termo aditivo e contrato original
-router.get('termo-aditivos/:termo_aditivo_id/anexos/zip', [TermoAditivoAnexosController, 'downloadZip'])
+router.get('termo-aditivos/:termo_aditivo_id/anexos/zip', [
+  TermoAditivoAnexosController,
+  'downloadZip',
+])
 
 // Medição Anexos
 router.post('/medicao/:lancamento_id/anexos', [MedicaoAnexosController, 'store'])
@@ -137,54 +157,67 @@ router.get('/pj/anexos/:id', [ContratoPjAnexosController, 'show'])
 router.put('/pj/:contrato_pj_id/anexos/:id', [ContratoPjAnexosController, 'update'])
 router.delete('/pj/anexos/:id', [ContratoPjAnexosController, 'destroy'])
 // Itens de contratos
-router.group(() => {
-  router.post('/contratos/:id/items', [ContratoItemController, 'createContractItem'])
-  // router.get('/contratos/:id/items', [ContratoItemController, 'getContractItem'])
-  router.get('/contratos/:id/items', [ContratoItemController, 'getContractItemByContract'])
-  router.put('/contratos/items/:itemId', [ContratoItemController, 'updateContractItem'])
-  router.delete('/contratos/items/:itemId', [ContratoItemController, 'deleteContractItem'])
-}).use(middleware.auth())
+router
+  .group(() => {
+    router.post('/contratos/:id/items', [ContratoItemController, 'createContractItem'])
+    // router.get('/contratos/:id/items', [ContratoItemController, 'getContractItem'])
+    router.get('/contratos/:id/items', [ContratoItemController, 'getContractItemByContract'])
+    router.put('/contratos/items/:itemId', [ContratoItemController, 'updateContractItem'])
+    router.delete('/contratos/items/:itemId', [ContratoItemController, 'deleteContractItem'])
+  })
+  .use(middleware.auth())
 //Projetos
-router.group(() => {
-  router.post('/contratos/:contrato_id/projetos', [ProjetosController, 'store'])
-  router.post('/contratos/:contrato_id/projetos/multiplos', [ProjetosController, 'storeMultiple'])
-  router.get('/contratos/:contrato_id/projetos', [ProjetosController, 'index'])
-  router.get('/projetos', [ProjetosController, 'getAllProjects'])
-  router.get('/projetos/:id', [ProjetosController, 'show'])
-  router.put('/projetos/:id', [ProjetosController, 'update'])
-  router.delete('/projetos/:id', [ProjetosController, 'destroy'])
-}).use(middleware.auth())
-  //Lancamentos
-router.group(() => {
-  router.post('/contratos/:id/lancamentos', [LancamentosController, 'createLancamento'])
-  router.get('/lancamentos', [LancamentosController, 'getLancamentos'])
-  router.get('/lancamentos/:id', [LancamentosController, 'getLancamentoById'])
-  router.get('/contratos/:id/lancamentos', [LancamentosController, 'getLancamentoByContract'])
-  router.put('/lancamentos/:id', [LancamentosController, 'updateLancamento'])
-  router.delete('/lancamentos/:id', [LancamentosController, 'deleteLancamento'])
-  router.delete('/lancamentos/restore/:id', [LancamentosController, 'restoreLancamento'])
-  router.delete('/lancamentos/:id/items/:itemId', [LancamentosController, 'deleteLancamentoItem'])
-  router.post('/lancamentos/:id/items', [LancamentosController, 'addLancamentoItem'])
-  router.patch('/lancamentos/:id/competencia', [LancamentosController, 'updateCompetencia'])
-  router.patch('/lancamentos/:id/status', [LancamentosController, 'updateStatus'])
-}).use(middleware.auth())
+router
+  .group(() => {
+    router.post('/contratos/:contrato_id/projetos', [ProjetosController, 'store'])
+    router.post('/contratos/:contrato_id/projetos/multiplos', [ProjetosController, 'storeMultiple'])
+    router.get('/contratos/:contrato_id/projetos', [ProjetosController, 'index'])
+    router.get('/projetos', [ProjetosController, 'getAllProjects'])
+    router.get('/projetos/:id', [ProjetosController, 'show'])
+    router.put('/projetos/:id', [ProjetosController, 'update'])
+    router.delete('/projetos/:id', [ProjetosController, 'destroy'])
+  })
+  .use(middleware.auth())
+//Lancamentos
+router
+  .group(() => {
+    router.post('/contratos/:id/lancamentos', [LancamentosController, 'createLancamento'])
+    router.get('/lancamentos', [LancamentosController, 'getLancamentos'])
+    router.get('/lancamentos/:id', [LancamentosController, 'getLancamentoById'])
+    router.get('/contratos/:id/lancamentos', [LancamentosController, 'getLancamentoByContract'])
+    router.put('/lancamentos/:id', [LancamentosController, 'updateLancamento'])
+    router.delete('/lancamentos/:id', [LancamentosController, 'deleteLancamento'])
+    router.delete('/lancamentos/restore/:id', [LancamentosController, 'restoreLancamento'])
+    router.delete('/lancamentos/:id/items/:itemId', [LancamentosController, 'deleteLancamentoItem'])
+    router.post('/lancamentos/:id/items', [LancamentosController, 'addLancamentoItem'])
+    router.patch('/lancamentos/:id/competencia', [LancamentosController, 'updateCompetencia'])
+    router.patch('/lancamentos/:id/status', [LancamentosController, 'updateStatus'])
+  })
+  .use(middleware.auth())
 //Faturamento
-router.group(() => {
-  router.post('/contratos/:id/faturamentos', [FaturamentosController, 'createFaturamentos'])
-  router.put('/faturamentos/:id', [FaturamentosController, 'updateFaturamento'])
-  router.get('/contratos/:id/faturamentos', [FaturamentosController, 'getFaturamentosByContratoId'])
-  router.get('/contratos/:id/resumo', [FaturamentosController, 'getFinancialSummaryByContratoId'])
-  router.delete('/faturamentos/:id', [FaturamentosController, 'deleteFaturamento'])
-  router.put('/faturamentos/restore/:id', [FaturamentosController, 'restoreFaturamento'])
-}).use(middleware.auth())
+router
+  .group(() => {
+    router.post('/contratos/:id/faturamentos', [FaturamentosController, 'createFaturamentos'])
+    router.put('/faturamentos/:id', [FaturamentosController, 'updateFaturamento'])
+    router.get('/contratos/:id/faturamentos', [
+      FaturamentosController,
+      'getFaturamentosByContratoId',
+    ])
+    router.get('/contratos/:id/resumo', [FaturamentosController, 'getFinancialSummaryByContratoId'])
+    router.delete('/faturamentos/:id', [FaturamentosController, 'deleteFaturamento'])
+    router.put('/faturamentos/restore/:id', [FaturamentosController, 'restoreFaturamento'])
+  })
+  .use(middleware.auth())
 //Unidade de medida
-router.group(() => {
-  router.post('/unidade_medida', [UnidadeMedidaController, 'store'])
-  router.get('/unidade_medida', [UnidadeMedidaController, 'index'])
-  router.get('/unidade_medida/:id', [UnidadeMedidaController, 'show'])
-  router.put('/unidade_medida/:id', [UnidadeMedidaController, 'update'])
-  router.delete('/unidade_medida/:id', [UnidadeMedidaController, 'destroy'])
-}).use(middleware.auth())
+router
+  .group(() => {
+    router.post('/unidade_medida', [UnidadeMedidaController, 'store'])
+    router.get('/unidade_medida', [UnidadeMedidaController, 'index'])
+    router.get('/unidade_medida/:id', [UnidadeMedidaController, 'show'])
+    router.put('/unidade_medida/:id', [UnidadeMedidaController, 'update'])
+    router.delete('/unidade_medida/:id', [UnidadeMedidaController, 'destroy'])
+  })
+  .use(middleware.auth())
 //Renovacoes
 //Criar renovação
 // router.post('/contratos/:id/renovar', [RenovacaoController, 'createRenovacao'])
@@ -198,11 +231,13 @@ router.group(() => {
 // router.post('/renovacoes/lancamentos/:lancamento_id', [RenovacaoController, 'addItemToLancamento'])
 // router.put('/renovacao/:renovacao_id', [RenovacaoController, 'updateRenovacao'])
 // router.put('/renovacao/items/:id_item', [RenovacaoController, 'updateRenovacaoItem'])
-router.group(() => {
-  // Termo Aditivo
-  router.get('/contratos/:contrato_id/termo-aditivo', [ContratosController, 'getTermosAditivos'])
-  router.post('/termo-aditivo', [ContratosController, 'createTermoAditivo'])
-}).use(middleware.auth())
+router
+  .group(() => {
+    // Termo Aditivo
+    router.get('/contratos/:contrato_id/termo-aditivo', [ContratosController, 'getTermosAditivos'])
+    router.post('/termo-aditivo', [ContratosController, 'createTermoAditivo'])
+  })
+  .use(middleware.auth())
 // router.get('/termo-aditivo/:id', [TermoAditivosController, 'show'])
 // router.put('/termo-aditivo/:id', [TermoAditivosController, 'update'])
 // router.delete('/termo-aditivo/:id', [TermoAditivosController, 'delete'])
@@ -211,17 +246,45 @@ router.group(() => {
 // router.get('/termo-aditivo/:id/itens', [TermoAditivoItemsController, 'show'])
 // router.put('/termo-aditivo/itens/:id', [TermoAditivoItemsController, 'update'])
 // router.delete('/termo-aditivo/itens/:id', [TermoAditivoItemsController, 'delete'])
-router.group(() => {
-  router.get('/logs', [LogsController, 'index'])
-}).use(middleware.auth())
+router
+  .group(() => {
+    router.get('/logs', [LogsController, 'index'])
+  })
+  .use(middleware.auth())
 //Relatórios Mensais
-router.group(() => {
-  router.post('/relatorios-mensais', [RelatorioMensaisController, 'store'])
-  router.get('/relatorios-mensais', [RelatorioMensaisController, 'index'])
-  router.get('/relatorios-mensais/:id', [RelatorioMensaisController, 'show'])
-  router.put('/relatorios-mensais/:id', [RelatorioMensaisController, 'update'])
-  router.delete('/relatorios-mensais/:id', [RelatorioMensaisController, 'destroy'])
-  router.get('/relatorios-mensais/:id/anexos', [RelatorioMensaisController, 'listarAnexos'])
-  router.delete('/relatorios-mensais/anexos/:anexoId', [RelatorioMensaisController, 'excluirAnexo'])
-  router.put('/relatorios-mensais/anexos/:anexoId', [RelatorioMensaisController, 'renomearAnexo'])
-}).use(middleware.auth())
+router
+  .group(() => {
+    router.post('/relatorios-mensais', [RelatorioMensaisController, 'store'])
+    router.get('/relatorios-mensais', [RelatorioMensaisController, 'index'])
+    router.get('/relatorios-mensais/:id', [RelatorioMensaisController, 'show'])
+    router.put('/relatorios-mensais/:id', [RelatorioMensaisController, 'update'])
+    router.delete('/relatorios-mensais/:id', [RelatorioMensaisController, 'destroy'])
+    router.get('/relatorios-mensais/:id/anexos', [RelatorioMensaisController, 'listarAnexos'])
+    router.delete('/relatorios-mensais/anexos/:anexoId', [
+      RelatorioMensaisController,
+      'excluirAnexo',
+    ])
+    router.put('/relatorios-mensais/anexos/:anexoId', [RelatorioMensaisController, 'renomearAnexo'])
+  })
+  .use(middleware.auth())
+
+// Contratos CLT
+router
+  .group(() => {
+    router.post('/contrato-clt', [ContratoCltsController, 'store'])
+    router.get('/contrato-clt', [ContratoCltsController, 'index'])
+    router.get('/contrato-clt/:id', [ContratoCltsController, 'show'])
+    router.put('/contrato-clt/:id', [ContratoCltsController, 'update'])
+    router.delete('/contrato-clt/:id', [ContratoCltsController, 'destroy'])
+    // Novas rotas para anexos do contrato CLT
+    router.get('/contrato-clt/:id/documentos', [ContratoCltsController, 'getDocumentos'])
+    router.delete('/contrato-clt/:id/documentos/:docPath', [
+      ContratoCltsController,
+      'deleteDocument',
+    ])
+    router.put('/contrato-clt/:id/documentos/:docPath', [
+      ContratoCltsController,
+      'updateDocumentName',
+    ])
+  })
+  .use(middleware.auth())
