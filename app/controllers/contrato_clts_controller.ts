@@ -86,10 +86,16 @@ export default class ContratoCltsController {
       let documentosPath = ''
       const files = request.files('documentos')
 
-      if (files) {
+      if (files && files.length > 0) {
         const documentosNomes = []
 
-        for (const file of files) {
+        // Criar diretório se não existir
+        const uploadPath = app.tmpPath('uploads/contrato_clt')
+        if (!fs.existsSync(uploadPath)) {
+          fs.mkdirSync(uploadPath, { recursive: true })
+        }
+
+        for (let file of files) {
           if (!file.isValid) {
             return response.status(400).json({
               message: 'Arquivo inválido',
@@ -100,11 +106,13 @@ export default class ContratoCltsController {
 
           try {
             const fileName = `${new Date().getTime()}-${file.clientName}`
-            await file.move(app.tmpPath('uploads/contrato_clt'), {
+            await file.move(uploadPath, {
               name: fileName,
+              overwrite: true,
             })
             documentosNomes.push(`/uploads/contrato_clt/${fileName}`)
           } catch (error) {
+            console.error('Erro ao salvar arquivo:', error)
             return response.status(500).json({
               message: 'Erro ao salvar arquivo',
               erro: error.message,
@@ -121,7 +129,7 @@ export default class ContratoCltsController {
           ...dados,
           dataNascimento: DateTime.fromISO(dados.dataNascimento),
           dataAdmissao: DateTime.fromISO(dados.dataAdmissao),
-          documentos: documentosPath,
+          documentos: documentosPath || null,
         })
 
         return response.created({
@@ -129,17 +137,17 @@ export default class ContratoCltsController {
           contrato,
         })
       } catch (error) {
+        console.error('Erro ao criar contrato:', error)
         return response.status(500).json({
           message: 'Erro ao criar contrato no banco de dados',
           erro: error.message,
-          detalhes: error.stack,
         })
       }
     } catch (error) {
+      console.error('Erro interno:', error)
       return response.status(500).json({
         message: 'Erro interno do servidor',
         erro: error.message,
-        detalhes: error.stack,
       })
     }
   }
@@ -158,7 +166,6 @@ export default class ContratoCltsController {
   async update({ params, request, response }: HttpContext) {
     try {
       const contrato = await Contratoclt.findOrFail(params.id)
-
       const dados: { [key: string]: any } = request.only([
         'matricula',
         'nomeCompleto',
@@ -199,20 +206,16 @@ export default class ContratoCltsController {
         extnames: ['pdf', 'docx', 'doc', 'xlsx', 'csv', 'jpg', 'png', 'rar', 'zip'],
       })
 
-      let documentosPath = contrato.documentos // Mantém os documentos existentes se não houver novos
+      let documentosPath = contrato.documentos || '' // Inicializa com documentos existentes
 
       if (files && files.length > 0) {
-        if (contrato.documentos) {
-          const documentosAntigos = contrato.documentos.split(',')
-          for (const doc of documentosAntigos) {
-            const filePath = app.tmpPath(doc)
-            if (fs.existsSync(filePath)) {
-              fs.unlinkSync(filePath)
-            }
-          }
+        const documentosNomes = []
+        const uploadPath = app.tmpPath('uploads/contrato_clt')
+
+        if (!fs.existsSync(uploadPath)) {
+          fs.mkdirSync(uploadPath, { recursive: true })
         }
 
-        const documentosNomes = []
         for (const file of files) {
           if (!file.isValid) {
             return response.badRequest(`Arquivo inválido: ${file.clientName}`)
@@ -225,7 +228,10 @@ export default class ContratoCltsController {
           documentosNomes.push(`/uploads/contrato_clt/${fileName}`)
         }
 
-        documentosPath = documentosNomes.join(',')
+        // Concatena novos documentos com os existentes
+        documentosPath = documentosPath
+          ? `${documentosPath},${documentosNomes.join(',')}`
+          : documentosNomes.join(',')
       }
 
       if (dados.dataNascimento) {
@@ -284,17 +290,11 @@ export default class ContratoCltsController {
         return response.ok({ documentos: [] })
       }
 
-      const documentos = contrato.documentos.split(',').map((doc) => {
-        const fileName = doc.split('/').pop()
-        return {
-          path: doc,
-          nome: fileName,
-          url: `/files${doc}`,
-        }
+      return response.ok({
+        documentos: contrato.documentos,
       })
-
-      return response.ok({ documentos })
     } catch (error) {
+      console.error('Erro ao buscar documentos:', error)
       return response.status(500).send({
         message: 'Erro ao buscar documentos do contrato',
         details: error.message,
@@ -305,20 +305,21 @@ export default class ContratoCltsController {
   async deleteDocument({ params, response }: HttpContext) {
     try {
       const contrato = await Contratoclt.findOrFail(params.id)
-      const docPath = `/uploads/contrato_clt/${params.docPath}`
+      const fileName = decodeURIComponent(params.docPath) // Decodifica o nome do arquivo
 
       if (!contrato.documentos) {
         return response.notFound('Documento não encontrado')
       }
 
       const documentos = contrato.documentos.split(',')
-      const docIndex = documentos.findIndex((doc) => doc === docPath)
+      // Procura o documento pelo nome do arquivo, não pelo caminho completo
+      const docIndex = documentos.findIndex((doc) => doc.includes(fileName))
 
       if (docIndex === -1) {
         return response.notFound('Documento não encontrado')
       }
 
-      const filePath = app.tmpPath('uploads/contrato_clt', params.docPath)
+      const filePath = app.tmpPath('uploads/contrato_clt', fileName)
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath)
       }
@@ -342,21 +343,21 @@ export default class ContratoCltsController {
     try {
       const contrato = await Contratoclt.findOrFail(params.id)
       const { novoNome } = request.only(['novoNome'])
-      const docPath = `/uploads/contrato_clt/${params.docPath}`
+      const oldFileName = decodeURIComponent(params.docPath)
 
       if (!contrato.documentos) {
         return response.notFound('Documento não encontrado')
       }
 
       const documentos = contrato.documentos.split(',')
-      const docIndex = documentos.findIndex((doc) => doc === docPath)
+      const docIndex = documentos.findIndex((doc) => doc.includes(oldFileName))
 
       if (docIndex === -1) {
         return response.notFound('Documento não encontrado')
       }
 
-      const oldPath = app.tmpPath('uploads/contrato_clt', params.docPath)
-      const newPath = app.tmpPath('uploads/contrato_clt', novoNome)
+      const oldPath = app.tmpPath(`uploads/contrato_clt/${oldFileName}`)
+      const newPath = app.tmpPath(`uploads/contrato_clt/${novoNome}`)
 
       if (fs.existsSync(oldPath)) {
         fs.renameSync(oldPath, newPath)
@@ -371,8 +372,100 @@ export default class ContratoCltsController {
 
       return response.notFound('Arquivo não encontrado')
     } catch (error) {
+      console.error('Erro ao atualizar nome:', error)
       return response.status(500).send({
         message: 'Erro ao atualizar nome do documento',
+        details: error.message,
+      })
+    }
+  }
+
+  async downloadDocumento({ params, response }: HttpContext) {
+    try {
+      const contrato = await Contratoclt.findOrFail(params.id)
+      const fileName = decodeURIComponent(params.fileName)
+
+      if (!contrato.documentos) {
+        return response.notFound('Documento não encontrado')
+      }
+
+      const documentos = contrato.documentos.split(',')
+      const docPath = documentos.find((doc) => {
+        const docName = doc.split('/').pop()
+        return docName === fileName
+      })
+
+      if (!docPath) {
+        return response.notFound('Documento não encontrado')
+      }
+
+      // Construir o caminho completo do arquivo
+      const filePath = app.tmpPath('uploads/contrato_clt', fileName)
+
+      if (!fs.existsSync(filePath)) {
+        return response.notFound('Arquivo físico não encontrado')
+      }
+
+      // Definir o tipo de conteúdo correto
+      const mimeType = this.getMimeType(fileName)
+      response.header('Content-Type', mimeType)
+      response.header(
+        'Content-Disposition',
+        `attachment; filename="${encodeURIComponent(fileName)}"`
+      )
+
+      return response.download(filePath)
+    } catch (error) {
+      console.error('Erro ao baixar documento:', error)
+      return response.status(500).send({
+        message: 'Erro ao baixar documento',
+        details: error.message,
+      })
+    }
+  }
+
+  private getMimeType(fileName: string): string {
+    const extension = fileName.split('.').pop()?.toLowerCase()
+    const mimeTypes: { [key: string]: string } = {
+      pdf: 'application/pdf',
+      doc: 'application/msword',
+      docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      xls: 'application/vnd.ms-excel',
+      xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      png: 'image/png',
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      gif: 'image/gif',
+      zip: 'application/zip',
+      rar: 'application/x-rar-compressed',
+    }
+
+    return mimeTypes[extension || ''] || 'application/octet-stream'
+  }
+
+  async carregarDocumentos({ params, response }: HttpContext) {
+    try {
+      const contrato = await Contratoclt.findOrFail(params.id)
+
+      // Se não houver documentos, retorna array vazio ao invés de erro
+      if (!contrato.documentos) {
+        return response.ok({ documentos: [] })
+      }
+
+      const documentos = contrato.documentos.split(',').map((path) => {
+        const nome = path.split('/').pop()
+        return {
+          path,
+          nome,
+          url: `/download/contrato-clt/${params.id}/documento/${nome}`,
+        }
+      })
+
+      return response.ok({ documentos })
+    } catch (error) {
+      console.error('Erro ao carregar documentos:', error)
+      return response.status(500).send({
+        message: 'Erro ao carregar documentos do contrato',
         details: error.message,
       })
     }

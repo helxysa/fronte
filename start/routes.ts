@@ -6,6 +6,7 @@ import { middleware } from './kernel.js'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { json } from 'node:stream/consumers'
+const RelatorioFeriasController = () => import('#controllers/relatorio_ferias_controller')
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -32,7 +33,6 @@ const ContratoPjController = () => import('#controllers/contrato_pjs_controller'
 const RelatorioMensaisController = () => import('#controllers/relatorio_mensais_controller')
 const ContratoCltsController = () => import('#controllers/contrato_clts_controller')
 const PagamentosController = () => import('#controllers/pagamentos_controller')
-
 // Registro, Login e Autenticação
 router.post('/register', [AuthController, 'register']).as('auth.register')
 router.post('/login', [AuthController, 'login']).as('auth.login')
@@ -270,36 +270,49 @@ router
   .use(middleware.auth())
 
 // Contratos CLT
+router.group(() => {
+  router.post('/contrato-clt', [ContratoCltsController, 'store'])
+  router.get('/contrato-clt', [ContratoCltsController, 'index'])
+  router.get('/contrato-clt/:id', [ContratoCltsController, 'show'])
+  router.put('/contrato-clt/:id', [ContratoCltsController, 'update'])
+  router.delete('/contrato-clt/:id', [ContratoCltsController, 'destroy'])
+  // Novas rotas para anexos do contrato CLT
+  router.get('/contrato-clt/:id/documentos', [ContratoCltsController, 'getDocumentos'])
+  router.delete('/contrato-clt/:id/documentos/:docPath', [ContratoCltsController, 'deleteDocument'])
+  router.put('/contrato-clt/:id/documentos/:docPath', [
+    ContratoCltsController,
+    'updateDocumentName',
+  ])
+  // Adicionar esta nova rota para download
+  router.get('/download/contrato-clt/:id/documento/:fileName', [
+    ContratoCltsController,
+    'downloadDocumento',
+  ])
+})
+
+//Pagamentos
 router
   .group(() => {
-    router.post('/contrato-clt', [ContratoCltsController, 'store'])
-    router.get('/contrato-clt', [ContratoCltsController, 'index'])
-    router.get('/contrato-clt/:id', [ContratoCltsController, 'show'])
-    router.put('/contrato-clt/:id', [ContratoCltsController, 'update'])
-    router.delete('/contrato-clt/:id', [ContratoCltsController, 'destroy'])
-    // Novas rotas para anexos do contrato CLT
-    router.get('/contrato-clt/:id/documentos', [ContratoCltsController, 'getDocumentos'])
-    router.delete('/contrato-clt/:id/documentos/:docPath', [
-      ContratoCltsController,
-      'deleteDocument',
-    ])
-    router.put('/contrato-clt/:id/documentos/:docPath', [
-      ContratoCltsController,
-      'updateDocumentName',
-    ])
+    router.post('/pagamentos', [PagamentosController, 'store'])
+    router.get('/pagamentos', [PagamentosController, 'index'])
+    router.get('/pagamentos/:id', [PagamentosController, 'show'])
+    router.put('/pagamentos/:id', [PagamentosController, 'update'])
+    router.delete('/pagamentos/:id', [PagamentosController, 'destroy'])
+    router.get('/pagamentos/:id/anexos', [PagamentosController, 'listarAnexos'])
+    router.delete('/pagamentos/anexos/:anexoId', [PagamentosController, 'excluirAnexo'])
+    router.put('/pagamentos/anexos/:anexoId', [PagamentosController, 'renomearAnexo'])
   })
   .use(middleware.auth())
 
-
-
-//Pagamentos
+//Relatório de Férias
 router.group(() => {
-  router.post('/pagamentos', [PagamentosController, 'store'])
-  router.get('/pagamentos', [PagamentosController, 'index'])
-  router.get('/pagamentos/:id', [PagamentosController, 'show'])
-  router.put('/pagamentos/:id', [PagamentosController, 'update'])
-  router.delete('/pagamentos/:id', [PagamentosController, 'destroy'])
-  router.get('/pagamentos/:id/anexos', [PagamentosController, 'listarAnexos'])
-  router.delete('/pagamentos/anexos/:anexoId', [PagamentosController, 'excluirAnexo'])
-  router.put('/pagamentos/anexos/:anexoId', [PagamentosController, 'renomearAnexo'])
-}).use(middleware.auth())
+  router.get('/relatorio-ferias', [RelatorioFeriasController, 'index'])
+  router.post('/relatorio-ferias', [RelatorioFeriasController, 'store'])
+  router.get('/relatorio-ferias/:id', [RelatorioFeriasController, 'show'])
+  router.put('/relatorio-ferias/:id', [RelatorioFeriasController, 'update'])
+  router.delete('/relatorio-ferias/:id', [RelatorioFeriasController, 'destroy'])
+  router.get('/relatorio-ferias/contrato/:contratoId', [
+    RelatorioFeriasController,
+    'historicoByContrato',
+  ])
+})
