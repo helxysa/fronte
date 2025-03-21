@@ -36,7 +36,7 @@ export default class RelatorioFeriasController {
       // Calcular períodos aquisitivos e concessivos
       const periodos = this.calcularPeriodos(dataAdmissao)
 
-      // Buscar dias já gozados
+      // Buscar férias já gozadas
       const feriasGozadas = await RelatorioFerias.query()
         .where('contratoId', contratoId)
         .orderBy('periodoGozoInicio', 'desc')
@@ -45,26 +45,24 @@ export default class RelatorioFeriasController {
       let totalDiasGozados = 0
       if (feriasGozadas.length > 0) {
         totalDiasGozados = feriasGozadas.reduce((total, ferias) => {
-          const inicio = DateTime.fromISO(ferias.periodoGozoInicio.toString())
-          const fim = DateTime.fromISO(ferias.periodoGozoFim.toString())
-          const dias = Math.ceil(fim.diff(inicio, 'days').days) + 1
-          return total + dias
+          return total + ferias.diasGozados
         }, 0)
       }
 
-      // Calcular dias disponíveis (máximo 30 dias)
-      const diasDisponiveis = Math.max(0, 30 - totalDiasGozados)
-
-      // Atualizar dias disponíveis nos períodos
-      let diasDisponiveisRestantes = diasDisponiveis
-      for (const periodo of periodos) {
-        if (periodo.status === 'disponivel') {
-          // Atribuir os dias disponíveis restantes a este período
-          periodo.diasDisponiveis = diasDisponiveisRestantes
-          break // Atribuir apenas ao primeiro período disponível
-        }
+      // Encontrar o período disponível
+      const periodoDisponivel = periodos.find(p => p.status === 'disponivel')
+      
+      // Calcular dias disponíveis com base no período aquisitivo
+      // Se o período aquisitivo tem 30 dias (1 ano) ou 15 dias (6 meses)
+      let diasDisponiveis = 0
+      if (periodoDisponivel) {
+        diasDisponiveis = Math.max(0, periodoDisponivel.diasDisponiveis - totalDiasGozados)
+        
+        // Atualizar dias disponíveis no período
+        periodoDisponivel.diasDisponiveis = diasDisponiveis
       }
-
+      
+      // Garantir que a resposta inclua explicitamente o diasDisponiveis e diasGozados
       return response.json({
         periodos,
         diasGozados: totalDiasGozados,
@@ -84,58 +82,57 @@ export default class RelatorioFeriasController {
     const hoje = DateTime.now()
     const periodos: PeriodoFerias[] = []
 
-    // Calcular dias desde a admissão
-    const diasDesdeAdmissao = Math.floor(hoje.diff(dataAdmissao, 'days').days)
+    // Calcular meses desde a admissão
+    const mesesDesdeAdmissao = hoje.diff(dataAdmissao, 'months').months
 
-    // Período aquisitivo (primeiro ano)
-    const fimPeriodoAquisitivo = dataAdmissao.plus({ years: 1 }).minus({ days: 1 })
-
+    // Período aquisitivo - começa na data de admissão e vai até hoje
     // Determinar status e dias disponíveis
     let statusAquisitivo: 'em_andamento' | 'disponivel' | 'vencido' = 'em_andamento'
     let diasDisponiveisAquisitivo = 0
 
-    if (hoje > fimPeriodoAquisitivo) {
+    // Lógica corrigida para período aquisitivo
+    if (mesesDesdeAdmissao >= 12) {
+      // 12 meses ou mais = 30 dias de férias
       statusAquisitivo = 'disponivel'
-      diasDisponiveisAquisitivo = 30 // Máximo de 30 dias após 1 ano
+      diasDisponiveisAquisitivo = 30
+    } else if (mesesDesdeAdmissao >= 6 && mesesDesdeAdmissao < 12) {
+      // Entre 6 e 12 meses = 15 dias de férias
+      statusAquisitivo = 'disponivel'
+      diasDisponiveisAquisitivo = 15
     } else {
-      // Verificar se já tem pelo menos 6 meses
-      const mesesDecorridos = hoje.diff(dataAdmissao, 'months').months
-
-      if (mesesDecorridos >= 6) {
-        statusAquisitivo = 'disponivel'
-        diasDisponiveisAquisitivo = 15 // 15 dias após 6 meses
-      }
+      // Menos de 6 meses = em andamento, sem férias disponíveis
+      statusAquisitivo = 'em_andamento'
+      diasDisponiveisAquisitivo = 0
     }
 
-    // Adicionar período aquisitivo
+    // Adicionar período aquisitivo - da data de admissão até hoje
     periodos.push({
       inicio: dataAdmissao,
-      fim: fimPeriodoAquisitivo,
+      fim: hoje,  // Corrigido: fim é a data atual, não um ano após a admissão
       tipo: 'aquisitivo',
       diasDisponiveis: diasDisponiveisAquisitivo,
       status: statusAquisitivo,
     })
 
-    // Se já passou do primeiro ano, calcular período concessivo
-    if (diasDesdeAdmissao > 365) {
-      const inicioPeriodoConcessivo = fimPeriodoAquisitivo.plus({ days: 1 })
+    // Se já completou 12 meses, calcular período concessivo
+    if (mesesDesdeAdmissao >= 12) {
+      const inicioPeriodoConcessivo = dataAdmissao.plus({ years: 1 })
       const fimPeriodoConcessivo = inicioPeriodoConcessivo.plus({ years: 1 }).minus({ days: 1 })
 
       let statusConcessivo: 'em_andamento' | 'disponivel' | 'vencido' = 'em_andamento'
-      let diasDisponiveisConcessivo = 0
 
+      // Verificar se o período concessivo já venceu
       if (hoje > fimPeriodoConcessivo) {
         statusConcessivo = 'vencido'
       } else {
-        statusConcessivo = 'disponivel'
-        diasDisponiveisConcessivo = 30 // Sempre 30 dias no período concessivo
+        statusConcessivo = 'em_andamento'
       }
 
       periodos.push({
         inicio: inicioPeriodoConcessivo,
         fim: fimPeriodoConcessivo,
         tipo: 'concessivo',
-        diasDisponiveis: diasDisponiveisConcessivo,
+        diasDisponiveis: 30, // Sempre 30 dias no período concessivo
         status: statusConcessivo,
       })
     }
@@ -181,34 +178,66 @@ export default class RelatorioFeriasController {
         })
       }
 
-      const periodos = this.calcularPeriodos(DateTime.fromISO(contrato.dataAdmissao.toISO()))
-
-      const periodoDisponivel = periodos.find(
-        (p) => p.status === 'disponivel' && p.diasDisponiveis > 0
-      )
-
+      // Converter a data de admissão para DateTime do Luxon
+      const dataAdmissao = DateTime.fromISO(contrato.dataAdmissao.toString())
+      
+      // Calcular períodos aquisitivos e concessivos
+      const periodos = this.calcularPeriodos(dataAdmissao)
+      
+      // Encontrar o período disponível (com status 'disponivel')
+      const periodoDisponivel = periodos.find(p => p.status === 'disponivel')
+      
       if (!periodoDisponivel) {
         return response.status(400).json({
           message: 'Funcionário não possui períodos de férias disponíveis',
           periodos: periodos,
+          diasDisponiveis: 0,
         })
       }
-
-      const diasSolicitados =
+      
+      // Buscar férias já gozadas
+      const feriasGozadas = await RelatorioFerias.query()
+        .where('contratoId', dados.contratoId)
+        .orderBy('periodoGozoInicio', 'desc')
+      
+      // Calcular total de dias já gozados
+      let totalDiasGozados = 0
+      if (feriasGozadas.length > 0) {
+        totalDiasGozados = feriasGozadas.reduce((total, ferias) => {
+          return total + ferias.diasGozados
+        }, 0)
+      }
+      
+      // Calcular dias disponíveis com base no período aquisitivo
+      // Se o período aquisitivo tem 30 dias (1 ano) ou 15 dias (6 meses)
+      const diasTotais = periodoDisponivel.diasDisponiveis
+      const diasDisponiveis = Math.max(0, diasTotais - totalDiasGozados)
+      
+      // Calcular dias solicitados
+      const diasSolicitados = Math.ceil(
         DateTime.fromISO(dados.periodoGozoFim).diff(
           DateTime.fromISO(dados.periodoGozoInicio),
           'days'
-        ).days + 1
-
-      if (diasSolicitados > periodoDisponivel.diasDisponiveis) {
+        ).days
+      ) + 1
+      
+      console.log('Dias solicitados:', diasSolicitados)
+      console.log('Dias disponíveis:', diasDisponiveis)
+      
+      // Verificar se há dias suficientes disponíveis
+      if (diasSolicitados > diasDisponiveis) {
         return response.status(400).json({
-          message: `Dias solicitados (${diasSolicitados}) maior que dias disponíveis (${periodoDisponivel.diasDisponiveis})`,
+          message: `Dias solicitados (${diasSolicitados}) maior que dias disponíveis (${diasDisponiveis})`,
           periodoDisponivel,
+          diasDisponiveis,
         })
       }
-
+      
       const dataRetorno = DateTime.fromISO(dados.periodoGozoFim).plus({ days: 1 })
-
+      
+      // Calcular saldo atual após esta solicitação
+      const saldoFeriasAtual = diasDisponiveis - diasSolicitados
+      
       const relatorio = await RelatorioFerias.create({
         contratoId: dados.contratoId,
         nome: contrato.nomeCompleto,
@@ -219,18 +248,26 @@ export default class RelatorioFeriasController {
         periodoGozoInicio: dados.periodoGozoInicio,
         periodoGozoFim: dados.periodoGozoFim,
         dataRetorno,
-        abonoPecuniario: dados.abonoPecuniario,
-        diasAbono: dados.diasAbono,
-        valorAbono: dados.valorAbono,
-        observacoes: dados.observacoes,
+        abonoPecuniario: dados.abonoPecuniario || false,
+        diasAbono: dados.diasAbono || 0,
+        valorAbono: dados.valorAbono || 0,
+        observacoes: dados.observacoes || '',
+        // Campos de controle de saldo
+        diasGozados: diasSolicitados,
+        saldoFeriasAnterior: diasDisponiveis,
+        saldoFeriasAtual: saldoFeriasAtual
       })
-
+      
       await relatorio.load('contrato')
-
+      
       return response.created({
         message: 'Relatório de férias criado com sucesso',
         relatorio,
         periodoUtilizado: periodoDisponivel,
+        diasSolicitados,
+        diasGozados: totalDiasGozados + diasSolicitados,
+        saldoFeriasAnterior: diasDisponiveis,
+        saldoFeriasAtual: saldoFeriasAtual
       })
     } catch (error) {
       console.error('Erro detalhado:', error)

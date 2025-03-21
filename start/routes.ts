@@ -86,7 +86,7 @@ router
     router.put('perfil/:id', [ProfilesController, 'update'])
     router.delete('perfil/:id', [ProfilesController, 'destroy'])
   })
-  .use(middleware.auth())
+  
 // Dashboard
 router
   .group(() => {

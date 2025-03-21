@@ -28,6 +28,10 @@ export default class extends BaseSchema {
       table.integer('dias_abono').nullable()
       table.decimal('valor_abono', 10, 2).nullable()
       table.text('observacoes').nullable()
+      // Novos campos para controle de saldo
+      table.integer('dias_gozados').notNullable()
+      table.integer('saldo_ferias_anterior').notNullable()
+      table.integer('saldo_ferias_atual').notNullable()
       table.timestamp('created_at')
       table.timestamp('updated_at')
       table.timestamp('deleted_at').nullable()

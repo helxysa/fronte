@@ -48,6 +48,15 @@ export default class RelatorioFerias extends BaseModel {
   @column()
   declare observacoes: string | null
 
+  @column({ columnName: 'dias_gozados' })
+  declare diasGozados: number
+
+  @column({ columnName: 'saldo_ferias_anterior' })
+  declare saldoFeriasAnterior: number
+
+  @column({ columnName: 'saldo_ferias_atual' })
+  declare saldoFeriasAtual: number
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 
